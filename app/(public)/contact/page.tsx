@@ -1,0 +1,29 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { CircleCheck as CheckCircle2, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
+import { PageBanner } from "@/components/site/page-banner";
+import { siteConfig } from "@/app/config/site";
+
+type ContactData = { name: string; email: string; phone: string; company: string; subject: string; message: string; consent: boolean; website: string };
+
+export async function submitContactForm(data: ContactData): Promise<void> {
+  // Replace this simulation with a Next.js Server Action later.
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 900));
+  void data;
+}
+
+const initialData: ContactData = { name: "", email: "", phone: "", company: "", subject: "Demande de devis", message: "", consent: false, website: "" };
+
+export default function ContactPage() {
+  const [data, setData] = useState<ContactData>(initialData);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [sending, setSending] = useState(false);
+  const update = (field: keyof ContactData, value: string | boolean) => setData((current) => ({ ...current, [field]: value }));
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setError(""); setSuccess(false); if (!data.name.trim() || !data.email.trim() || !data.message.trim() || !data.consent) { setError("Please complete the required fields and accept the consent notice."); return; } if (data.website) return; setSending(true); await submitContactForm(data); setSending(false); setSuccess(true); setData(initialData); };
+  return <>
+    <PageBanner eyebrow="Contact" title="Let’s discuss your next requirement" description="Send a quotation request or ask about a product, service or partnership." />
+    <section className="bg-secondary py-20"><div className="site-container grid gap-10 lg:grid-cols-[.8fr_1.2fr]"><aside className="grid content-start gap-4"><div className="card-lift p-7"><span className="icon-badge"><Phone className="size-5" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-wider text-bronze">Phone</p><div className="mt-2 grid gap-1 font-bold text-primary">{siteConfig.phones.map((phone) => <a key={phone} href={`tel:${phone.replace(/\s/g, "")}`}>{phone}</a>)}</div></div><div className="card-lift p-7"><span className="icon-badge"><Mail className="size-5" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-wider text-bronze">Email</p><a href={`mailto:${siteConfig.email}`} className="mt-2 block font-bold text-primary">{siteConfig.email}</a></div><div className="card-lift p-7"><span className="icon-badge"><MessageCircle className="size-5" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-wider text-bronze">WhatsApp</p><a href={`https://wa.me/${siteConfig.whatsapp}`} className="mt-2 block font-bold text-primary">Start a conversation</a></div><div className="card-lift p-7"><span className="icon-badge"><MapPin className="size-5" /></span><p className="mt-5 text-xs font-extrabold uppercase tracking-wider text-bronze">Location</p><p className="mt-2 font-bold text-primary">Lubumbashi, Haut-Katanga<br />Democratic Republic of the Congo</p></div></aside><div id="devis" className="scroll-mt-28 border border-border bg-white p-7 sm:p-10"><p className="kicker">Quotation request</p><h2 className="section-heading mt-4">Tell us about your need</h2><p className="mt-3 text-muted-foreground">Fields marked with * are required.</p>{success && <div role="status" className="mt-6 flex gap-3 rounded-lg bg-green-50 p-4 text-sm font-semibold text-green-800"><CheckCircle2 className="size-5 shrink-0" />Thank you. Your request has been recorded for review.</div>}{error && <p aria-live="polite" className="mt-6 rounded-lg bg-red-50 p-4 text-sm font-semibold text-red-800">{error}</p>}<form className="mt-8 grid gap-5" onSubmit={submit} noValidate><div className="grid gap-5 sm:grid-cols-2"><label className="grid gap-2 text-sm font-bold text-primary">Name *<input className="form-field" value={data.name} onChange={(e) => update("name", e.target.value)} /></label><label className="grid gap-2 text-sm font-bold text-primary">Email *<input className="form-field" type="email" value={data.email} onChange={(e) => update("email", e.target.value)} /></label><label className="grid gap-2 text-sm font-bold text-primary">Phone<input className="form-field" value={data.phone} onChange={(e) => update("phone", e.target.value)} /></label><label className="grid gap-2 text-sm font-bold text-primary">Company<input className="form-field" value={data.company} onChange={(e) => update("company", e.target.value)} /></label></div><label className="grid gap-2 text-sm font-bold text-primary">Subject<select className="form-field" value={data.subject} onChange={(e) => update("subject", e.target.value)}><option>Demande de devis</option><option>Information sur un produit</option><option>Partenariat</option><option>Autre</option></select></label><label className="grid gap-2 text-sm font-bold text-primary">Message *<textarea className="form-field min-h-36" value={data.message} onChange={(e) => update("message", e.target.value)} /></label><label className="hidden" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={data.website} onChange={(e) => update("website", e.target.value)} /></label><label className="flex items-start gap-3 text-sm text-muted-foreground"><input type="checkbox" className="mt-1 size-4 accent-[var(--primary)]" checked={data.consent} onChange={(e) => update("consent", e.target.checked)} />I consent to MIS SARL using the information submitted solely to respond to this inquiry. *</label><button className="button button-primary w-fit" type="submit" disabled={sending}>{sending ? "Sending..." : "Send request"}</button></form></div></div></section>
+  </>;
+}

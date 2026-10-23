@@ -1,8 +1,8 @@
 export const siteConfig = {
-  name: "MARC INGINEERING SERVICE SARL",
+  name: "MARC INGINEERING SERVICES SARL",
   shortName: "MARC Ingineering",
   description:
-    "MARC INGINEERING SERVICE SARL, basée à Lubumbashi (RDC) : fourniture d'équipements, de pièces et de consommables, et services d'ingénierie pour l'industrie et le secteur minier.",
+    "MARC INGINEERING SERVICES SARL provides engineering, industrial equipment and technical supplies from Lubumbashi, Democratic Republic of the Congo.",
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   logo: "/images/logo.png",
 
@@ -20,6 +20,5 @@ export const siteConfig = {
 
   legal: {
     rccm: "CD/LSH/RCCM/26-B-00277",
-    impotNumber: "A2609081A",
   },
 } as const;

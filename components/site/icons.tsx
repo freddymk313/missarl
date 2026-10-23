@@ -1,0 +1,4 @@
+import { Building as Building2, ChevronRight, Droplets, Flame, HardHat, MapPin, Menu, MessageCircle, Phone, ShieldCheck, Truck, Wrench, X, Zap } from "lucide-react";
+
+export const serviceIcons = { Droplets, Flame, Zap, Truck, Building2, HardHat } as const;
+export { Building2, ChevronRight, Droplets, Flame, HardHat, MapPin, Menu, MessageCircle, Phone, ShieldCheck, Truck, Wrench, X, Zap };

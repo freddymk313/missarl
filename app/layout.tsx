@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   creator: siteConfig.name,
   openGraph: {
     type: "website",
-    locale: "fr_CD",
+    locale: "en_CD",
     url: siteConfig.url,
     siteName: siteConfig.name,
     title: siteConfig.name,
@@ -63,7 +63,6 @@ const jsonLd = {
   logo: `${siteConfig.url}${siteConfig.logo}`,
   email: siteConfig.email,
   telephone: siteConfig.phones,
-  taxID: siteConfig.legal.impotNumber,
   identifier: siteConfig.legal.rccm,
   address: {
     "@type": "PostalAddress",
@@ -75,7 +74,7 @@ const jsonLd = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         {children}
         <script
