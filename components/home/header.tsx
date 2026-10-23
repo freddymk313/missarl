@@ -25,18 +25,6 @@ export function Header() {
 
   return (
     <>
-      {/* <div className="hidden bg-[var(--navy-dark)] text-white lg:block">
-        <div className="site-container flex h-9 items-center justify-between text-xs">
-          <span>
-            Lubumbashi · Haut-Katanga · Democratic Republic of the Congo
-          </span>
-          <div className="flex items-center gap-6">
-            <span>{siteConfig.email}</span>
-            <span>Mon–Fri · Business hours</span>
-          </div>
-        </div>
-      </div> */}
-
       <TopBar />
 
       <header className="sticky top-0 z-40 border-b border-border/80 bg-white/95 backdrop-blur-sm">
@@ -53,7 +41,7 @@ export function Header() {
                 width={140}
                 height={120}
                 priority
-                className="h-11 w-auto object-contain lg:h-14"
+                className="h-13.5 w-auto object-contain lg:h-17"
               />
             </span>
           </Link>
@@ -75,15 +63,15 @@ export function Header() {
             ))}
           </nav>
           <div className="hidden items-center gap-5 lg:flex">
-            <a
+            <Link
               href={`tel:${siteConfig.phones[0].replace(/\s/g, "")}`}
               className="flex items-center gap-2 text-sm font-semibold text-primary"
             >
               <span className="icon-circle">
-                <Phone className="size-4" />
+                <Phone className="size-3.5" />
               </span>
               {siteConfig.phones[0]}
-            </a>
+            </Link>
             <Link href="/contact#devis" className="button button-accent">
               Request a quote <ArrowRight className="size-4" />
             </Link>
