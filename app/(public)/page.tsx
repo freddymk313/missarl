@@ -48,7 +48,7 @@ export default function Home() {
               MARC INGINEERING SERVICES SARL
             </p>
             <h1 className="display-heading mt-5 max-w-3xl">
-              Engineering and industrial supply in Lubumbashi
+              Engineering and industrial supply in DRC
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/80">
               Plumbing, electromechanics, mining equipment, materials and safety
@@ -79,7 +79,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-b bg-white">
+      <section className="*border-b bg-white">
         <div className="site-container grid gap-6 py-24 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.25fr]">
           <div className="flex gap-4">
             <span className="icon-circle">

@@ -27,7 +27,7 @@ export function Header() {
     <>
       <TopBar />
 
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-white/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-white">
         <div className="site-container flex h-16 items-center justify-between gap-6 lg:h-20">
           <Link
             href="/"
@@ -63,7 +63,7 @@ export function Header() {
             ))}
           </nav>
           <div className="hidden items-center gap-5 lg:flex">
-            <Link
+            {/* <Link
               href={`tel:${siteConfig.phones[0].replace(/\s/g, "")}`}
               className="flex items-center gap-2 text-sm font-semibold text-primary"
             >
@@ -71,7 +71,7 @@ export function Header() {
                 <Phone className="size-3.5" />
               </span>
               {siteConfig.phones[0]}
-            </Link>
+            </Link> */}
             <Link href="/contact#devis" className="button button-accent">
               Request a quote <ArrowRight className="size-4" />
             </Link>
@@ -97,7 +97,7 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "mobile-nav-link",
+                    "mobile-nav-link text-xs",
                     pathname === item.href && "bg-secondary text-primary",
                   )}
                   onClick={() => setOpen(false)}

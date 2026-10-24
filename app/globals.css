@@ -101,8 +101,9 @@ select {
 .nav-link {
   position: relative;
   padding-block: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 9px;
+  @apply text-sm;
+  font-weight: 400;
   color: var(--muted-foreground);
   transition: color 0.2s ease;
 }
@@ -127,6 +128,7 @@ select {
   border-radius: 8px;
   padding: 12px 14px;
   font-weight: 700;
+  font-size: 13px;
   color: var(--primary);
 }
 .button {
@@ -145,7 +147,6 @@ select {
     color 0.2s ease;
 }
 .button:hover {
-  transform: translateY(-2px);
 }
 .button-accent {
   background: var(--accent);
