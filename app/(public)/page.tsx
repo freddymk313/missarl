@@ -137,33 +137,27 @@ export default function Home() {
             </p>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service, index) => {
+            {services.map((service) => {
               const Icon =
                 serviceIcons[service.icon as keyof typeof serviceIcons];
               return (
                 <article
                   key={service.id}
-                  className={`card-lift group p-7 ${index === 0 ? "bg-primary text-white" : ""}`}
+                  className="card-lift group p-7"
                 >
-                  <span
-                    className={`icon-badge ${index === 0 ? "bg-accent" : ""}`}
-                  >
+                  <span className="icon-badge">
                     <Icon className="size-5" />
                   </span>
                   <h3 className="mt-6 text-xl font-extrabold">
                     {service.title}
                   </h3>
-                  <div
-                    className={`my-5 h-px w-12 ${index === 0 ? "bg-accent" : "bg-border"}`}
-                  />
-                  <p
-                    className={`text-sm leading-7 ${index === 0 ? "text-white/75" : "text-muted-foreground"}`}
-                  >
+                  <div className="my-5 h-px w-12 bg-border" />
+                  <p className="text-sm leading-7 text-muted-foreground">
                     {service.short}
                   </p>
                   <Link
                     href={`/services#${service.id}`}
-                    className={`mt-6 inline-flex items-center gap-3 text-sm font-bold ${index === 0 ? "text-accent" : "text-primary"}`}
+                    className="mt-6 inline-flex items-center gap-3 text-sm font-bold text-primary"
                   >
                     Learn more{" "}
                     <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground transition-transform group-hover:translate-x-1">
