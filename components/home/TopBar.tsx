@@ -9,8 +9,7 @@ export function TopBar() {
 
   return (
     <div className="bg-primary text-primary-foreground text-xs border-b border-white/10 select-none">
-      <div className="site-container flex items-center justify-between">
-        
+      <div className="mx-auto max-w-300 px-4 sm:px-6 h-9 sm:h-10 flex items-center justify-between">
         {/* Mobile-Only Contact Quick Action */}
         <div className="flex lg:hidden items-center gap-2 text-white/90">
           <a
@@ -51,7 +50,9 @@ export function TopBar() {
         {/* Right Side: Working hours (Desktop) & Language Switcher (Mobile + Desktop) */}
         <div className="flex items-center gap-4 sm:gap-5">
           <span className="hidden lg:inline text-white/70">
-            {language === "fr" ? "Lun - Sam : 08h00 - 17h00" : "Mon - Sat: 08:00 - 17:00"}
+            {language === "fr"
+              ? "Lun - Sam : 08h00 - 17h00"
+              : "Mon - Sat: 08:00 - 17:00"}
           </span>
 
           {/* Clean Bilingual Switcher */}
@@ -82,7 +83,6 @@ export function TopBar() {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
