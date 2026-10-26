@@ -261,6 +261,11 @@ select {
   border-radius: 12px;
   background: var(--secondary);
 }
+.image-frame-partner {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--secondary);
+}
 .image-fallback {
   background-color: var(--primary);
   background-image: linear-gradient(

@@ -25,7 +25,7 @@ const commitments = [
   "Products aligned with international quality and safety standards",
 ];
 const sectorImages = {
-  mine: imageRegistry.hero,
+  mine: imageRegistry.mining,
   industry: imageRegistry.technician,
   construction: imageRegistry.construction,
 } as const;
@@ -141,10 +141,7 @@ export default function Home() {
               const Icon =
                 serviceIcons[service.icon as keyof typeof serviceIcons];
               return (
-                <article
-                  key={service.id}
-                  className="card-lift group p-7"
-                >
+                <article key={service.id} className="card-lift group p-7">
                   <span className="icon-badge">
                     <Icon className="size-5" />
                   </span>
@@ -192,9 +189,13 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <Link href="/a-propos" className="button button-primary mt-9">
-              Discover our company <ArrowRight className="size-4" />
-            </Link>
+            <a
+              href="/pdf/missarl-company-profile.pdf"
+              download="missarl-company-profile.pdf"
+              className="button button-outline mt-9"
+            >
+              Download our company profile <ArrowRight className="size-4" />
+            </a>
           </div>
           <div className="relative grid grid-cols-2 gap-4">
             <div className="image-frame mt-12">
@@ -215,7 +216,7 @@ export default function Home() {
       </section>
 
       <section className="grid lg:grid-cols-2">
-        <div className="image-frame min-h-[420px] rounded-none">
+        <div className="rounded-none image-frame-partner min-h-105">
           <ImageWithFallback
             src={imageRegistry.transformer.url}
             alt={imageRegistry.transformer.alt}

@@ -73,14 +73,26 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-white/10">
-        <div className="site-container flex flex-col gap-3 py-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className="site-container border-t border-white/10">
+        <div className=" flex flex-col gap-3 py-5 md:py-8 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            © 2026 MARC INGINEERING SERVICES SARL. All rights reserved.
+            © 2026 MARC INGINEERING SERVICES SARL.{" "}
+            <Link
+              href="https://nordevagency.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold *hover:text-white hover:text-accent"
+            >
+              Designed by Nordev Agency
+            </Link>
           </span>
-          <Link href="/mentions-legales" className="hover:text-white">
-            Legal notice
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/mentions-legales" className="hover:text-white">
+              Legal notice
+            </Link>
+            <span>RCCM: {siteConfig.legal.rccm}</span>
+          </div>
         </div>
       </div>
     </footer>
