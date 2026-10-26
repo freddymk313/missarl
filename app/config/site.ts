@@ -14,9 +14,16 @@ export const siteConfig = {
     countryCode: "CD",
   },
 
+  location: {
+    display: {
+      fr: "Lubumbashi, Haut-Katanga, RDC",
+      en: "Lubumbashi, Haut-Katanga, DRC",
+    },
+  },
+
   phones: ["+243 992 224 458", "+243 900 041 696"],
   email: "messarl2023@gmail.com",
-  whatsapp: "243992224458", 
+  whatsapp: "243992224458",
 
   legal: {
     rccm: "CD/LSH/RCCM/26-B-00277",

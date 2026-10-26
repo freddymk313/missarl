@@ -1,7 +1,18 @@
-import { SiteFooter } from "@/components/site/site-footer";
-import { SiteHeader } from "@/components/site/site-header";
-import { WhatsAppButton } from "@/components/site/whatsapp-button";
+import { Footer } from "@/components/home/footer";
+import { Header } from "@/components/home/header";
+import { WhatsAppButton } from "@/components/home/whatsapp-button";
+import Link from "next/link";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <><a href="#main-content" className="skip-link">Skip to content</a><SiteHeader /><main id="main-content">{children}</main><WhatsAppButton /><SiteFooter /></>;
+  return (
+    <>
+      {/* <Link href="#main-content" className="skip-link">
+        Skip to content
+      </Link> */}
+      <Header />
+      <main id="main-content">{children}</main>
+      <WhatsAppButton />
+      <Footer />
+    </>
+  );
 }
