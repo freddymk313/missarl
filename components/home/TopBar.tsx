@@ -9,7 +9,7 @@ export function TopBar() {
 
   return (
     <div className="bg-primary text-primary-foreground text-xs border-b border-white/10 select-none">
-      <div className="mx-auto max-w-300 px-4 sm:px-6 h-9 sm:h-10 flex items-center justify-between">
+      <div className="site-container flex items-center justify-between">
         
         {/* Mobile-Only Contact Quick Action */}
         <div className="flex lg:hidden items-center gap-2 text-white/90">

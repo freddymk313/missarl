@@ -82,7 +82,7 @@ export function Footer() {
               href="https://nordevagency.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold *hover:text-white hover:text-accent"
+              className="font-semibold hover:text-white"
             >
               Designed by Nordev Agency
             </Link>
