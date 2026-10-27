@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Lock, Mail, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/app/config/site";
 
 export default function LoginPage() {
@@ -15,56 +14,38 @@ export default function LoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simuler un appel d'authentification
+    // Simulation d'authentification
     setTimeout(() => {
       setIsLoading(false);
     }, 1000);
   };
 
   return (
-    <div className="flex min-h-screen flex-col justify-center bg-muted/40 py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Retour à l&apos;accueil
-        </Link>
-
-        <div className="flex justify-center">
-          <div className="rounded-2xl bg-white p-3 shadow-md">
-            <Image
-              src={siteConfig.logo}
-              alt={`Logo ${siteConfig.name}`}
-              width={160}
-              height={136}
-              priority
-              className="h-14 w-auto object-contain"
-            />
-          </div>
-        </div>
-
-        <h1 className="mt-6 text-center text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Espace d&apos;administration
+    <main className="flex min-h-screen flex-col justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        {/* Precision Kicker & Heading */}
+        {/* <p className="kicker mt-6 justify-center">Espace d&apos;administration</p> */}
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+          Connexion
         </h1>
-        <p className="mt-2 text-center text-sm text-muted-foreground">
-          Connectez-vous pour gérer les devis et les commandes
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          Espace d&apos;administration {siteConfig.shortName} Service SARL.
         </p>
       </div>
 
+      {/* Form Card */}
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="rounded-2xl border bg-card px-6 py-8 shadow-sm sm:px-10">
-          <form className="space-y-5" onSubmit={handleSubmit}>
+        <div className="border border-border bg-white p-7 sm:p-10 rounded-xl">
+          <form className="space-y-5" onSubmit={handleSubmit} noValidate>
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-foreground"
+                className="block text-xs font-extrabold uppercase tracking-wider text-primary"
               >
-                Adresse email
+                Adresse email *
               </label>
               <div className="relative mt-2">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted-foreground">
                   <Mail className="size-4" />
                 </div>
                 <input
@@ -76,7 +57,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="nom@entreprise.com"
-                  className="block w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                  className="form-field pl-10"
                 />
               </div>
             </div>
@@ -85,19 +66,19 @@ export default function LoginPage() {
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-foreground"
+                  className="block text-xs font-extrabold uppercase tracking-wider text-primary"
                 >
-                  Mot de passe
+                  Mot de passe *
                 </label>
                 <a
                   href="#"
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="text-xs font-semibold text-primary hover:text-accent transition-colors"
                 >
-                  Mot de passe oublié ?
+                  Oublié ?
                 </a>
               </div>
               <div className="relative mt-2">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-muted-foreground">
                   <Lock className="size-4" />
                 </div>
                 <input
@@ -109,48 +90,42 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="block w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+                  className="form-field pl-10"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                 <input
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="size-4 rounded border-input text-primary focus:ring-ring"
+                  className="size-4 rounded border-input accent-[var(--primary)] cursor-pointer"
                 />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-muted-foreground"
-                >
-                  Se souvenir de moi
-                </label>
-              </div>
+                <span>Se souvenir de moi</span>
+              </label>
             </div>
 
-            <div>
-              <Button
+            <div className="pt-2">
+              <button
                 type="submit"
-                size="lg"
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="button button-primary w-full"
                 disabled={isLoading}
               >
                 {isLoading ? "Connexion en cours..." : "Se connecter"}
-              </Button>
+              </button>
             </div>
           </form>
 
-          <div className="mt-6 border-t pt-4 text-center">
-            <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <ShieldCheck className="size-3.5 text-accent" />
-              Accès réservé aux membres autorisés de {siteConfig.shortName}
+          {/* Footer de sécurité B2B */}
+          <div className="mt-8 border-t border-border pt-4 text-center">
+            <p className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+              Accès sécurisé réservé au personnel autorisé
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
