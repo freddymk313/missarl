@@ -1,7 +1,18 @@
-export default function DashboardLayout({
+import { redirect } from "next/navigation";
+import { getCurrentSession } from "@/lib/auth";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen bg-background">{children}</div>;
+  const session = await getCurrentSession();
+
+  if (!session) {
+    redirect("/connexion");
+  }
+
+  return <DashboardShell user={session}>{children}</DashboardShell>;
 }

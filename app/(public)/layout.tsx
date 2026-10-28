@@ -1,7 +1,6 @@
 import { Footer } from "@/components/home/footer";
 import { Header } from "@/components/home/header";
 import { WhatsAppButton } from "@/components/home/whatsapp-button";
-import Link from "next/link";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

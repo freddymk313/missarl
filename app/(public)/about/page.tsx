@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { ImageWithFallback } from "@/components/home/image-with-fallback";
 import { imageRegistry, team } from "@/app/config/content";
 import { PageBanner } from "@/components/home/page-banner";
