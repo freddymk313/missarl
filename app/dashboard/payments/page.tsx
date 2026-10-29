@@ -4,7 +4,7 @@ import { getClients } from "@/lib/db/clients";
 import { getInvoices } from "@/lib/db/invoices";
 import { PaymentsManager } from "@/components/dashboard/payments-manager";
 
-export default async function PaiementsPage({
+export default async function PaymentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ client?: string; invoice?: string }>;

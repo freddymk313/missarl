@@ -32,58 +32,58 @@ interface SidebarProps {
 const navItems = [
   {
     href: "/dashboard",
-    label: "Tableau de bord",
+    label: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
   },
   {
-    href: "/dashboard/articles",
-    label: "Catalogue & Prix",
+    href: "/dashboard/items",
+    label: "Items",
     icon: Package,
   },
   {
     href: "/dashboard/clients",
-    label: "Clients & Dossiers",
+    label: "Clients",
     icon: Building2,
   },
   {
-    href: "/dashboard/fournisseurs",
-    label: "Fournisseurs",
+    href: "/dashboard/suppliers",
+    label: "Suppliers",
     icon: Truck,
   },
   {
-    href: "/dashboard/quotations",
-    label: "Devis & Proformas",
+    href: "/dashboard/quotes",
+    label: "Quotes",
     icon: FileSpreadsheet,
   },
   {
-    href: "/dashboard/commandes",
-    label: "Commandes Clients",
+    href: "/dashboard/orders",
+    label: "PO / Commandes",
     icon: ShoppingCart,
   },
   {
-    href: "/dashboard/factures",
-    label: "Factures de Vente",
+    href: "/dashboard/invoices",
+    label: "Invoices",
     icon: Receipt,
   },
   {
-    href: "/dashboard/paiements",
-    label: "Paiements & Règlements",
+    href: "/dashboard/payments",
+    label: "Payments",
     icon: CreditCard,
   },
   {
-    href: "/dashboard/releves",
-    label: "Relevés de Compte",
+    href: "/dashboard/statements",
+    label: "Statements",
     icon: FileText,
   },
   {
-    href: "/dashboard/utilisateurs",
-    label: "Utilisateurs & Accès",
+    href: "/dashboard/users",
+    label: "Users",
     icon: Users,
   },
   {
-    href: "/dashboard/parametres",
-    label: "Paramètres Système",
+    href: "/dashboard/settings",
+    label: "Settings",
     icon: Settings,
   },
 ];
@@ -91,7 +91,9 @@ const navItems = [
 export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
 
-  const allowedNav = navItems.filter((item) => isRouteAllowed(user.role, item.href));
+  const allowedNav = navItems.filter((item) =>
+    isRouteAllowed(user.role, item.href),
+  );
 
   return (
     <>
@@ -107,7 +109,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
       <aside
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex w-72 flex-col bg-slate-900 text-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 border-r border-slate-800",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Brand Header */}
@@ -142,9 +144,6 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
 
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto px-4 py-5 space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-extrabold tracking-wider text-slate-400 uppercase">
-            Modules Métiers
-          </div>
           {allowedNav.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact
@@ -160,14 +159,16 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                   "group flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all",
                   isActive
                     ? "bg-accent text-slate-900 shadow-sm"
-                    : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                    : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
                 )}
               >
                 <div className="flex items-center gap-3">
                   <Icon
                     className={cn(
                       "size-4 shrink-0 transition-colors",
-                      isActive ? "text-slate-900" : "text-slate-400 group-hover:text-white"
+                      isActive
+                        ? "text-slate-900"
+                        : "text-slate-400 group-hover:text-white",
                     )}
                   />
                   <span>{item.label}</span>
@@ -185,13 +186,15 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
               <Shield className="size-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-extrabold text-white truncate">{user.fullName}</p>
+              <p className="text-xs font-extrabold text-white truncate">
+                {user.fullName}
+              </p>
               <p className="text-[10px] font-semibold text-accent truncate">
                 {user.role === "SUPER_ADMIN"
                   ? "Super Admin"
                   : user.role === "ADMIN"
-                  ? "Admin Commercial"
-                  : "Collecteur de Prix"}
+                    ? "Admin Commercial"
+                    : "Collecteur de Prix"}
               </p>
             </div>
           </div>

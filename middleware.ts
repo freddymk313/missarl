@@ -1,24 +1,21 @@
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   const sessionCookie = request.cookies.get("mis_session");
 
-  // Redirect legacy /login to /connexion
-  if (pathname === "/login") {
-    return NextResponse.redirect(new URL("/connexion", request.url));
-  }
-
-  // If visiting /connexion while already having a session cookie, redirect to /dashboard
-  if (pathname === "/connexion" && sessionCookie?.value) {
+  // Si l'utilisateur possède déjà une session, quitter la page de connexion
+  if (pathname === "/login" && sessionCookie?.value) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // If visiting /dashboard without a session cookie, redirect to /connexion
+  // Protéger le dashboard si aucune session n'existe
   if (pathname.startsWith("/dashboard") && !sessionCookie?.value) {
-    const loginUrl = new URL("/connexion", request.url);
-    loginUrl.searchParams.set("returnUrl", pathname);
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("returnUrl", pathname + search);
+
     return NextResponse.redirect(loginUrl);
   }
 
@@ -26,5 +23,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/connexion", "/dashboard/:path*"],
+  matcher: ["/login", "/dashboard/:path*"],
 };

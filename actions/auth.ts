@@ -60,5 +60,5 @@ export async function loginAction(
 
 export async function logoutAction(): Promise<void> {
   await destroySession();
-  redirect("/connexion");
+  redirect("/login");
 }

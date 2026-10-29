@@ -11,7 +11,7 @@ export default async function DashboardLayout({
   const session = await getCurrentSession();
 
   if (!session) {
-    redirect("/connexion");
+    redirect("/login");
   }
 
   return <DashboardShell user={session}>{children}</DashboardShell>;

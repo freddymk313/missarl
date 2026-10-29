@@ -2,7 +2,7 @@ import { requireSession } from "@/lib/auth";
 import { getClients } from "@/lib/db/clients";
 import { ClientsManager } from "@/components/dashboard/clients-manager";
 
-export default async function ClientsPage() {
+export default async function UsersPage() {
   await requireSession(["SUPER_ADMIN", "ADMIN"]);
   const clients = await getClients();
 
@@ -14,7 +14,8 @@ export default async function ClientsPage() {
           Clients & Sociétés Minières
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Gestion des comptes clients, adresses de livraison sur site, coordonnées et accès aux dossiers commerciaux.
+          Gestion des comptes clients, adresses de livraison sur site,
+          coordonnées et accès aux dossiers commerciaux.
         </p>
       </div>
 

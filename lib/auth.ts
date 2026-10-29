@@ -141,7 +141,7 @@ export async function getCurrentSession(): Promise<UserSession | null> {
 export async function requireSession(allowedRoles?: UserRole[]): Promise<UserSession> {
   const session = await getCurrentSession();
   if (!session) {
-    redirect("/connexion");
+    redirect("/login");
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(session.role)) {

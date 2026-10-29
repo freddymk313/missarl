@@ -8,7 +8,7 @@ import { getPayments } from "@/lib/db/payments";
 import { getClientAccountStatement } from "@/lib/db/statements";
 import { ClientWorkspace } from "@/components/dashboard/client-workspace";
 
-export default async function ClientDetailPage({
+export default async function UserDetailPage({
   params,
 }: {
   params: Promise<{ clientId: string }>;
