@@ -1,15 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import {
+  Building2,
+  FileSpreadsheet,
+  ShoppingCart,
+  Receipt,
+  CreditCard,
+  FileText,
+  Plus,
+  ArrowRight,
+  Phone,
+  Mail,
+  MapPin,
+  ExternalLink,
+} from "lucide-react";
 import { ClientRecord } from "@/lib/db/clients";
 import { QuotationRecord } from "@/lib/db/quotations";
 import { OrderRecord } from "@/lib/db/orders";
 import { InvoiceRecord } from "@/lib/db/invoices";
 import { PaymentRecord } from "@/lib/db/payments";
 import { ClientAccountStatement } from "@/lib/db/statements";
-import { StatusBadge } from "@/components/dashboard/status-badge";
+import {
+  PageHeader,
+  StatTile,
+  StatusPill,
+  MoneyText,
+  RefChip,
+  KeyValueTile,
+  formatDate,
+} from "@/components/dashboard/ui";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 interface ClientWorkspaceProps {
   client: ClientRecord;
@@ -17,7 +40,7 @@ interface ClientWorkspaceProps {
   orders: OrderRecord[];
   invoices: InvoiceRecord[];
   payments: PaymentRecord[];
-  statement: ClientAccountStatement;
+  statement: ClientAccountStatement | null;
 }
 
 export function ClientWorkspace({
@@ -28,439 +51,350 @@ export function ClientWorkspace({
   payments,
   statement,
 }: ClientWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "quotations" | "orders" | "invoices" | "payments" | "statement"
-  >("overview");
+  const [activeTab, setActiveTab] = React.useState("quotes");
 
-  const totalInvoiced = invoices.reduce((sum, i) => (i.status !== "CANCELLED" ? sum + i.total : sum), 0);
-  const totalReceivables = invoices.reduce((sum, i) => (i.status !== "CANCELLED" ? sum + i.balanceDue : sum), 0);
-  const totalPaid = payments.reduce((sum, p) => (p.status !== "CANCELLED" ? sum + p.amount : sum), 0);
+  const totalInvoiced = invoices.reduce(
+    (sum, i) => (i.status !== "CANCELLED" ? sum + i.total : sum),
+    0
+  );
+  const totalReceivables = invoices.reduce(
+    (sum, i) => (i.status !== "CANCELLED" ? sum + i.balanceDue : sum),
+    0
+  );
+  const totalPaid = payments.reduce(
+    (sum, p) => (p.status !== "CANCELLED" ? sum + p.amount : sum),
+    0
+  );
+
+  const openQuotesCount = quotations.filter((q) => q.status === "SUBMITTED" || q.status === "DRAFT").length;
+  const activeOrdersCount = orders.filter((o) => o.status === "PENDING" || o.status === "CONFIRMED").length;
 
   return (
-    <div className="space-y-6">
-      {/* Client Identity Header Card */}
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-xs">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="rounded-md bg-primary/10 px-2.5 py-1 font-mono text-xs font-black text-primary">
-                {client.code}
-              </span>
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                Client Actif
-              </span>
-            </div>
-            <h1 className="mt-2 text-2xl font-black text-primary tracking-tight">
-              {client.name}
-            </h1>
-            {client.taxId && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                NIF / Identifiant fiscal: <span className="font-mono font-bold text-slate-700">{client.taxId}</span>
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2 shrink-0">
+    <div className="space-y-6 max-w-7xl">
+      {/* Page Header */}
+      <PageHeader
+        title={client.name}
+        description={`Dossier client ${client.code} · ${client.taxId ? `NIF: ${client.taxId}` : "Compte commercial"}`}
+        icon={<Building2 className="size-5" />}
+        actions={
+          <div className="flex items-center gap-2">
             <Link
-              href={`/dashboard/quotations/nouveau?clientId=${client.id}`}
-              className="button button-primary text-xs"
+              href={`/dashboard/quotes/new?clientId=${client.id}`}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-colors"
             >
-              <Plus className="size-4" /> Nouveau Devis pour {client.code}
+              <Plus className="size-3.5" />
+              <span>Nouveau devis</span>
+            </Link>
+            <Link
+              href="/dashboard/clients"
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 text-xs font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <span>Tous les clients</span>
             </Link>
           </div>
-        </div>
+        }
+      />
 
-        {/* Contact info grid */}
-        <div className="mt-5 grid gap-4 border-t border-border pt-4 text-xs sm:grid-cols-3">
-          <div>
-            <p className="font-extrabold text-slate-500 uppercase text-[10px]">Contact Direct</p>
-            <p className="mt-1 font-bold text-slate-800">{client.contactPerson || "Non spécifié"}</p>
-            <p className="text-muted-foreground">{client.phone || "—"}</p>
-            <p className="text-muted-foreground">{client.email || "—"}</p>
-          </div>
-          <div>
-            <p className="font-extrabold text-slate-500 uppercase text-[10px]">Adresse de facturation</p>
-            <p className="mt-1 text-slate-700 leading-relaxed">{client.billingAddress || "—"}</p>
-          </div>
-          <div>
-            <p className="font-extrabold text-slate-500 uppercase text-[10px]">Site de livraison usuel</p>
-            <p className="mt-1 text-slate-700 leading-relaxed">{client.deliveryAddress || "—"}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="card-lift p-4 bg-white">
-          <p className="text-[11px] font-extrabold uppercase text-bronze">Total Devis Émis</p>
-          <p className="mt-1.5 text-xl font-black text-primary">{quotations.length}</p>
-          <p className="text-[10px] text-muted-foreground">
-            {quotations.filter((q) => q.status === "VALIDATED").length} devis validé(s)
-          </p>
-        </div>
-        <div className="card-lift p-4 bg-white">
-          <p className="text-[11px] font-extrabold uppercase text-bronze">Commandes Clients</p>
-          <p className="mt-1.5 text-xl font-black text-primary">{orders.length}</p>
-          <p className="text-[10px] text-muted-foreground">
-            {orders.filter((o) => o.status === "CONFIRMED").length} active(s)
-          </p>
-        </div>
-        <div className="card-lift p-4 bg-white">
-          <p className="text-[11px] font-extrabold uppercase text-bronze">Total Facturé</p>
-          <p className="mt-1.5 text-xl font-black text-primary">
-            ${totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[10px] text-muted-foreground">{invoices.length} facture(s)</p>
-        </div>
-        <div className="card-lift p-4 bg-white">
-          <p className="text-[11px] font-extrabold uppercase text-bronze">Solde Restant Dû</p>
-          <p className="mt-1.5 text-xl font-black text-rose-700">
-            ${totalReceivables.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </p>
-          <p className="text-[10px] text-emerald-600 font-bold">
-            ${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })} déjà réglé
-          </p>
-        </div>
-      </div>
-
-      {/* Workspace Tabs Navigation */}
-      <div className="border-b border-border bg-white rounded-t-2xl px-4 pt-3 flex gap-2 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "overview"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Vue Générale
-        </button>
-        <button
-          onClick={() => setActiveTab("quotations")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "quotations"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Devis ({quotations.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("orders")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "orders"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Commandes ({orders.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("invoices")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "invoices"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Factures ({invoices.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("payments")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "payments"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Paiements ({payments.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("statement")}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer shrink-0 ${
-            activeTab === "statement"
-              ? "border-accent text-primary font-black"
-              : "border-transparent text-slate-500 hover:text-primary"
-          }`}
-        >
-          Relevé de Compte
-        </button>
-      </div>
-
-      {/* Tab Contents */}
-      <div className="rounded-b-2xl border border-t-0 border-border bg-white p-6 shadow-2xs">
-        {/* OVERVIEW TAB */}
-        {activeTab === "overview" && (
-          <div className="space-y-6">
-            <h3 className="text-sm font-extrabold text-primary">Dernière activité du compte</h3>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="border border-border rounded-xl p-4">
-                <p className="text-xs font-extrabold text-primary mb-3">Devis récents</p>
-                {quotations.slice(0, 3).map((q) => (
-                  <div key={q.id} className="py-2 flex items-center justify-between text-xs border-b border-border/50 last:border-0">
-                    <div>
-                      <p className="font-bold text-slate-900">{q.internalReference}</p>
-                      <p className="text-[10px] text-muted-foreground">{q.documentDate}</p>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <span className="font-mono font-bold">${q.total.toFixed(2)}</span>
-                      <StatusBadge status={q.status} />
-                    </div>
-                  </div>
-                ))}
+      {/* Identity & Coordinates Card */}
+      <div className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/70">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm shrink-0">
+              {client.code.slice(0, 3)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-foreground">{client.name}</h2>
+                <RefChip variant="primary">{client.code}</RefChip>
+                <StatusPill status={client.isActive ? "ACTIVE" : "INACTIVE"} />
               </div>
-
-              <div className="border border-border rounded-xl p-4">
-                <p className="text-xs font-extrabold text-primary mb-3">Factures récentes</p>
-                {invoices.slice(0, 3).map((i) => (
-                  <div key={i.id} className="py-2 flex items-center justify-between text-xs border-b border-border/50 last:border-0">
-                    <div>
-                      <p className="font-bold text-slate-900">{i.invoiceNumber}</p>
-                      <p className="text-[10px] text-muted-foreground">{i.issueDate}</p>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <span className="font-mono font-bold">${i.total.toFixed(2)}</span>
-                      <StatusBadge status={i.status} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {client.taxId && (
+                <span className="text-xs text-muted-foreground">
+                  Identifiant fiscal: <span className="font-semibold text-foreground">{client.taxId}</span>
+                </span>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        {/* QUOTATIONS TAB */}
-        {activeTab === "quotations" && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-slate-50 font-black text-slate-700 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-3">Référence interne</th>
-                  <th className="py-3 px-3">Type</th>
-                  <th className="py-3 px-3">Réf. RFQ Client</th>
-                  <th className="py-3 px-3">Date</th>
-                  <th className="py-3 px-3 text-right">Sous-total</th>
-                  <th className="py-3 px-3 text-right">Total TTC ($)</th>
-                  <th className="py-3 px-3 text-center">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {quotations.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                      Aucun devis créé pour ce client.
-                    </td>
-                  </tr>
-                ) : (
-                  quotations.map((q) => (
-                    <tr key={q.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-3 font-mono font-bold text-primary">{q.internalReference}</td>
-                      <td className="py-3 px-3">
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold">
-                          {q.docType === "PROFORMA" ? "Proforma" : "Devis"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 font-medium text-slate-600">{q.clientRfqNumber || "—"}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{q.documentDate}</td>
-                      <td className="py-3 px-3 text-right font-mono">${q.subtotal.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">${q.total.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-center"><StatusBadge status={q.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ORDERS TAB */}
-        {activeTab === "orders" && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-slate-50 font-black text-slate-700 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-3">N° Commande (BC)</th>
-                  <th className="py-3 px-3">PO N° Client</th>
-                  <th className="py-3 px-3">Devis Source</th>
-                  <th className="py-3 px-3">Date</th>
-                  <th className="py-3 px-3 text-right">Total ($)</th>
-                  <th className="py-3 px-3 text-center">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
-                      Aucune commande enregistrée pour ce client.
-                    </td>
-                  </tr>
-                ) : (
-                  orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-3 font-mono font-bold text-primary">{o.orderNumber}</td>
-                      <td className="py-3 px-3 font-semibold text-slate-800">{o.clientPoNumber}</td>
-                      <td className="py-3 px-3 font-mono text-muted-foreground">{o.quotationReference}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{o.poDate}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">${o.total.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-center"><StatusBadge status={o.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* INVOICES TAB */}
-        {activeTab === "invoices" && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-slate-50 font-black text-slate-700 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-3">N° Facture</th>
-                  <th className="py-3 px-3">Commande Liée</th>
-                  <th className="py-3 px-3">Date Émission</th>
-                  <th className="py-3 px-3">Date Échéance</th>
-                  <th className="py-3 px-3 text-right">Total ($)</th>
-                  <th className="py-3 px-3 text-right">Solde Dû ($)</th>
-                  <th className="py-3 px-3 text-center">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {invoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                      Aucune facture émise pour ce client.
-                    </td>
-                  </tr>
-                ) : (
-                  invoices.map((i) => (
-                    <tr key={i.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-3 font-mono font-bold text-primary">{i.invoiceNumber}</td>
-                      <td className="py-3 px-3 font-mono text-muted-foreground">{i.orderNumber || "—"}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{i.issueDate}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{i.dueDate}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold">${i.total.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-rose-700">${i.balanceDue.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-center"><StatusBadge status={i.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* PAYMENTS TAB */}
-        {activeTab === "payments" && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-slate-50 font-black text-slate-700 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-3">N° Reçu</th>
-                  <th className="py-3 px-3">Date Paiement</th>
-                  <th className="py-3 px-3">Mode</th>
-                  <th className="py-3 px-3">Réf. Bordereau</th>
-                  <th className="py-3 px-3 text-right">Montant Encaissé</th>
-                  <th className="py-3 px-3 text-right">Non Alloué</th>
-                  <th className="py-3 px-3 text-center">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {payments.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                      Aucun paiement enregistré pour ce client.
-                    </td>
-                  </tr>
-                ) : (
-                  payments.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-3 font-mono font-bold text-primary">{p.paymentNumber}</td>
-                      <td className="py-3 px-3 text-muted-foreground">{p.paymentDate}</td>
-                      <td className="py-3 px-3 font-semibold text-slate-700">{p.paymentMethod}</td>
-                      <td className="py-3 px-3 font-mono text-slate-800">{p.referenceNumber}</td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700">${p.amount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-right font-mono text-muted-foreground">${p.unallocatedAmount.toFixed(2)}</td>
-                      <td className="py-3 px-3 text-center"><StatusBadge status={p.status} /></td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* STATEMENT (RELEVÉ DE COMPTE) TAB */}
-        {activeTab === "statement" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4 border border-border">
-              <div>
-                <p className="text-xs font-extrabold text-primary">Grand Livre / Relevé Client</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Calculé dynamiquement sur les factures émises et les paiements reçus.
-                </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
+          <KeyValueTile
+            label="Contact principal"
+            value={
+              <div className="space-y-0.5">
+                <span className="font-semibold block">{client.contactPerson || "Non spécifié"}</span>
+                {client.phone && <span className="text-muted-foreground block">{client.phone}</span>}
+                {client.email && <span className="text-muted-foreground block">{client.email}</span>}
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold text-muted-foreground">Solde Clôture Débiteur</p>
-                <p className="text-xl font-black text-rose-700">
-                  ${statement.closingBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
+            }
+          />
+          <KeyValueTile
+            label="Adresse de facturation"
+            value={client.billingAddress || "—"}
+          />
+          <KeyValueTile
+            label="Site de livraison habituel"
+            value={client.deliveryAddress || "—"}
+          />
+        </div>
+      </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border bg-slate-50 font-black text-slate-700 uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="py-3 px-3">Date</th>
-                    <th className="py-3 px-3">Type</th>
-                    <th className="py-3 px-3">Réf. Document</th>
-                    <th className="py-3 px-3">Libellé de l&apos;opération</th>
-                    <th className="py-3 px-3 text-right">Débit (Facture)</th>
-                    <th className="py-3 px-3 text-right">Crédit (Règlement)</th>
-                    <th className="py-3 px-3 text-right">Solde Cumulé</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {statement.transactions.length === 0 ? (
+      {/* Financial KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Devis en cours"
+          value={openQuotesCount}
+          subtitle={`${quotations.length} devis créés au total`}
+          icon={<FileSpreadsheet className="size-4" />}
+        />
+        <StatTile
+          label="Commandes actives"
+          value={activeOrdersCount}
+          subtitle={`${orders.length} bons de commande émis`}
+          icon={<ShoppingCart className="size-4" />}
+        />
+        <StatTile
+          label="Créances à recouvrer"
+          value={<MoneyText value={totalReceivables} />}
+          subtitle={<MoneyText value={totalInvoiced} className="text-muted-foreground" />}
+          icon={<Receipt className="size-4" />}
+        />
+        <StatTile
+          label="Paiements enregistrés"
+          value={<MoneyText value={totalPaid} />}
+          subtitle={`${payments.length} encaissement(s)`}
+          icon={<CreditCard className="size-4" />}
+        />
+      </div>
+
+      {/* Tabs Hub: Devis, Commandes, Factures, Relevé */}
+      <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="border-b border-border/80 pb-3">
+            <TabsList variant="line" className="h-9">
+              <TabsTrigger value="quotes" className="text-xs gap-1.5 font-semibold">
+                <FileSpreadsheet className="size-3.5" />
+                <span>Devis ({quotations.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="text-xs gap-1.5 font-semibold">
+                <ShoppingCart className="size-3.5" />
+                <span>Commandes ({orders.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="invoices" className="text-xs gap-1.5 font-semibold">
+                <Receipt className="size-3.5" />
+                <span>Factures ({invoices.length})</span>
+              </TabsTrigger>
+              <TabsTrigger value="statement" className="text-xs gap-1.5 font-semibold">
+                <FileText className="size-3.5" />
+                <span>Relevé de compte</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Quotations Tab */}
+          <TabsContent value="quotes" className="pt-4">
+            {quotations.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Aucun devis créé pour ce client.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border/80 bg-secondary/40 text-muted-foreground font-semibold text-[11px] uppercase">
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                        Aucune transaction financière sur ce compte client.
-                      </td>
+                      <th className="py-3 px-4">Réf. Devis</th>
+                      <th className="py-3 px-4">RFQ Client</th>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4 text-right">Montant ($ USD)</th>
+                      <th className="py-3 px-4 text-center">Statut</th>
                     </tr>
-                  ) : (
-                    statement.transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-3 text-muted-foreground font-mono">{tx.date}</td>
-                        <td className="py-3 px-3">
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                              tx.type === "INVOICE" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"
-                            }`}
-                          >
-                            {tx.type === "INVOICE" ? "Facture" : "Règlement"}
-                          </span>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {quotations.map((q) => (
+                      <tr key={q.id} className="hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-4 font-semibold text-foreground">
+                          <RefChip>{q.internalReference}</RefChip>
                         </td>
-                        <td className="py-3 px-3 font-mono font-bold text-slate-800">{tx.reference}</td>
-                        <td className="py-3 px-3 text-slate-700">{tx.description}</td>
-                        <td className="py-3 px-3 text-right font-mono text-slate-900">
-                          {tx.debit > 0 ? `$${tx.debit.toFixed(2)}` : "—"}
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {q.clientRfqNumber || "—"}
                         </td>
-                        <td className="py-3 px-3 text-right font-mono text-emerald-700 font-bold">
-                          {tx.credit > 0 ? `$${tx.credit.toFixed(2)}` : "—"}
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {formatDate(q.documentDate)}
                         </td>
-                        <td className="py-3 px-3 text-right font-mono font-black text-slate-900">
-                          ${tx.runningBalance.toFixed(2)}
+                        <td className="py-3 px-4 text-right">
+                          <MoneyText value={q.total} className="font-bold text-foreground" />
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <StatusPill status={q.status} />
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="pt-4">
+            {orders.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Aucun bon de commande enregistré.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border/80 bg-secondary/40 text-muted-foreground font-semibold text-[11px] uppercase">
+                    <tr>
+                      <th className="py-3 px-4">N° Commande (PO)</th>
+                      <th className="py-3 px-4">PO Client</th>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4 text-right">Montant ($ USD)</th>
+                      <th className="py-3 px-4 text-center">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {orders.map((o) => (
+                      <tr key={o.id} className="hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-4 font-semibold text-foreground">
+                          <RefChip>{o.orderNumber}</RefChip>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {o.clientPoNumber}
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {formatDate(o.orderDate)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <MoneyText value={o.total} className="font-bold text-foreground" />
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <StatusPill status={o.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices" className="pt-4">
+            {invoices.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Aucune facture émise pour ce client.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border/80 bg-secondary/40 text-muted-foreground font-semibold text-[11px] uppercase">
+                    <tr>
+                      <th className="py-3 px-4">N° Facture</th>
+                      <th className="py-3 px-4">Date d&apos;émission</th>
+                      <th className="py-3 px-4 text-right">Total ($ USD)</th>
+                      <th className="py-3 px-4 text-right">Solde dû</th>
+                      <th className="py-3 px-4 text-center">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {invoices.map((i) => (
+                      <tr key={i.id} className="hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-4 font-semibold text-foreground">
+                          <RefChip>{i.invoiceNumber}</RefChip>
+                        </td>
+                        <td className="py-3 px-4 text-muted-foreground">
+                          {formatDate(i.issueDate)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <MoneyText value={i.total} className="font-bold text-foreground" />
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {i.balanceDue > 0 ? (
+                            <MoneyText value={i.balanceDue} className="text-destructive font-bold" />
+                          ) : (
+                            <span className="text-success font-medium">Réglé</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <StatusPill status={i.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Statement Tab */}
+          <TabsContent value="statement" className="pt-4">
+            {statement && statement.entries && statement.entries.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                  <div>
+                    <h3 className="text-xs font-bold text-foreground">
+                      Extrait Chronologique du Compte
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Solde de clôture: <MoneyText value={statement.closingBalance} className="font-bold text-foreground" />
+                    </p>
+                  </div>
+                  <Link
+                    href={`/dashboard/statements?clientId=${client.id}`}
+                    className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    <span>Ouvrir dans l&apos;éditeur de relevés</span>
+                    <ArrowRight className="size-3" />
+                  </Link>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-border/80 bg-secondary/40 text-muted-foreground font-semibold text-[11px] uppercase">
+                      <tr>
+                        <th className="py-3 px-4">Date</th>
+                        <th className="py-3 px-4">Référence</th>
+                        <th className="py-3 px-4">Description</th>
+                        <th className="py-3 px-4 text-right">Débit (+)</th>
+                        <th className="py-3 px-4 text-right">Crédit (-)</th>
+                        <th className="py-3 px-4 text-right">Solde progressif</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {statement.entries.map((entry, idx) => (
+                        <tr key={idx} className="hover:bg-secondary/30 transition-colors">
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {formatDate(entry.date)}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-foreground">
+                            <RefChip>{entry.referenceNumber}</RefChip>
+                          </td>
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {entry.description}
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums">
+                            {entry.debit > 0 ? <MoneyText value={entry.debit} /> : "—"}
+                          </td>
+                          <td className="py-3 px-4 text-right tabular-nums">
+                            {entry.credit > 0 ? <MoneyText value={entry.credit} className="text-success" /> : "—"}
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
+                            <MoneyText value={entry.runningBalance} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Aucune transaction enregistrée pour établir un relevé.
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

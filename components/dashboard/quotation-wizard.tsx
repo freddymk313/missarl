@@ -1,12 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowLeft, Calculator, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Plus,
+  Trash2,
+  FileSpreadsheet,
+  CheckCircle2,
+  Calculator,
+  Loader2,
+  Building2,
+  Package,
+} from "lucide-react";
 import { ClientRecord } from "@/lib/db/clients";
 import { ItemRecord } from "@/lib/db/items";
 import { createQuotationAction } from "@/actions/quotations";
+import {
+  PageHeader,
+  MoneyText,
+  RefChip,
+  KeyValueTile,
+} from "@/components/dashboard/ui";
+import { Button } from "@/components/ui/button";
 
 interface QuotationWizardProps {
   clients: ClientRecord[];
@@ -29,18 +47,26 @@ export function QuotationWizard({
   preselectedClientId,
 }: QuotationWizardProps) {
   const router = useRouter();
-  const [clientId, setClientId] = useState(preselectedClientId || clients[0]?.id || "");
-  const [docType, setDocType] = useState<"QUOTATION" | "PROFORMA">("QUOTATION");
-  const [clientRfqNumber, setClientRfqNumber] = useState("");
-  const [validityDays, setValidityDays] = useState(30);
-  const [vatRate, setVatRate] = useState(16);
-  const [paymentTerms, setPaymentTerms] = useState("30 jours fin de mois");
-  const [deliveryLeadTime, setDeliveryLeadTime] = useState("Ex-stock Lubumbashi / 2-3 semaines");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
-  const [lines, setLines] = useState<LineItemDraft[]>([
+  // Stepper state: 1: Client & RFQ, 2: Articles, 3: Récapitulatif
+  const [currentStep, setCurrentStep] = React.useState<1 | 2 | 3>(1);
+
+  const [clientId, setClientId] = React.useState(
+    preselectedClientId || clients[0]?.id || ""
+  );
+  const [docType, setDocType] = React.useState<"QUOTATION" | "PROFORMA">("QUOTATION");
+  const [clientRfqNumber, setClientRfqNumber] = React.useState("");
+  const [validityDays, setValidityDays] = React.useState(30);
+  const [vatRate, setVatRate] = React.useState(16);
+  const [paymentTerms, setPaymentTerms] = React.useState("30 jours fin de mois");
+  const [deliveryLeadTime, setDeliveryLeadTime] = React.useState(
+    "Ex-stock Lubumbashi / 2-3 semaines"
+  );
+  const [notes, setNotes] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const [lines, setLines] = React.useState<LineItemDraft[]>([
     {
       description: "",
       unit: "Pce",
@@ -49,6 +75,10 @@ export function QuotationWizard({
       discountPercent: 0,
     },
   ]);
+
+  const selectedClient = React.useMemo(() => {
+    return clients.find((c) => c.id === clientId);
+  }, [clients, clientId]);
 
   const addLine = () => {
     setLines((prev) => [
@@ -99,16 +129,37 @@ export function QuotationWizard({
     );
   };
 
-  // Financial calculations
-  const subtotal = lines.reduce((sum, line) => {
-    const qty = Math.max(0, line.quantity || 0);
-    const price = Math.max(0, line.unitPrice || 0);
-    const disc = Math.min(100, Math.max(0, line.discountPercent || 0));
-    return sum + qty * price * (1 - disc / 100);
-  }, 0);
+  // Calculations
+  const subtotal = React.useMemo(() => {
+    return lines.reduce((sum, line) => {
+      const qty = Math.max(0, line.quantity || 0);
+      const price = Math.max(0, line.unitPrice || 0);
+      const disc = Math.min(100, Math.max(0, line.discountPercent || 0));
+      return sum + qty * price * (1 - disc / 100);
+    }, 0);
+  }, [lines]);
 
   const vatAmount = subtotal * (vatRate / 100);
   const grandTotal = subtotal + vatAmount;
+
+  const validateStep1 = () => {
+    if (!clientId) {
+      setError("Veuillez sélectionner un client.");
+      return false;
+    }
+    setError("");
+    return true;
+  };
+
+  const validateStep2 = () => {
+    const validLines = lines.filter((l) => l.description.trim() !== "");
+    if (validLines.length === 0) {
+      setError("Veuillez saisir au moins une ligne d'article avec une désignation.");
+      return false;
+    }
+    setError("");
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +172,7 @@ export function QuotationWizard({
 
     const validLines = lines.filter((l) => l.description.trim() !== "");
     if (validLines.length === 0) {
-      setError("Veuillez saisir au moins un article avec une désignation.");
+      setError("Veuillez renseigner au moins un article valide.");
       return;
     }
 
@@ -140,10 +191,10 @@ export function QuotationWizard({
       });
 
       if (!res.success) {
-        setError(res.error || "Erreur de création.");
+        setError(res.error || "Erreur de création du devis.");
         setIsSubmitting(false);
       } else {
-        router.push("/dashboard/quotations");
+        router.push("/dashboard/quotes");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur inattendue");
@@ -152,263 +203,604 @@ export function QuotationWizard({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="flex items-center justify-between pb-4 border-b border-border">
-        <Link
-          href="/dashboard/quotations"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="size-3.5" /> Retour à la liste des devis
-        </Link>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="button button-primary text-xs"
-        >
-          {isSubmitting ? "Génération en cours..." : "Valider et Générer le Devis"}
-        </button>
+    <form onSubmit={handleSubmit} className="space-y-6 max-w-7xl pb-24 md:pb-6">
+      <PageHeader
+        title="Création d'une Offre Commerciale"
+        description="Génération séquentielle de devis ou facture proforma avec préservation des prix d'émission."
+        icon={<FileSpreadsheet className="size-5" />}
+        actions={
+          <Link
+            href="/dashboard/quotes"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 text-xs font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Retour aux devis</span>
+          </Link>
+        }
+      />
+
+      {/* Stepper Navigation */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <button
+            type="button"
+            onClick={() => setCurrentStep(1)}
+            className={`flex items-center gap-2.5 rounded-xl p-2.5 sm:p-3 text-left transition-colors ${
+              currentStep === 1
+                ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+            }`}
+          >
+            <div
+              className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
+                currentStep === 1
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              1
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider block opacity-80">
+                Étape 1
+              </span>
+              <span className="text-xs truncate block">Client & RFQ</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (validateStep1()) setCurrentStep(2);
+            }}
+            className={`flex items-center gap-2.5 rounded-xl p-2.5 sm:p-3 text-left transition-colors ${
+              currentStep === 2
+                ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+            }`}
+          >
+            <div
+              className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
+                currentStep === 2
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              2
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider block opacity-80">
+                Étape 2
+              </span>
+              <span className="text-xs truncate block">Articles & Tarifs</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (validateStep1() && validateStep2()) setCurrentStep(3);
+            }}
+            className={`flex items-center gap-2.5 rounded-xl p-2.5 sm:p-3 text-left transition-colors ${
+              currentStep === 3
+                ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                : "bg-secondary/50 text-foreground hover:bg-secondary"
+            }`}
+          >
+            <div
+              className={`flex size-6 items-center justify-center rounded-full text-xs font-bold ${
+                currentStep === 3
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              3
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] uppercase tracking-wider block opacity-80">
+                Étape 3
+              </span>
+              <span className="text-xs truncate block">Récapitulatif</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 p-4 text-xs font-bold text-red-800 border border-red-200">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3.5 text-xs font-semibold text-destructive">
           {error}
         </div>
       )}
 
-      {/* Header Parameters */}
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-xs space-y-4">
-        <h3 className="text-sm font-extrabold text-primary flex items-center gap-2">
-          <FileSpreadsheet className="size-4 text-accent" /> Paramètres Commerciaux de la Proposition
-        </h3>
+      {/* Main Grid: Form Left + Sticky Summary Right */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        {/* Left Column: Current Step Content */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* STEP 1: Client & RFQ */}
+          {currentStep === 1 && (
+            <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
+              <div className="pb-3 border-b border-border/70 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">
+                    1. Informations Client & Référence RFQ
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Sélectionnez la société destinataire et le numéro de consultation.
+                  </p>
+                </div>
+                {selectedClient && (
+                  <RefChip variant="primary">{selectedClient.code}</RefChip>
+                )}
+              </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Client destinataire *</label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              required
-              className="form-field mt-1 text-xs font-bold text-primary"
-            >
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code} — {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Type de document *</label>
-            <select
-              value={docType}
-              onChange={(e) => setDocType(e.target.value as "QUOTATION" | "PROFORMA")}
-              className="form-field mt-1 text-xs font-bold"
-            >
-              <option value="QUOTATION">Devis Standard Commercial</option>
-              <option value="PROFORMA">Facture Proforma</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700">N° Appel d&apos;offre / RFQ Client</label>
-            <input
-              type="text"
-              value={clientRfqNumber}
-              onChange={(e) => setClientRfqNumber(e.target.value)}
-              placeholder="ex: RFQ-KCC-2026-089"
-              className="form-field mt-1 text-xs font-semibold"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Validité (jours)</label>
-            <input
-              type="number"
-              value={validityDays}
-              onChange={(e) => setValidityDays(parseInt(e.target.value) || 30)}
-              className="form-field mt-1 text-xs"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Taux TVA (%)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={vatRate}
-              onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
-              className="form-field mt-1 text-xs font-bold"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Conditions de règlement</label>
-            <input
-              type="text"
-              value={paymentTerms}
-              onChange={(e) => setPaymentTerms(e.target.value)}
-              className="form-field mt-1 text-xs"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700">Délai de livraison</label>
-            <input
-              type="text"
-              value={deliveryLeadTime}
-              onChange={(e) => setDeliveryLeadTime(e.target.value)}
-              className="form-field mt-1 text-xs"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-700">Observations / Notes complémentaires</label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Mentions spéciales ou spécifications particulières pour le client..."
-            className="form-field mt-1 text-xs"
-          />
-        </div>
-      </div>
-
-      {/* Line Items Editor */}
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-border">
-          <h3 className="text-sm font-extrabold text-primary flex items-center gap-2">
-            <Calculator className="size-4 text-accent" /> Articles et Spécifications Chiffrées
-          </h3>
-          <button
-            type="button"
-            onClick={addLine}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-slate-50 px-3 py-1.5 text-xs font-bold text-primary hover:bg-accent hover:text-slate-900 transition-colors cursor-pointer"
-          >
-            <Plus className="size-3.5" /> Ajouter une ligne
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {lines.map((line, index) => {
-            const lineSubtotal = line.quantity * line.unitPrice * (1 - (line.discountPercent || 0) / 100);
-
-            return (
-              <div
-                key={index}
-                className="p-4 rounded-xl border border-border/80 bg-slate-50/50 space-y-3"
-              >
-                <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                  <span>Ligne #{index + 1}</span>
-                  {lines.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeLine(index)}
-                      className="text-rose-600 hover:text-rose-800 flex items-center gap-1 text-[11px]"
-                    >
-                      <Trash2 className="size-3.5" /> Supprimer
-                    </button>
-                  )}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Client destinataire *
+                  </label>
+                  <select
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none"
+                  >
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code} — {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-12">
-                  <div className="sm:col-span-4">
-                    <label className="block text-[11px] font-bold text-slate-700">Sélection Catalogue (Optionnel)</label>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Type de document *
+                    </label>
                     <select
-                      value={line.itemId || ""}
-                      onChange={(e) => handleSelectCatalogItem(index, e.target.value)}
-                      className="form-field mt-1 text-xs"
+                      value={docType}
+                      onChange={(e) =>
+                        setDocType(e.target.value as "QUOTATION" | "PROFORMA")
+                      }
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none"
                     >
-                      <option value="">Sélectionner un article pré-enregistré...</option>
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.skuRef} — {it.description.substring(0, 40)}... (${it.sellingPrice})
-                        </option>
-                      ))}
+                      <option value="QUOTATION">Devis Standard</option>
+                      <option value="PROFORMA">Facture Proforma</option>
                     </select>
                   </div>
 
-                  <div className="sm:col-span-8">
-                    <label className="block text-[11px] font-bold text-slate-700">Désignation complète pour le devis *</label>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Numéro de RFQ Client
+                    </label>
                     <input
                       type="text"
-                      required
-                      value={line.description}
-                      onChange={(e) => updateLine(index, "description", e.target.value)}
-                      placeholder="Description détaillée de la fourniture..."
-                      className="form-field mt-1 text-xs"
+                      value={clientRfqNumber}
+                      onChange={(e) => setClientRfqNumber(e.target.value)}
+                      placeholder="Ex: RFQ-KCC-2026-089"
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700">Unité *</label>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Délai de validité de l&apos;offre
+                    </label>
+                    <select
+                      value={validityDays}
+                      onChange={(e) => setValidityDays(Number(e.target.value))}
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
+                    >
+                      <option value={15}>15 jours calendaires</option>
+                      <option value={30}>30 jours calendaires</option>
+                      <option value={60}>60 jours calendaires</option>
+                      <option value={90}>90 jours calendaires</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Taux de TVA standard
+                    </label>
+                    <select
+                      value={vatRate}
+                      onChange={(e) => setVatRate(Number(e.target.value))}
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
+                    >
+                      <option value={16}>16 % (Taux standard RDC)</option>
+                      <option value={0}>0 % (Exonération minière conventionnée)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Modalités de règlement
+                    </label>
                     <input
                       type="text"
-                      required
-                      value={line.unit}
-                      onChange={(e) => updateLine(index, "unit", e.target.value)}
-                      placeholder="Pce, Mètre, Lot..."
-                      className="form-field mt-1 text-xs"
+                      value={paymentTerms}
+                      onChange={(e) => setPaymentTerms(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700">Quantité *</label>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Délai & lieu de livraison
+                    </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      required
-                      value={line.quantity}
-                      onChange={(e) => updateLine(index, "quantity", parseFloat(e.target.value) || 0)}
-                      className="form-field mt-1 text-xs font-mono font-bold"
+                      type="text"
+                      value={deliveryLeadTime}
+                      onChange={(e) => setDeliveryLeadTime(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700">Prix unitaire HT ($) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
-                      value={line.unitPrice}
-                      onChange={(e) => updateLine(index, "unitPrice", parseFloat(e.target.value) || 0)}
-                      className="form-field mt-1 text-xs font-mono font-bold text-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700">Total Ligne HT</label>
-                    <div className="form-field mt-1 flex items-center bg-slate-100 font-mono font-extrabold text-primary text-xs">
-                      ${lineSubtotal.toFixed(2)}
-                    </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="pt-4 border-t border-border flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (validateStep1()) setCurrentStep(2);
+                  }}
+                  className="h-10 gap-2 bg-primary text-primary-foreground text-xs font-semibold"
+                >
+                  <span>Passer aux articles</span>
+                  <ArrowRight className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Articles */}
+          {currentStep === 2 && (
+            <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
+              <div className="pb-3 border-b border-border/70 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">
+                    2. Lignes d&apos;articles & Quantités
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Sélectionnez un article du catalogue ou saisissez une désignation libre.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addLine}
+                  className="h-8 gap-1.5 text-xs border-border"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Ajouter une ligne</span>
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {lines.map((line, idx) => {
+                  const lineTotal =
+                    Math.max(0, line.quantity || 0) *
+                    Math.max(0, line.unitPrice || 0) *
+                    (1 - Math.min(100, Math.max(0, line.discountPercent || 0)) / 100);
+
+                  return (
+                    <div
+                      key={idx}
+                      className="rounded-xl border border-border/80 bg-secondary/30 p-4 space-y-3 relative"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-primary">
+                          Ligne #{idx + 1}
+                        </span>
+                        {lines.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLine(idx)}
+                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            title="Supprimer la ligne"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Select from catalog helper */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                          Importer depuis le catalogue (optionnel)
+                        </label>
+                        <select
+                          value={line.itemId || ""}
+                          onChange={(e) =>
+                            handleSelectCatalogItem(idx, e.target.value)
+                          }
+                          className="h-9 w-full rounded-lg border border-input bg-card px-2.5 text-xs outline-none"
+                        >
+                          <option value="">Sélectionner un article...</option>
+                          {items.map((it) => (
+                            <option key={it.id} value={it.id}>
+                              {it.skuRef} — {it.description} (${it.sellingPrice.toFixed(2)})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-foreground mb-1">
+                          Désignation de la fourniture *
+                        </label>
+                        <input
+                          type="text"
+                          value={line.description}
+                          required
+                          onChange={(e) =>
+                            updateLine(idx, "description", e.target.value)
+                          }
+                          placeholder="Description détaillée de l'équipement ou pièce..."
+                          className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
+                        />
+                      </div>
+
+                      {/* Quantities, Unit, Price & Discount */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                            Quantité *
+                          </label>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            value={line.quantity}
+                            required
+                            onChange={(e) =>
+                              updateLine(
+                                idx,
+                                "quantity",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold tabular-nums text-foreground outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                            Unité *
+                          </label>
+                          <input
+                            type="text"
+                            value={line.unit}
+                            required
+                            onChange={(e) =>
+                              updateLine(idx, "unit", e.target.value)
+                            }
+                            placeholder="Pce, Kit..."
+                            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                            Prix unitaire ($ USD) *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={line.unitPrice}
+                            required
+                            onChange={(e) =>
+                              updateLine(
+                                idx,
+                                "unitPrice",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold tabular-nums text-foreground outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                            Total ligne HT
+                          </label>
+                          <div className="h-9 rounded-lg border border-border/80 bg-card px-3 text-xs font-bold text-primary flex items-center tabular-nums">
+                            <MoneyText value={lineTotal} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-4 border-t border-border flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(1)}
+                  className="h-10 text-xs"
+                >
+                  <ArrowLeft className="size-3.5 mr-1" />
+                  <span>Étape précédente</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (validateStep2()) setCurrentStep(3);
+                  }}
+                  className="h-10 gap-2 bg-primary text-primary-foreground text-xs font-semibold"
+                >
+                  <span>Passer au récapitulatif</span>
+                  <ArrowRight className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Récapitulatif */}
+          {currentStep === 3 && (
+            <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
+              <div className="pb-3 border-b border-border/70 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">
+                    3. Validation & Conditions Particulières
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Vérifiez l&apos;ensemble des données avant l&apos;enregistrement transactionnel.
+                  </p>
+                </div>
+                <CheckCircle2 className="size-5 text-success" />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                <KeyValueTile
+                  label="Client"
+                  value={selectedClient?.name || "—"}
+                />
+                <KeyValueTile
+                  label="Type d'offre"
+                  value={docType === "PROFORMA" ? "Facture Proforma" : "Devis Standard"}
+                />
+                <KeyValueTile
+                  label="Numéro RFQ Client"
+                  value={clientRfqNumber || "Non spécifié"}
+                />
+                <KeyValueTile
+                  label="Validité"
+                  value={`${validityDays} jours calendaires`}
+                />
+              </div>
+
+              {/* Notes block */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Remarques & Mentions contractuelles (optionnel)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Conditions de livraison spécifiques, exonérations de douane..."
+                  className="w-full rounded-xl border border-input bg-card p-3 text-xs text-foreground outline-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-border flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(2)}
+                  className="h-10 text-xs"
+                >
+                  <ArrowLeft className="size-3.5 mr-1" />
+                  <span>Modifier les articles</span>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-10 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold px-5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      <span>Enregistrement en cours...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="size-4 text-accent" />
+                      <span>Émettre le devis transactionnel</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Totals Summary */}
-        <div className="mt-6 flex justify-end">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-slate-50 p-4 space-y-2">
-            <div className="flex justify-between text-xs text-slate-600">
-              <span>Sous-total HT :</span>
-              <span className="font-mono font-bold text-slate-800">${subtotal.toFixed(2)}</span>
+        {/* Right Column: Sticky Summary Card (Desktop) */}
+        <div className="lg:col-span-4 sticky top-20 rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-4">
+          <div className="pb-3 border-b border-border/70 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Récapitulatif Financier
+            </h3>
+            <Calculator className="size-4 text-primary" />
+          </div>
+
+          <div className="space-y-2.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Nombre de lignes</span>
+              <span className="font-semibold text-foreground tabular-nums">
+                {lines.filter((l) => l.description.trim()).length}
+              </span>
             </div>
-            <div className="flex justify-between text-xs text-slate-600">
-              <span>TVA ({vatRate}%) :</span>
-              <span className="font-mono font-bold text-slate-800">${vatAmount.toFixed(2)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Sous-total HT</span>
+              <MoneyText value={subtotal} className="font-semibold text-foreground" />
             </div>
-            <div className="flex justify-between text-sm font-black text-primary border-t border-border pt-2">
-              <span>TOTAL TTC (USD) :</span>
-              <span className="font-mono text-base text-primary">${grandTotal.toFixed(2)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">TVA ({vatRate} %)</span>
+              <MoneyText value={vatAmount} className="font-semibold text-foreground" />
+            </div>
+            <div className="border-t border-border pt-3 flex items-center justify-between">
+              <span className="text-sm font-bold text-primary">Total TTC ($ USD)</span>
+              <MoneyText
+                value={grandTotal}
+                className="text-lg font-extrabold text-primary"
+              />
             </div>
           </div>
+
+          <div className="rounded-xl bg-secondary/50 p-3 text-[11px] text-muted-foreground space-y-1">
+            <p className="font-semibold text-foreground">Numérotation automatique</p>
+            <p>
+              Une référence interne unique (ex: 057/026/MIS) sera générée automatiquement pour ce client.
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Sticky Mobile Bottom Bar */}
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border/80 bg-card/95 p-3.5 backdrop-blur-md flex md:hidden items-center justify-between shadow-lg">
+        <div>
+          <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+            Total TTC
+          </span>
+          <MoneyText value={grandTotal} className="text-base font-extrabold text-primary" />
+        </div>
+
+        {currentStep < 3 ? (
+          <Button
+            type="button"
+            onClick={() => {
+              if (currentStep === 1 && validateStep1()) setCurrentStep(2);
+              else if (currentStep === 2 && validateStep2()) setCurrentStep(3);
+            }}
+            className="h-10 gap-1.5 bg-primary text-primary-foreground text-xs font-semibold"
+          >
+            <span>Suivant</span>
+            <ArrowRight className="size-3.5" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="h-10 gap-1.5 bg-primary text-primary-foreground text-xs font-bold"
+          >
+            {isSubmitting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="size-3.5 text-accent" />
+            )}
+            <span>Émettre</span>
+          </Button>
+        )}
       </div>
     </form>
   );

@@ -1,36 +1,216 @@
-export function StatusBadge({ status }: { status: string }) {
-  const normalized = status.toUpperCase();
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-  const styles: Record<string, { bg: string; text: string; label: string }> = {
-    DRAFT: { bg: "bg-slate-100 text-slate-700 border-slate-200", text: "text-slate-700", label: "Brouillon" },
-    SUBMITTED: { bg: "bg-amber-50 text-amber-700 border-amber-200", text: "text-amber-700", label: "Soumis" },
-    VALIDATED: { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", label: "Validé" },
-    CONFIRMED: { bg: "bg-blue-50 text-blue-700 border-blue-200", text: "text-blue-700", label: "Confirmé" },
-    PENDING: { bg: "bg-amber-50 text-amber-700 border-amber-200", text: "text-amber-700", label: "En attente" },
-    PARTIALLY_DELIVERED: { bg: "bg-purple-50 text-purple-700 border-purple-200", text: "text-purple-700", label: "Livré partiel" },
-    COMPLETED: { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", label: "Clôturé" },
-    ISSUED: { bg: "bg-blue-50 text-blue-700 border-blue-200", text: "text-blue-700", label: "Émise" },
-    PARTIALLY_PAID: { bg: "bg-amber-50 text-amber-700 border-amber-200", text: "text-amber-700", label: "Payée partiel" },
-    PAID: { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", label: "Payée intégral" },
-    OVERDUE: { bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", label: "Échue" },
-    RECORDED: { bg: "bg-slate-100 text-slate-700 border-slate-200", text: "text-slate-700", label: "Enregistré" },
-    RECONCILED: { bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", label: "Rapproché" },
-    EXPIRED: { bg: "bg-slate-100 text-slate-500 border-slate-200", text: "text-slate-500", label: "Expiré" },
-    REJECTED: { bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", label: "Rejeté" },
-    CANCELLED: { bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", label: "Annulé" },
-  };
+export type StatusCategory =
+  | "quotation"
+  | "order"
+  | "invoice"
+  | "delivery"
+  | "payment"
+  | "export"
+  | "general";
 
-  const current = styles[normalized] || {
-    bg: "bg-slate-100 text-slate-700 border-slate-200",
-    text: "text-slate-700",
+interface StatusConfig {
+  label: string;
+  dotClass: string;
+  bgClass: string;
+  textClass: string;
+  struck?: boolean;
+}
+
+const STATUS_MAP: Record<string, StatusConfig> = {
+  // Quotations
+  DRAFT: {
+    label: "Brouillon",
+    dotClass: "bg-muted-foreground",
+    bgClass: "bg-muted text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
+  },
+  SUBMITTED: {
+    label: "Soumis",
+    dotClass: "bg-primary",
+    bgClass: "bg-primary/10 text-primary border-primary/20",
+    textClass: "text-primary",
+  },
+  VALIDATED: {
+    label: "Validé",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+  EXPIRED: {
+    label: "Expiré",
+    dotClass: "bg-warning",
+    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
+    textClass: "text-warning-foreground",
+  },
+  REJECTED: {
+    label: "Rejeté",
+    dotClass: "bg-destructive",
+    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
+    textClass: "text-destructive",
+  },
+  CANCELLED: {
+    label: "Annulé",
+    dotClass: "bg-muted-foreground/60",
+    bgClass: "bg-muted/70 text-muted-foreground/70 border-border",
+    textClass: "text-muted-foreground line-through",
+    struck: true,
+  },
+
+  // Orders
+  PENDING: {
+    label: "En attente",
+    dotClass: "bg-warning",
+    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
+    textClass: "text-warning-foreground",
+  },
+  CONFIRMED: {
+    label: "Confirmée",
+    dotClass: "bg-primary",
+    bgClass: "bg-primary/10 text-primary border-primary/20",
+    textClass: "text-primary",
+  },
+  PARTIALLY_DELIVERED: {
+    label: "Livrée partiellement",
+    dotClass: "bg-warning",
+    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
+    textClass: "text-warning-foreground",
+  },
+  COMPLETED: {
+    label: "Terminée",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+
+  // Invoices
+  ISSUED: {
+    label: "Émise",
+    dotClass: "bg-primary",
+    bgClass: "bg-primary/10 text-primary border-primary/20",
+    textClass: "text-primary",
+  },
+  PARTIALLY_PAID: {
+    label: "Partiellement payée",
+    dotClass: "bg-warning",
+    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
+    textClass: "text-warning-foreground",
+  },
+  PAID: {
+    label: "Payée",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+  OVERDUE: {
+    label: "En retard",
+    dotClass: "bg-destructive",
+    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
+    textClass: "text-destructive",
+  },
+
+  // Delivery Notes
+  PREPARED: {
+    label: "Préparé",
+    dotClass: "bg-muted-foreground",
+    bgClass: "bg-muted text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
+  },
+  IN_TRANSIT: {
+    label: "En transit",
+    dotClass: "bg-primary",
+    bgClass: "bg-primary/10 text-primary border-primary/20",
+    textClass: "text-primary",
+  },
+  DELIVERED: {
+    label: "Livré",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+
+  // Payments
+  RECORDED: {
+    label: "Enregistré",
+    dotClass: "bg-muted-foreground",
+    bgClass: "bg-muted text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
+  },
+  RECONCILED: {
+    label: "Rapproché",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+
+  // Document Exports
+  GENERATED: {
+    label: "Généré",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+  FAILED: {
+    label: "Échec",
+    dotClass: "bg-destructive",
+    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
+    textClass: "text-destructive",
+  },
+  MODIFIED: {
+    label: "Modifié",
+    dotClass: "bg-warning",
+    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
+    textClass: "text-warning-foreground",
+  },
+
+  // General active / inactive
+  ACTIVE: {
+    label: "Actif",
+    dotClass: "bg-success",
+    bgClass: "bg-success/10 text-success border-success/20",
+    textClass: "text-success",
+  },
+  INACTIVE: {
+    label: "Inactif",
+    dotClass: "bg-muted-foreground",
+    bgClass: "bg-muted text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
+  },
+};
+
+export interface StatusBadgeProps {
+  status: string;
+  className?: string;
+  showDot?: boolean;
+}
+
+export function StatusBadge({ status, className, showDot = true }: StatusBadgeProps) {
+  const normalized = (status || "").toUpperCase();
+  const config = STATUS_MAP[normalized] || {
     label: status,
+    dotClass: "bg-muted-foreground",
+    bgClass: "bg-muted text-muted-foreground border-border",
+    textClass: "text-muted-foreground",
   };
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border tracking-wide uppercase ${current.bg}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border select-none whitespace-nowrap",
+        config.bgClass,
+        className
+      )}
     >
-      {current.label}
+      {showDot && (
+        <span
+          className={cn("size-1.5 rounded-full shrink-0", config.dotClass)}
+          aria-hidden="true"
+        />
+      )}
+      <span className={cn(config.struck && "line-through")}>{config.label}</span>
     </span>
   );
 }
+
+export const StatusPill = StatusBadge;

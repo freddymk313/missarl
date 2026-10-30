@@ -1,90 +1,136 @@
 "use client";
 
-import { Menu, LogOut, ShieldCheck } from "lucide-react";
+import * as React from "react";
+import Link from "next/link";
+import { Menu, Bell, HelpCircle, Phone, Mail, MapPin, ExternalLink, Shield } from "lucide-react";
+import { siteConfig } from "@/app/config/site";
 import { UserSession } from "@/lib/permissions";
-import { logoutAction } from "@/actions/auth";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-interface TopbarProps {
+export interface TopbarProps {
   user: UserSession;
   onOpenMobile: () => void;
 }
 
 export function Topbar({ user, onOpenMobile }: TopbarProps) {
-  const roleBadges: Record<string, { label: string; bg: string; text: string }> = {
-    SUPER_ADMIN: {
-      label: "Super Admin",
-      bg: "bg-amber-100 border-amber-300 text-amber-900",
-      text: "text-amber-900",
-    },
-    ADMIN: {
-      label: "Admin Commercial",
-      bg: "bg-blue-100 border-blue-300 text-blue-900",
-      text: "text-blue-900",
-    },
-    PRICE_COLLECTOR: {
-      label: "Collecteur de Prix",
-      bg: "bg-emerald-100 border-emerald-300 text-emerald-900",
-      text: "text-emerald-900",
-    },
-  };
-
-  const badge = roleBadges[user.role] || {
-    label: user.role,
-    bg: "bg-slate-100 border-slate-300 text-slate-800",
-    text: "text-slate-800",
-  };
-
+  const roleLabel =
+    user.role === "SUPER_ADMIN"
+      ? "Super Admin"
+      : user.role === "ADMIN"
+        ? "Admin Commercial"
+        : "Collecteur de Prix";
   return (
-    <header className="sticky top-0 z-30 flex h-18 w-full items-center justify-between border-b border-border bg-white px-4 sm:px-8 shadow-2xs">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/80 bg-card/95 px-4 backdrop-blur-md sm:px-6">
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={onOpenMobile}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
-          aria-label="Ouvrir le menu"
+          className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground lg:hidden"
+          aria-label="Ouvrir le menu de navigation"
         >
-          <Menu className="size-5" />
+          <Menu className="size-4" />
         </button>
-        <div>
-          <h2 className="text-sm font-extrabold text-primary sm:text-base tracking-tight">
-            Système de Gestion Commerciale
-          </h2>
-          <p className="text-[11px] text-muted-foreground hidden sm:block">
-            Lubumbashi, Haut-Katanga · RDC
-          </p>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-primary sm:text-sm tracking-tight truncate">
+            {siteConfig.name}
+          </span>
+          <span className="hidden md:inline-block text-[10px] text-muted-foreground/80 px-2 py-0.5 rounded-md bg-secondary border border-border/60">
+            {siteConfig.address.city} · {siteConfig.address.region}
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
+            <Shield className="size-2.5 text-primary" />
+            {roleLabel}
+          </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* User Identity Chip */}
-        <div className="flex items-center gap-2.5 rounded-full border border-border bg-slate-50 px-3 py-1.5">
-          <div className="flex size-7 items-center justify-center rounded-full bg-primary text-white text-xs font-black">
-            {user.fullName.charAt(0).toUpperCase()}
-          </div>
-          <div className="text-left hidden md:block">
-            <p className="text-xs font-bold leading-tight text-primary truncate max-w-[140px]">
-              {user.fullName}
+      <div className="flex items-center gap-2">
+        {/* Support & Assistance Button */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="flex size-9 items-center justify-center rounded-xl border border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Aide & Assistance technique"
+                aria-label="Aide et contact support"
+              />
+            }
+          >
+            <HelpCircle className="size-4" />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-4 bg-card border-border shadow-lg">
+            <h4 className="text-xs font-bold text-foreground">Support & Assistance</h4>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Besoin d&apos;assistance sur la plateforme commerciale MIS SARL ?
             </p>
-            <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
-          </div>
-          <span
-            className={`hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black border uppercase tracking-wider ${badge.bg}`}
-          >
-            <ShieldCheck className="size-3" />
-            {badge.label}
-          </span>
-        </div>
+            <div className="mt-3 space-y-2 border-t border-border/70 pt-3 text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="size-3.5 text-primary shrink-0" />
+                <span className="font-semibold text-foreground">
+                  {siteConfig.phones[0]}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Mail className="size-3.5 text-primary shrink-0" />
+                <a
+                  href={`mailto:${siteConfig.email}`}
+                  className="font-semibold text-primary hover:underline truncate"
+                >
+                  {siteConfig.email}
+                </a>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="size-3.5 text-primary shrink-0" />
+                <span className="truncate">
+                  {siteConfig.address.city}, {siteConfig.address.region}
+                </span>
+              </div>
+            </div>
+            <div className="mt-3 border-t border-border/70 pt-2 text-right">
+              <Link
+                href="/dashboard/settings"
+                className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-1"
+              >
+                Paramètres système <ExternalLink className="size-3" />
+              </Link>
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        {/* Logout Button */}
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            title="Se déconnecter"
-            className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+        {/* Notifications Popover */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <button
+                type="button"
+                className="relative flex size-9 items-center justify-center rounded-xl border border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Notifications"
+                aria-label="Notifications"
+              />
+            }
           >
-            <LogOut className="size-3.5" />
-            <span className="hidden sm:inline">Déconnexion</span>
-          </button>
-        </form>
+            <Bell className="size-4" />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-4 bg-card border-border shadow-lg">
+            <div className="flex items-center justify-between pb-2 border-b border-border/70">
+              <h4 className="text-xs font-bold text-foreground">Notifications</h4>
+              <span className="text-[10px] text-muted-foreground">0 non lues</span>
+            </div>
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              <Bell className="size-6 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="font-medium text-foreground">Aucune notification</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Vous êtes à jour dans vos alertes opérationnelles.
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </header>
   );
