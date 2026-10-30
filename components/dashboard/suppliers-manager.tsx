@@ -1,62 +1,28 @@
 "use client";
 
-import * as React from "react";
-import {
-  Truck,
-  Plus,
-  Phone,
-  Mail,
-  MapPin,
-  Eye,
-  Globe,
-  Loader2,
-} from "lucide-react";
-import { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import { Plus, Search, Truck, Phone, Mail, MapPin, X, Globe } from "lucide-react";
 import { SupplierRecord } from "@/lib/db/suppliers";
 import { createSupplierAction } from "@/actions/suppliers";
-import {
-  PageHeader,
-  DataTable,
-  DataTableToolbar,
-  RefChip,
-  KeyValueTile,
-  DetailSheet,
-} from "@/components/dashboard/ui";
-import { Button } from "@/components/ui/button";
+import { RefChip } from "@/components/dashboard/ui/ref-chip";
 
 interface SuppliersManagerProps {
   initialSuppliers: SupplierRecord[];
 }
 
 export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
-  const [suppliers, setSuppliers] = React.useState<SupplierRecord[]>(initialSuppliers);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [suppliers, setSuppliers] = useState<SupplierRecord[]>(initialSuppliers);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
 
-  // Create sheet state
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [formError, setFormError] = React.useState("");
-
-  // Detail sheet state
-  const [selectedSupplier, setSelectedSupplier] = React.useState<SupplierRecord | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = React.useState(false);
-
-  const filteredSuppliers = React.useMemo(() => {
-    const q = searchTerm.toLowerCase().trim();
-    if (!q) return suppliers;
-    return suppliers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.code.toLowerCase().includes(q) ||
-        (s.country && s.country.toLowerCase().includes(q)) ||
-        (s.contactPerson && s.contactPerson.toLowerCase().includes(q))
-    );
-  }, [suppliers, searchTerm]);
-
-  const handleOpenDetail = (s: SupplierRecord) => {
-    setSelectedSupplier(s);
-    setIsDetailOpen(true);
-  };
+  const filteredSuppliers = suppliers.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.country && s.country.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,347 +45,218 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
     }
   };
 
-  const columns = React.useMemo<ColumnDef<SupplierRecord>[]>(
-    () => [
-      {
-        accessorKey: "code",
-        header: "Code Fournisseur",
-        cell: ({ row }) => (
-          <RefChip variant="primary">{row.original.code}</RefChip>
-        ),
-      },
-      {
-        accessorKey: "name",
-        header: "Fabricant / Importateur",
-        cell: ({ row }) => (
-          <div>
-            <span className="font-bold text-foreground block truncate">
-              {row.original.name}
-            </span>
-            {row.original.contactPerson && (
-              <span className="text-[11px] text-muted-foreground block">
-                Contact: {row.original.contactPerson}
-              </span>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "country",
-        header: "Pays d'origine",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Globe className="size-3 text-muted-foreground shrink-0" />
-            <span>{row.original.country || "International"}</span>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "email",
-        header: "Coordonnées",
-        cell: ({ row }) => (
-          <div className="space-y-0.5 text-xs text-muted-foreground">
-            {row.original.email && (
-              <div className="flex items-center gap-1.5 truncate">
-                <Mail className="size-3 shrink-0" />
-                <span className="truncate">{row.original.email}</span>
-              </div>
-            )}
-            {row.original.phone && (
-              <div className="flex items-center gap-1.5 tabular-nums">
-                <Phone className="size-3 shrink-0" />
-                <span>{row.original.phone}</span>
-              </div>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: "notes",
-        header: "Spécialité & Gammes",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground line-clamp-1 max-w-[240px]">
-            {row.original.notes || "—"}
-          </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenDetail(row.original);
-              }}
-              className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors ml-auto"
-              title="Consulter"
-            >
-              <Eye className="size-3.5" />
-            </button>
-          </div>
-        ),
-      },
-    ],
-    []
-  );
-
   return (
-    <div className="space-y-6 max-w-7xl">
-      <PageHeader
-        title="Fournisseurs Industriels"
-        description={`${suppliers.length} partenaire${suppliers.length > 1 ? "s" : ""} et distributeur${suppliers.length > 1 ? "s" : ""} certifié${suppliers.length > 1 ? "s" : ""}`}
-        icon={<Truck className="size-5" />}
-        actions={
-          <Button
-            onClick={() => {
-              setFormError("");
-              setIsModalOpen(true);
-            }}
-            className="h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold"
-          >
-            <Plus className="size-3.5" />
-            <span>Nouveau fournisseur</span>
-          </Button>
-        }
-      />
-
-      <DataTable
-        columns={columns}
-        data={filteredSuppliers}
-        onRowClick={handleOpenDetail}
-        toolbar={
-          <DataTableToolbar
-            searchPlaceholder="Rechercher par nom, code ou pays..."
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            onAddNew={() => {
-              setFormError("");
-              setIsModalOpen(true);
-            }}
-            addNewLabel="Nouveau fournisseur"
+    <div className="space-y-6">
+      {/* Search and Action Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Rechercher par nom, code fournisseur ou pays..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
-        }
-        renderMobileCard={(s) => (
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <RefChip variant="primary">{s.code}</RefChip>
-              <span className="text-xs text-muted-foreground">{s.country || "International"}</span>
-            </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">{s.name}</p>
-              {s.contactPerson && (
-                <p className="text-xs text-muted-foreground mt-0.5">Contact: {s.contactPerson}</p>
-              )}
-            </div>
-            {s.notes && (
-              <p className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                {s.notes}
-              </p>
-            )}
-          </div>
-        )}
-      />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+            ⌘F
+          </span>
+        </div>
 
-      {/* Detail Sheet */}
-      {selectedSupplier && (
-        <DetailSheet
-          open={isDetailOpen}
-          onOpenChange={setIsDetailOpen}
-          title={selectedSupplier.name}
-          subtitle={`Réf. Fournisseur: ${selectedSupplier.code}`}
-          badge={<RefChip variant="primary">{selectedSupplier.country || "International"}</RefChip>}
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile
-                label="Interlocuteur privilégié"
-                value={selectedSupplier.contactPerson || "Non spécifié"}
-              />
-              <KeyValueTile
-                label="Pays d'origine"
-                value={selectedSupplier.country || "International"}
-                icon={<Globe className="size-3.5" />}
-              />
+          <Plus className="size-4" /> Nouveau Fournisseur
+        </button>
+      </div>
+
+      {/* Grid of Supplier Cards */}
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {filteredSuppliers.length === 0 ? (
+          <div className="col-span-full py-16 text-center text-muted-foreground border border-dashed border-border rounded-2xl bg-card">
+            <Truck className="mx-auto size-10 text-muted-foreground/40 mb-2" />
+            <p className="font-bold text-foreground">Aucun fournisseur répertorié</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Modifiez votre recherche ou ajoutez un partenaire commercial.
+            </p>
+          </div>
+        ) : (
+          filteredSuppliers.map((supplier) => (
+            <div
+              key={supplier.id}
+              className="flex flex-col justify-between p-6 bg-card border border-border rounded-2xl shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-3">
+                  <RefChip value={supplier.code} />
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground">
+                    <Globe className="size-3 text-muted-foreground" />
+                    {supplier.country || "International"}
+                  </span>
+                </div>
+
+                <h3 className="mt-3 text-base font-black text-primary">{supplier.name}</h3>
+
+                {supplier.contactPerson && (
+                  <p className="mt-1 text-xs font-semibold text-foreground">
+                    Interlocuteur: {supplier.contactPerson}
+                  </p>
+                )}
+
+                {supplier.notes && (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-2 italic">
+                    &ldquo;{supplier.notes}&rdquo;
+                  </p>
+                )}
+
+                <div className="mt-4 space-y-1.5 border-t border-border/80 pt-3 text-xs text-muted-foreground">
+                  {supplier.phone && (
+                    <p className="flex items-center gap-2">
+                      <Phone className="size-3.5 text-accent shrink-0" />
+                      <span>{supplier.phone}</span>
+                    </p>
+                  )}
+                  {supplier.email && (
+                    <p className="flex items-center gap-2">
+                      <Mail className="size-3.5 text-accent shrink-0" />
+                      <span className="truncate">{supplier.email}</span>
+                    </p>
+                  )}
+                  {supplier.address && (
+                    <p className="flex items-start gap-2">
+                      <MapPin className="size-3.5 text-accent shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{supplier.address}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Modal Create */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl border border-border">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-base font-extrabold text-primary">Nouveau Fournisseur</h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile
-                label="Téléphone"
-                value={selectedSupplier.phone || "—"}
-                icon={<Phone className="size-3.5" />}
-              />
-              <KeyValueTile
-                label="Email"
-                value={selectedSupplier.email || "—"}
-                icon={<Mail className="size-3.5" />}
-              />
-            </div>
-
-            <KeyValueTile
-              label="Adresse & Siège"
-              value={selectedSupplier.address || "—"}
-              icon={<MapPin className="size-3.5" />}
-            />
-
-            {selectedSupplier.notes && (
-              <div className="rounded-xl border border-border/80 bg-secondary/40 p-3.5 space-y-1">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                  Spécialités & Équipements fournis
-                </span>
-                <p className="text-xs text-foreground leading-relaxed font-medium">
-                  {selectedSupplier.notes}
-                </p>
+            {formError && (
+              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+                {formError}
               </div>
             )}
+
+            <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">Code *</label>
+                  <input
+                    name="code"
+                    required
+                    placeholder="FOURN-ATL"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
+                  <input
+                    name="name"
+                    required
+                    placeholder="Atlas Mining Supplies..."
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
+                  <input
+                    name="country"
+                    placeholder="RDC, Afrique du Sud, Belgique..."
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
+                  <input
+                    name="contactPerson"
+                    placeholder="Directeur commercial..."
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">Téléphone</label>
+                  <input
+                    name="phone"
+                    placeholder="+27 ... ou +243 ..."
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">Email commercial</label>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="sales@fournisseur.com"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
+                <input
+                  name="address"
+                  placeholder="Ville, Province, Pays..."
+                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
+                <textarea
+                  name="notes"
+                  rows={2}
+                  placeholder="Pièces d'usure, robinetterie industrielle, câblage..."
+                  className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmitting ? "Enregistrement..." : "Créer le fournisseur"}
+                </button>
+              </div>
+            </form>
           </div>
-        </DetailSheet>
+        </div>
       )}
-
-      {/* Create Supplier Sheet */}
-      <DetailSheet
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        title="Nouveau Fournisseur"
-        subtitle="Enregistrez les coordonnées d'un fabricant partenaire ou distributeur minier."
-      >
-        {formError && (
-          <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-            {formError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Code Fournisseur *
-              </label>
-              <input
-                type="text"
-                name="code"
-                required
-                placeholder="Ex: FOURN-KSB"
-                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Pays d&apos;origine
-              </label>
-              <input
-                type="text"
-                name="country"
-                placeholder="Ex: Afrique du Sud, RDC..."
-                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Raison Sociale / Nom du fabricant *
-            </label>
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="Ex: KSB Pumps Distribution"
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-medium text-foreground outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Contact commercial
-              </label>
-              <input
-                type="text"
-                name="contactPerson"
-                placeholder="Nom du responsable"
-                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1">
-                Téléphone
-              </label>
-              <input
-                type="text"
-                name="phone"
-                placeholder="+27 / +243 ..."
-                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              placeholder="sales@fournisseur.com"
-              className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Adresse physique
-            </label>
-            <textarea
-              name="address"
-              rows={2}
-              placeholder="Adresse d'entrepôt ou usine..."
-              className="w-full rounded-lg border border-input bg-card p-2 text-xs outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Spécialités & Remarques
-            </label>
-            <textarea
-              name="notes"
-              rows={2}
-              placeholder="Tuyauterie, pompes, vannes, automatismes..."
-              className="w-full rounded-lg border border-input bg-card p-2 text-xs outline-none"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsModalOpen(false)}
-              className="h-8 text-xs"
-            >
-              Annuler
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              size="sm"
-              className="h-8 bg-primary text-primary-foreground text-xs"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="size-3 animate-spin mr-1" />
-                  Création...
-                </>
-              ) : (
-                "Créer le fournisseur"
-              )}
-            </Button>
-          </div>
-        </form>
-      </DetailSheet>
     </div>
   );
 }

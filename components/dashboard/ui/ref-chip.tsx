@@ -1,30 +1,27 @@
-import * as React from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 
-export interface RefChipProps extends React.HTMLAttributes<HTMLSpanElement> {
-  children: React.ReactNode;
-  variant?: "default" | "primary" | "muted";
+export interface RefChipProps {
+  label?: string;
+  reference?: string | null | undefined;
+  value?: string | null | undefined;
+  children?: React.ReactNode;
+  className?: string;
 }
 
-export function RefChip({
-  children,
-  variant = "default",
-  className,
-  ...props
-}: RefChipProps) {
+export function RefChip({ label, reference, value, children, className }: RefChipProps) {
+  const displayVal = reference ?? value ?? children;
+  if (!displayVal) return <span className="text-muted-foreground text-xs">—</span>;
+
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-lg border px-2 py-0.5 text-xs font-semibold whitespace-nowrap tabular-nums transition-colors",
-        variant === "default" && "border-border/80 bg-muted/60 text-foreground",
-        variant === "primary" && "border-primary/20 bg-primary/10 text-primary",
-        variant === "muted" && "border-border/50 bg-background text-muted-foreground",
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary text-foreground text-xs font-semibold tabular-nums whitespace-nowrap border border-border/80 tracking-tight",
         className
       )}
-      {...props}
     >
-      {children}
+      {label && <span className="text-muted-foreground font-normal">{label}:</span>}
+      <span>{displayVal}</span>
     </span>
   );
 }
-

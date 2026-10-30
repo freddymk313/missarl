@@ -1,13 +1,14 @@
 "use client";
 
-import * as React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Package,
-  Truck,
   Building2,
+  Truck,
   FileSpreadsheet,
   ShoppingCart,
   Receipt,
@@ -15,34 +16,25 @@ import {
   FileText,
   Users,
   Settings,
-  ChevronDown,
   Search,
+  ChevronDown,
   LogOut,
-  User,
+  User as UserIcon,
   Plus,
+  X,
 } from "lucide-react";
-import { UserSession, isRouteAllowed } from "@/lib/permissions";
+import { siteConfig } from "@/app/config/site";
+import { UserSession, isRouteAllowed, ROLES } from "@/lib/permissions";
 import { logoutAction } from "@/actions/auth";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-// Map actual dashboard route hrefs to permission check paths
-function toPermissionPath(href: string): string {
-  if (href.startsWith("/dashboard/items")) return "/dashboard/articles";
-  if (href.startsWith("/dashboard/users")) return "/dashboard/utilisateurs";
-  if (href.startsWith("/dashboard/settings")) return "/dashboard/parametres";
-  return href;
+interface SidebarProps {
+  user: UserSession;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
 }
 
-interface NavItem {
+interface NavLeaf {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -50,313 +42,324 @@ interface NavItem {
 }
 
 interface NavGroup {
-  title?: string;
+  groupTitle: string;
   collapsible?: boolean;
-  items: NavItem[];
+  items: NavLeaf[];
 }
 
-const NAV_STRUCTURE: NavGroup[] = [
+type NavEntry = NavLeaf | NavGroup;
+
+const navigationStructure: NavEntry[] = [
   {
+    href: "/dashboard",
+    label: "Tableau de bord",
+    icon: LayoutDashboard,
+    exact: true,
+  },
+  {
+    groupTitle: "Catalogue",
     items: [
-      {
-        href: "/dashboard",
-        label: "Tableau de bord",
-        icon: LayoutDashboard,
-        exact: true,
-      },
+      { href: "/dashboard/items", label: "Articles", icon: Package },
+      { href: "/dashboard/suppliers", label: "Fournisseurs", icon: Truck },
     ],
   },
   {
-    title: "Catalogue",
-    items: [
-      {
-        href: "/dashboard/items",
-        label: "Articles",
-        icon: Package,
-      },
-      {
-        href: "/dashboard/suppliers",
-        label: "Fournisseurs",
-        icon: Truck,
-      },
-    ],
+    href: "/dashboard/clients",
+    label: "Clients",
+    icon: Building2,
   },
   {
-    items: [
-      {
-        href: "/dashboard/clients",
-        label: "Clients",
-        icon: Building2,
-      },
-    ],
-  },
-  {
-    title: "Ventes",
+    groupTitle: "Ventes",
     collapsible: true,
     items: [
-      {
-        href: "/dashboard/quotes",
-        label: "Devis",
-        icon: FileSpreadsheet,
-      },
-      {
-        href: "/dashboard/orders",
-        label: "Commandes (PO)",
-        icon: ShoppingCart,
-      },
-      {
-        href: "/dashboard/invoices",
-        label: "Factures",
-        icon: Receipt,
-      },
-      {
-        href: "/dashboard/payments",
-        label: "Paiements",
-        icon: CreditCard,
-      },
-      {
-        href: "/dashboard/statements",
-        label: "Relevés de compte",
-        icon: FileText,
-      },
+      { href: "/dashboard/quotes", label: "Devis", icon: FileSpreadsheet },
+      { href: "/dashboard/orders", label: "Commandes (PO)", icon: ShoppingCart },
+      { href: "/dashboard/invoices", label: "Factures", icon: Receipt },
+      { href: "/dashboard/payments", label: "Paiements", icon: CreditCard },
+      { href: "/dashboard/statements", label: "Relevés de compte", icon: FileText },
     ],
   },
   {
-    title: "Administration",
+    groupTitle: "Administration",
     items: [
-      {
-        href: "/dashboard/users",
-        label: "Utilisateurs",
-        icon: Users,
-      },
-      {
-        href: "/dashboard/settings",
-        label: "Paramètres",
-        icon: Settings,
-      },
+      { href: "/dashboard/users", label: "Utilisateurs", icon: Users },
+      { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
     ],
   },
 ];
 
-export interface SidebarProps {
-  user: UserSession;
-  onNavigate?: () => void;
-  className?: string;
-}
-
-export function Sidebar({ user, onNavigate, className }: SidebarProps) {
+export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [collapsedGroups, setCollapsedGroups] = React.useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [searchFilter, setSearchFilter] = useState("");
 
-  const toggleGroup = (title: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  const toggleGroup = (groupTitle: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupTitle]: !prev[groupTitle],
+    }));
   };
 
-  const roleDotClass =
-    user.role === "SUPER_ADMIN"
-      ? "bg-accent"
-      : user.role === "ADMIN"
-        ? "bg-primary"
-        : "bg-success";
-
-  const roleLabel =
-    user.role === "SUPER_ADMIN"
-      ? "Super Admin"
-      : user.role === "ADMIN"
-        ? "Commercial"
-        : "Collecteur";
-
-  // Filter groups where at least one item is allowed
-  const filteredGroups = NAV_STRUCTURE.map((group) => {
-    const allowedItems = group.items.filter((item) =>
-      isRouteAllowed(user.role, toPermissionPath(item.href))
-    );
-    return { ...group, items: allowedItems };
-  }).filter((group) => group.items.length > 0);
-
-  const isQuotingAllowed =
-    user.role === "SUPER_ADMIN" || user.role === "ADMIN";
+  const roleMeta = ROLES[user.role] || { label: user.role, description: "" };
 
   return (
-    <aside
-      className={cn(
-        "flex h-full w-[264px] flex-col justify-between border-r border-border bg-card text-card-foreground select-none",
-        className
+    <>
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 z-40 bg-navy-dark/40 backdrop-blur-xs lg:hidden"
+          aria-hidden="true"
+        />
       )}
-    >
-      <div className="flex flex-col gap-4 p-4">
-        {/* Logo Tile */}
-        <div className="flex items-center gap-3 px-2 py-1">
-          <Link
-            href="/dashboard"
-            onClick={onNavigate}
-            className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-2xs">
-              M
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-extrabold tracking-tight text-primary">
-                MIS SARL
-              </span>
-              <span className="text-[10px] text-muted-foreground font-medium">
-                Logistique & Fournitures
-              </span>
-            </div>
-          </Link>
-        </div>
 
-        {/* User Switcher Block */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className="group flex w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-secondary/50 p-2.5 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {/* Sidebar Container */}
+      <aside
+        className={cn(
+          "fixed top-0 bottom-0 left-0 z-50 flex w-[264px] flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0",
+          mobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
+        )}
+      >
+        {/* Mobile Header Logo & Close */}
+        <div className="flex h-14 items-center justify-between border-b border-border px-4 lg:hidden">
+          <Link href="/dashboard" onClick={onCloseMobile} className="flex items-center gap-2.5">
+            <div className="bg-white p-1 rounded-md border border-border">
+              <Image
+                src={siteConfig.logo}
+                alt={siteConfig.name}
+                width={28}
+                height={28}
+                className="h-5 w-auto object-contain"
               />
-            }
+            </div>
+            <span className="text-xs font-bold text-primary">{siteConfig.shortName}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Fermer le menu"
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="relative shrink-0">
-                <Avatar className="size-8 rounded-lg bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center">
-                  <AvatarFallback className="rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-                    {user.fullName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className={cn(
-                    "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card",
-                    roleDotClass
-                  )}
-                  title={roleLabel}
-                />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-foreground truncate">
-                  {user.fullName}
-                </span>
-                <span className="text-[10px] text-muted-foreground truncate">
-                  {user.email}
-                </span>
-              </div>
-            </div>
-            <ChevronDown className="size-3.5 text-muted-foreground shrink-0 group-hover:text-foreground transition-transform" />
-          </DropdownMenuTrigger>
-
-          <DropdownMenuContent align="start" className="w-56 p-1.5">
-            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground px-2 py-1">
-              Connecté en tant que
-            </DropdownMenuLabel>
-            <div className="px-2 py-1.5 mb-1 bg-secondary/60 rounded-md">
-              <p className="text-xs font-bold text-foreground truncate">{user.fullName}</p>
-              <p className="text-[10px] text-muted-foreground">{roleLabel}</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-xs cursor-pointer gap-2"
-              onClick={() => {
-                onNavigate?.();
-              }}
-            >
-              <User className="size-3.5 text-muted-foreground" />
-              <Link href="/dashboard/settings" className="w-full">
-                Mon compte
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <form action={logoutAction} className="w-full">
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <LogOut className="size-3.5" />
-                <span>Se déconnecter</span>
-              </button>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Quick Search Input */}
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && e.currentTarget.value) {
-                router.push(
-                  `/dashboard/items?q=${encodeURIComponent(
-                    e.currentTarget.value
-                  )}`
-                );
-                onNavigate?.();
-              }
-            }}
-            className="h-9 w-full rounded-xl border border-border/70 bg-secondary/30 pl-8 pr-11 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
-          />
-          <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-border/70 bg-card px-1 py-0.5 text-[9px] font-semibold text-muted-foreground">
-            ⌘F
-          </kbd>
+            <X className="size-5" />
+          </button>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex flex-col gap-4 overflow-y-auto pr-1">
-          {filteredGroups.map((group, groupIdx) => {
-            const isGroupCollapsed = group.title
-              ? !!collapsedGroups[group.title]
-              : false;
-
-            return (
-              <div key={group.title || `group-${groupIdx}`} className="flex flex-col gap-1">
-                {group.title && (
-                  <div className="flex items-center justify-between px-3 py-1 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-                    <span>{group.title}</span>
-                    {group.collapsible && (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(group.title!)}
-                        className="rounded p-0.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
-                      >
-                        <ChevronDown
-                          className={cn(
-                            "size-3 transition-transform duration-200",
-                            isGroupCollapsed && "-rotate-90"
-                          )}
-                        />
-                      </button>
-                    )}
-                  </div>
+        {/* 1. User Switcher Block at Top */}
+        <div className="relative border-b border-border p-3">
+          <button
+            type="button"
+            onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+            className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-secondary/80 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={userDropdownOpen}
+          >
+            <div className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs">
+              {user.fullName.charAt(0).toUpperCase()}
+              {/* Role badge dot */}
+              <span
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card",
+                  user.role === "SUPER_ADMIN"
+                    ? "bg-accent"
+                    : user.role === "ADMIN"
+                    ? "bg-primary"
+                    : "bg-success"
                 )}
+                title={roleMeta.label}
+              />
+            </div>
 
-                {!isGroupCollapsed && (
-                  <div
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-foreground truncate leading-tight">
+                {user.fullName}
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                {user.email}
+              </p>
+            </div>
+
+            <ChevronDown
+              className={cn(
+                "size-4 text-muted-foreground transition-transform shrink-0",
+                userDropdownOpen && "rotate-180"
+              )}
+            />
+          </button>
+
+          {/* User Switcher Dropdown */}
+          {userDropdownOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setUserDropdownOpen(false)}
+                aria-hidden="true"
+              />
+              <div className="absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-border bg-popover p-1.5 shadow-lg text-popover-foreground animate-in fade-in-50 zoom-in-95">
+                <div className="px-2.5 py-2 border-b border-border/80">
+                  <p className="text-xs font-bold text-foreground">{user.fullName}</p>
+                  <p className="text-[10px] font-semibold text-primary mt-0.5">
+                    {roleMeta.label}
+                  </p>
+                </div>
+
+                <div className="py-1">
+                  {user.role === "SUPER_ADMIN" && (
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        onCloseMobile();
+                      }}
+                      className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+                    >
+                      <UserIcon className="size-3.5 text-muted-foreground" />
+                      <span>Mon compte</span>
+                    </Link>
+                  )}
+
+                  <form action={logoutAction} className="w-full">
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut className="size-3.5" />
+                      <span>Se déconnecter</span>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 2. Search Input with Keyboard Shortcut Hint */}
+        <div className="px-3 pt-3 pb-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Rechercher..."
+              className="h-9 w-full rounded-xl border border-border bg-secondary/50 pl-8 pr-8 text-xs placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+            />
+            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-card px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70">
+              ⌘F
+            </kbd>
+          </div>
+        </div>
+
+        {/* 3. Navigation List with 40px rows, 10px radius, collapsible groups */}
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4 no-scrollbar">
+          {navigationStructure.map((entry) => {
+            // Standalone Leaf Item
+            if ("href" in entry) {
+              const allowed = isRouteAllowed(user.role, entry.href);
+              if (!allowed) return null;
+
+              if (
+                searchFilter &&
+                !entry.label.toLowerCase().includes(searchFilter.toLowerCase())
+              ) {
+                return null;
+              }
+
+              const Icon = entry.icon;
+              const isActive = entry.exact
+                ? pathname === entry.href
+                : pathname.startsWith(entry.href);
+
+              return (
+                <div key={entry.href}>
+                  <Link
+                    href={entry.href}
+                    onClick={onCloseMobile}
                     className={cn(
-                      "flex flex-col gap-0.5",
-                      group.title && "relative pl-2 ml-2 border-l border-border/70"
+                      "group relative flex h-10 items-center justify-between rounded-[10px] px-3 text-xs font-semibold transition-all",
+                      isActive
+                        ? "bg-secondary text-primary font-bold shadow-2xs"
+                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     )}
                   >
-                    {group.items.map((item) => {
-                      const isActive = item.exact
-                        ? pathname === item.href
-                        : pathname === item.href || pathname.startsWith(item.href + "/");
+                    {isActive && (
+                      <span
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <div className="flex items-center gap-2.5">
+                      <Icon
+                        className={cn(
+                          "size-4 shrink-0 transition-colors",
+                          isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                        )}
+                      />
+                      <span>{entry.label}</span>
+                    </div>
+                  </Link>
+                </div>
+              );
+            }
 
+            // Group with sub-items
+            const group = entry as NavGroup;
+            const allowedItems = group.items.filter((item) => {
+              if (!isRouteAllowed(user.role, item.href)) return false;
+              if (
+                searchFilter &&
+                !item.label.toLowerCase().includes(searchFilter.toLowerCase())
+              ) {
+                return false;
+              }
+              return true;
+            });
+
+            if (allowedItems.length === 0) return null;
+
+            const isCollapsed = collapsedGroups[group.groupTitle] ?? false;
+
+            return (
+              <div key={group.groupTitle} className="space-y-1">
+                <div
+                  className="flex items-center justify-between px-3 py-1 cursor-pointer select-none text-[11px] font-bold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                  onClick={() => group.collapsible && toggleGroup(group.groupTitle)}
+                >
+                  <span>{group.groupTitle}</span>
+                  {group.collapsible && (
+                    <ChevronDown
+                      className={cn(
+                        "size-3 text-muted-foreground transition-transform",
+                        isCollapsed && "-rotate-90"
+                      )}
+                    />
+                  )}
+                </div>
+
+                {!isCollapsed && (
+                  <div className="relative pl-3.5 space-y-0.5 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/80">
+                    {allowedItems.map((item) => {
                       const Icon = item.icon;
+                      const isActive = pathname.startsWith(item.href);
 
                       return (
                         <Link
                           key={item.href}
                           href={item.href}
-                          onClick={onNavigate}
-                          aria-current={isActive ? "page" : undefined}
+                          onClick={onCloseMobile}
                           className={cn(
-                            "group relative flex h-10 items-center justify-between rounded-xl px-3 text-xs font-semibold transition-all",
+                            "group relative flex h-10 items-center justify-between rounded-[10px] px-3 text-xs font-semibold transition-all",
                             isActive
                               ? "bg-secondary text-primary font-bold shadow-2xs"
-                              : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                           )}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          {isActive && (
+                            <span
+                              className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <div className="flex items-center gap-2.5">
                             <Icon
                               className={cn(
                                 "size-4 shrink-0 transition-colors",
@@ -365,16 +368,8 @@ export function Sidebar({ user, onNavigate, className }: SidebarProps) {
                                   : "text-muted-foreground group-hover:text-foreground"
                               )}
                             />
-                            <span className="truncate">{item.label}</span>
+                            <span>{item.label}</span>
                           </div>
-
-                          {/* Active nav indicator bar (3px gold accent) */}
-                          {isActive && (
-                            <span
-                              className="absolute right-0 top-2 bottom-2 w-[3px] rounded-l-full bg-accent"
-                              aria-hidden="true"
-                            />
-                          )}
                         </Link>
                       );
                     })}
@@ -384,42 +379,42 @@ export function Sidebar({ user, onNavigate, className }: SidebarProps) {
             );
           })}
         </nav>
-      </div>
 
-      {/* Bottom Promotional / Action Card */}
-      <div className="p-4 pt-0">
-        {isQuotingAllowed ? (
-          <div className="relative overflow-hidden rounded-2xl bg-primary p-4 text-primary-foreground shadow-sm">
-            <h4 className="text-xs font-bold tracking-tight">Nouveau devis</h4>
-            <p className="mt-1 text-[11px] text-primary-foreground/80 leading-snug">
-              Répondez à une demande de prix (RFQ) en quelques minutes.
-            </p>
-            <Link
-              href="/dashboard/quotes/new"
-              onClick={onNavigate}
-              className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground shadow-2xs hover:bg-accent/90 transition-colors"
-            >
-              <Plus className="size-3.5" />
-              <span>Créer un devis</span>
-            </Link>
-          </div>
-        ) : (
-          <div className="relative overflow-hidden rounded-2xl bg-primary p-4 text-primary-foreground shadow-sm">
-            <h4 className="text-xs font-bold tracking-tight">Catalogue</h4>
-            <p className="mt-1 text-[11px] text-primary-foreground/80 leading-snug">
-              Consultez les caractéristiques et tarifs en vigueur.
-            </p>
-            <Link
-              href="/dashboard/items"
-              onClick={onNavigate}
-              className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-bold text-accent-foreground shadow-2xs hover:bg-accent/90 transition-colors"
-            >
-              <Search className="size-3.5" />
-              <span>Rechercher un article</span>
-            </Link>
-          </div>
-        )}
-      </div>
-    </aside>
+        {/* 4. Promotional-style Card Pinned to the Bottom */}
+        <div className="p-3 border-t border-border mt-auto">
+          {user.role === "PRICE_COLLECTOR" ? (
+            <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
+              <p className="text-xs font-bold leading-tight">Rechercher un article</p>
+              <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
+                Consultez les fiches techniques et prix catalogue en temps réel.
+              </p>
+              <Link
+                href="/dashboard/items"
+                onClick={onCloseMobile}
+                className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition-colors shadow-2xs"
+              >
+                <Search className="size-3.5" />
+                <span>Ouvrir catalogue</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
+              <p className="text-xs font-bold leading-tight">Nouveau devis</p>
+              <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
+                Répondez à une demande de prix (RFQ) en quelques minutes.
+              </p>
+              <Link
+                href="/dashboard/quotes/new"
+                onClick={onCloseMobile}
+                className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition-colors shadow-2xs"
+              >
+                <Plus className="size-3.5" />
+                <span>Créer un devis</span>
+              </Link>
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }

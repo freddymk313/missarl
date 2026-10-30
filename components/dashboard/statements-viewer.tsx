@@ -1,28 +1,20 @@
 "use client";
 
-import * as React from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileText,
   Printer,
   Download,
   Building2,
-  Calendar as CalendarIcon,
-  CheckCircle2,
   TrendingDown,
   TrendingUp,
+  Scale,
 } from "lucide-react";
 import { ClientRecord } from "@/lib/db/clients";
 import { ClientAccountStatement } from "@/lib/db/statements";
-import {
-  PageHeader,
-  MoneyText,
-  RefChip,
-  ProgressRing,
-  formatDate,
-  formatDateLong,
-} from "@/components/dashboard/ui";
-import { Button } from "@/components/ui/button";
+import { formatUSD } from "@/lib/formatters";
+import { RefChip } from "@/components/dashboard/ui/ref-chip";
 
 interface StatementsViewerProps {
   clients: ClientRecord[];
@@ -40,9 +32,9 @@ export function StatementsViewer({
   endDate = "",
 }: StatementsViewerProps) {
   const router = useRouter();
-  const [currentClientId, setCurrentClientId] = React.useState(selectedClientId);
-  const [currentStartDate, setCurrentStartDate] = React.useState(startDate);
-  const [currentEndDate, setCurrentEndDate] = React.useState(endDate);
+  const [currentClientId, setCurrentClientId] = useState(selectedClientId);
+  const [currentStartDate, setCurrentStartDate] = useState(startDate);
+  const [currentEndDate, setCurrentEndDate] = useState(endDate);
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,91 +49,44 @@ export function StatementsViewer({
     window.print();
   };
 
-  const handleDownloadCsv = () => {
-    if (!statement || !statement.transactions || statement.transactions.length === 0) return;
+  const handleDownloadCSV = () => {
+    if (!statement) return;
 
-    const headers = [
-      "Date",
-      "Reference",
-      "Description",
-      "Debit (USD)",
-      "Credit (USD)",
-      "Solde Progressif (USD)",
-    ];
-
-    const rows = statement.transactions.map((entry) => [
-      formatDate(entry.date),
-      `"${entry.reference.replace(/"/g, '""')}"`,
-      `"${entry.description.replace(/"/g, '""')}"`,
-      entry.debit.toFixed(2),
-      entry.credit.toFixed(2),
-      entry.runningBalance.toFixed(2),
+    const headers = ["Date", "Type", "Reference", "Libelle", "Debit_USD", "Credit_USD", "Solde_Progressif_USD"];
+    const rows = statement.transactions.map((tx) => [
+      `"${tx.date}"`,
+      `"${tx.type === "INVOICE" ? "Facture" : "Encaissement"}"`,
+      `"${tx.reference}"`,
+      `"${tx.description.replace(/"/g, '""')}"`,
+      tx.debit.toFixed(2),
+      tx.credit.toFixed(2),
+      tx.runningBalance.toFixed(2),
     ]);
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `releve-compte-${statement.client.clientCode || "client"}-${new Date().toISOString().split("T")[0]}.csv`
-    );
+    link.href = url;
+    link.setAttribute("download", `Releve_${statement.client.code}_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const selectedClient = clients.find((c) => c.id === currentClientId);
-
   return (
-    <div className="space-y-6 max-w-7xl">
-      <PageHeader
-        title="Relevés de Compte Clients"
-        description="Situation comptable chronologique, débit/crédit et balance de clôture par tiers."
-        icon={<FileText className="size-5" />}
-        actions={
-          statement ? (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadCsv}
-                className="h-9 gap-1.5 text-xs border-border/80"
-              >
-                <Download className="size-3.5" />
-                <span>Télécharger CSV</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handlePrint}
-                className="h-9 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold"
-              >
-                <Printer className="size-3.5" />
-                <span>Imprimer / PDF</span>
-              </Button>
-            </div>
-          ) : null
-        }
-      />
-
-      {/* Filter Bar (Screenshot 4 pattern) */}
+    <div className="space-y-6">
+      {/* Filter and Export Bar */}
       <form
         onSubmit={handleFilter}
-        className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs flex flex-wrap items-end gap-3.5"
+        className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-wrap items-end gap-3 print:hidden"
       >
         <div className="flex-1 min-w-[220px]">
-          <label className="block text-xs font-semibold text-foreground mb-1.5">
-            Sélectionner un client *
-          </label>
+          <label className="block text-xs font-bold text-foreground">Sélectionner un client *</label>
           <select
             value={currentClientId}
             onChange={(e) => setCurrentClientId(e.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs font-bold text-primary outline-none"
+            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -151,187 +96,195 @@ export function StatementsViewer({
           </select>
         </div>
 
-        <div className="w-40">
-          <label className="block text-xs font-semibold text-foreground mb-1.5">
-            Date début
-          </label>
+        <div className="w-36">
+          <label className="block text-xs font-bold text-foreground">Date début</label>
           <input
             type="date"
             value={currentStartDate}
             onChange={(e) => setCurrentStartDate(e.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs outline-none"
+            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
           />
         </div>
 
-        <div className="w-40">
-          <label className="block text-xs font-semibold text-foreground mb-1.5">
-            Date fin
-          </label>
+        <div className="w-36">
+          <label className="block text-xs font-bold text-foreground">Date fin</label>
           <input
             type="date"
             value={currentEndDate}
             onChange={(e) => setCurrentEndDate(e.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs outline-none"
+            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
           />
         </div>
 
-        <Button
+        <button
           type="submit"
-          className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold shrink-0"
+          className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           Actualiser le relevé
-        </Button>
+        </button>
+
+        {statement && (
+          <>
+            <button
+              type="button"
+              onClick={handleDownloadCSV}
+              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="size-3.5 text-muted-foreground" /> Télécharger CSV
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Printer className="size-3.5 text-muted-foreground" /> Imprimer / PDF
+            </button>
+          </>
+        )}
       </form>
 
-      {/* Main Content Grid: Statement Table Left + Summary Card Right */}
+      {/* Statement Sheet */}
       {statement ? (
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
-          {/* Statement Table Left */}
-          <div className="lg:col-span-8 rounded-2xl border border-border/80 bg-card p-6 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-border/70">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-foreground">
-                    {statement.client.name}
-                  </h3>
-                  <RefChip variant="primary">{statement.client.clientCode}</RefChip>
-                </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Période: {startDate ? formatDate(startDate) : "Origine"} au{" "}
-                  {endDate ? formatDate(endDate) : "Ce jour"}
-                </p>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
-                  Solde de clôture
-                </span>
-                <MoneyText
-                  value={statement.closingBalance}
-                  className="text-lg font-extrabold text-primary"
-                />
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0">
+          {/* Statement Header */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-border pb-6">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                Extrait de Compte Client
+              </span>
+              <h2 className="text-xl font-black text-primary mt-1 flex items-center gap-2">
+                <Building2 className="size-5 text-accent" />
+                {statement.client.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <RefChip value={statement.client.code} />
+                {statement.client.taxId && (
+                  <span className="text-xs text-muted-foreground">
+                    NIF: <span className="font-mono font-bold text-foreground">{statement.client.taxId}</span>
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border/80 bg-secondary/40 text-muted-foreground font-semibold text-[11px] uppercase">
-                  <tr>
-                    <th className="py-3 px-3">Date</th>
-                    <th className="py-3 px-3">Référence</th>
-                    <th className="py-3 px-3">Libellé opération</th>
-                    <th className="py-3 px-3 text-right">Débit (+)</th>
-                    <th className="py-3 px-3 text-right">Crédit (-)</th>
-                    <th className="py-3 px-3 text-right">Solde ($ USD)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {statement.entries.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                        Aucun mouvement enregistré sur la période sélectionnée.
-                      </td>
-                    </tr>
-                  ) : (
-                    statement.entries.map((entry, idx) => (
-                      <tr key={idx} className="hover:bg-secondary/30 transition-colors">
-                        <td className="py-3 px-3 text-muted-foreground tabular-nums">
-                          {formatDate(entry.date)}
-                        </td>
-                        <td className="py-3 px-3 font-semibold text-foreground">
-                          <RefChip>{entry.referenceNumber}</RefChip>
-                        </td>
-                        <td className="py-3 px-3 text-foreground font-medium max-w-xs">
-                          {entry.description}
-                        </td>
-                        <td className="py-3 px-3 text-right tabular-nums text-foreground font-semibold">
-                          {entry.debit > 0 ? <MoneyText value={entry.debit} /> : "—"}
-                        </td>
-                        <td className="py-3 px-3 text-right tabular-nums text-success font-semibold">
-                          {entry.credit > 0 ? <MoneyText value={entry.credit} /> : "—"}
-                        </td>
-                        <td className="py-3 px-3 text-right tabular-nums font-bold text-foreground">
-                          <MoneyText value={entry.runningBalance} />
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* End of statement formal mention */}
-            <div className="pt-6 border-t border-border/70 text-right text-xs text-muted-foreground font-medium">
-              Fait à Lubumbashi, le {formatDateLong(new Date())}
+            <div className="sm:text-right">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                Solde Net Débiteur
+              </span>
+              <p className="text-2xl font-black text-destructive font-mono mt-0.5">
+                $ {formatUSD(statement.closingBalance)}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-semibold">
+                Devise officielle : {statement.currency}
+              </p>
             </div>
           </div>
 
-          {/* Right Summary Card (Screenshot 4 pattern) */}
-          <div className="lg:col-span-4 sticky top-20 space-y-4">
-            <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-4">
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider pb-3 border-b border-border/70">
-                Synthèse Financière
-              </h3>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="size-3.5 text-primary" />
-                    <span>Total Débit (Facturé)</span>
-                  </span>
-                  <MoneyText value={statement.totalDebit} className="font-bold text-foreground" />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <TrendingDown className="size-3.5 text-success" />
-                    <span>Total Crédit (Encaissé)</span>
-                  </span>
-                  <MoneyText value={statement.totalCredit} className="font-bold text-success" />
-                </div>
-
-                <div className="border-t border-border pt-3.5 flex items-center justify-between">
-                  <span className="text-sm font-bold text-primary">Solde restant</span>
-                  <MoneyText
-                    value={statement.closingBalance}
-                    className="text-xl font-extrabold text-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Recovery Rate Ring */}
-              <div className="rounded-xl border border-border/70 bg-secondary/30 p-3.5 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-semibold text-muted-foreground block">
-                    Taux de recouvrement
-                  </span>
-                  <span className="text-xs font-bold text-foreground">
-                    {statement.totalDebit > 0
-                      ? Math.min(100, Math.round((statement.totalCredit / statement.totalDebit) * 100))
-                      : 100}
-                    % encaissé
-                  </span>
-                </div>
-                <ProgressRing
-                  value={
-                    statement.totalDebit > 0
-                      ? (statement.totalCredit / statement.totalDebit) * 100
-                      : 100
-                  }
-                  size={42}
-                  strokeWidth={4}
-                  colorClass="text-success"
-                />
-              </div>
+          {/* Period Summary Cards (matching Comfort Shift screenshot 4) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-secondary/30 border border-border text-xs">
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">Solde Initial</p>
+              <p className="text-sm font-mono font-bold text-foreground mt-0.5">
+                $ {formatUSD(statement.openingBalance)}
+              </p>
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <TrendingUp className="size-3 text-destructive" /> Facturations Période
+              </p>
+              <p className="text-sm font-mono font-bold text-foreground mt-0.5">
+                +$ {formatUSD(statement.totalDebits)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <TrendingDown className="size-3 text-success" /> Règlements Encaissés
+              </p>
+              <p className="text-sm font-mono font-bold text-success mt-0.5">
+                -${formatUSD(statement.totalCredits)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <Scale className="size-3 text-primary" /> Solde Net de Clôture
+              </p>
+              <p className="text-sm font-mono font-black text-destructive mt-0.5">
+                $ {formatUSD(statement.closingBalance)}
+              </p>
+            </div>
+          </div>
+
+          {/* Statement Transactions Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-3 px-3">Date</th>
+                  <th className="py-3 px-3">Type</th>
+                  <th className="py-3 px-3">Réf. Pièce</th>
+                  <th className="py-3 px-3">Détail de l&apos;écriture</th>
+                  <th className="py-3 px-3 text-right">Débit (Facture)</th>
+                  <th className="py-3 px-3 text-right">Crédit (Règlement)</th>
+                  <th className="py-3 px-3 text-right">Solde Progressif</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {statement.transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                      Aucune écriture comptable enregistrée pour ce client sur la période.
+                    </td>
+                  </tr>
+                ) : (
+                  statement.transactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 px-3 font-mono text-muted-foreground">{tx.date}</td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                            tx.type === "INVOICE"
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "bg-success/15 text-success border border-success/30"
+                          }`}
+                        >
+                          {tx.type === "INVOICE" ? "Facture" : "Encaissement"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3">
+                        <RefChip value={tx.reference} />
+                      </td>
+                      <td className="py-3 px-3 text-foreground">{tx.description}</td>
+                      <td className="py-3 px-3 text-right font-mono text-foreground">
+                        {tx.debit > 0 ? `$ ${formatUSD(tx.debit)}` : "—"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-success font-bold">
+                        {tx.credit > 0 ? `$ ${formatUSD(tx.credit)}` : "—"}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-black text-foreground">
+                        $ {formatUSD(tx.runningBalance)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Certified closing statement signature note */}
+          <div className="pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground gap-3">
+            <p className="italic">
+              Arrêté le présent relevé de compte à Lubumbashi, certifié sincère et conforme aux écritures comptables MIS SARL.
+            </p>
+            <p className="font-bold text-foreground shrink-0">
+              Direction Administrative et Financière
+            </p>
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-border p-12 text-center text-muted-foreground bg-card">
-          <FileText className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-          <p className="text-sm font-semibold text-foreground">Aucun relevé affiché</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Sélectionnez un client ci-dessus pour consulter son relevé de compte.
+        <div className="py-20 text-center text-muted-foreground rounded-2xl border border-dashed border-border bg-card">
+          <FileText className="mx-auto size-10 text-muted-foreground/40 mb-2" />
+          <p className="font-bold text-foreground">Sélectionnez un compte client</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Générez l&apos;extrait de compte en temps réel pour consulter la balance débiteur.
           </p>
         </div>
       )}

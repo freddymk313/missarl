@@ -7,22 +7,19 @@ import {
   Receipt,
   CreditCard,
   ArrowRight,
-  Search,
-  ExternalLink,
+  TrendingUp,
   AlertTriangle,
-  Clock,
+  CheckCircle2,
+  ExternalLink,
   Layers,
 } from "lucide-react";
 import { getCurrentSession } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import {
-  PageHeader,
-  StatTile,
-  StatusPill,
-  MoneyText,
-  RefChip,
-  formatDate,
-} from "@/components/dashboard/ui";
+import { formatUSD, getCalendarChipData } from "@/lib/formatters";
+import { StatusBadge } from "@/components/dashboard/status-badge";
+import { StatTile } from "@/components/dashboard/ui/stat-tile";
+import { MoneyText } from "@/components/dashboard/ui/money-text";
+import { RefChip } from "@/components/dashboard/ui/ref-chip";
 
 interface ItemStatsRow {
   total: number;
@@ -74,6 +71,7 @@ interface RecentInvoiceRow {
 
 export default async function DashboardPage() {
   const session = await getCurrentSession();
+  const calendarChip = getCalendarChipData();
   const firstName = session?.fullName?.split(" ")[0] || "Collaborateur";
 
   // Price collector restricted view
@@ -85,74 +83,72 @@ export default async function DashboardPage() {
       FROM items
       WHERE is_active = TRUE
     `;
-    const itemStat = (itemStatsRows as unknown as ItemStatsRow[])[0] || {
-      total: 0,
-      categories: 0,
-    };
+    const itemStat = (itemStatsRows as unknown as ItemStatsRow[])[0] || { total: 0, categories: 0 };
 
     return (
       <div className="space-y-6 max-w-7xl">
-        <PageHeader
-          greetingDate={new Date()}
-          title={`Bonjour, ${firstName}`}
-          description="Espace de consultation du catalogue d'articles industriels et tarifs en vigueur."
-        />
+        {/* Comfort Shift Greeting Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-6 rounded-2xl border border-border shadow-xs">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-center justify-center size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                {calendarChip.month}
+              </span>
+              <span className="text-lg font-black text-primary leading-none mt-0.5">
+                {calendarChip.day}
+              </span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
+                  Bonjour, {firstName}
+                </h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-foreground border border-accent/30">
+                  Collecteur de Prix
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Consultez et recherchez l&apos;ensemble des articles du catalogue industriel MIS SARL.
+              </p>
+            </div>
+          </div>
 
-        {/* KPI Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/dashboard/items"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors"
+            >
+              <Package className="size-4" /> Consulter le Catalogue
+            </Link>
+          </div>
+        </div>
+
+        {/* Quick Stat Tiles */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <StatTile
-            label="Articles au catalogue"
+            label="Articles actifs au catalogue"
             value={itemStat.total}
-            subtitle="Références actives avec tarifs"
-            icon={<Package className="size-4" />}
+            icon={Package}
             href="/dashboard/items"
+            subtext="Spécifications techniques et prix en vigueur"
           />
           <StatTile
-            label="Catégories techniques"
+            label="Catégories industrielles"
             value={itemStat.categories}
-            subtitle="Spécialités industrielles et minières"
-            icon={<Layers className="size-4" />}
+            icon={CheckCircle2}
             href="/dashboard/items"
+            subtext="Robinetterie, pompage, électricité, quincaillerie minière"
           />
         </div>
 
-        {/* Quick Search & Explore Card */}
-        <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-xs">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/70">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">
-                Recherche dans le catalogue d&apos;articles
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Consultez les prix de vente en USD, spécifications techniques et marques.
-              </p>
-            </div>
-            <Link
-              href="/dashboard/items"
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-colors"
-            >
-              <Package className="size-3.5" />
-              <span>Ouvrir le catalogue</span>
-            </Link>
-          </div>
-
-          <div className="mt-5 max-w-md">
-            <form action="/dashboard/items" method="GET" className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                name="q"
-                placeholder="Désignation, marque ou référence SKU..."
-                className="h-10 w-full rounded-xl border border-border/80 bg-secondary/30 pl-9 pr-24 text-xs text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
-              />
-              <button
-                type="submit"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-7 items-center rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-              >
-                Rechercher
-              </button>
-            </form>
-          </div>
+        {/* Catalogue Info Banner */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-3">
+          <h2 className="text-sm font-black text-primary flex items-center gap-2">
+            <Layers className="size-4 text-accent" /> Mode Consultation Catalogue
+          </h2>
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+            Votre profil vous permet d&apos;accéder en lecture seule à la base articles de Lubumbashi : désignations complètes, codes SKU, marques agréées et tarifs publics en vigueur. Pour toute modification ou ajout de référence, veuillez vous rapprocher de la Direction Commerciale.
+          </p>
         </div>
       </div>
     );
@@ -205,269 +201,282 @@ export default async function DashboardPage() {
       FROM quotations q
       JOIN clients c ON q.client_id = c.id
       ORDER BY q.created_at DESC
-      LIMIT 5
+      LIMIT 6
     `,
     sql`
       SELECT 
         i.id, i.invoice_number, c.name as client_name, i.total::float, i.balance_due::float, i.status, i.issue_date::text
       FROM invoices i
       JOIN clients c ON i.client_id = c.id
+      WHERE i.balance_due > 0 AND i.status != 'CANCELLED'
       ORDER BY i.created_at DESC
       LIMIT 5
     `,
   ]);
 
-  const quoteStat = (quoteStats as unknown as QuoteStatsRow[])[0] || {
-    total: 0,
-    validated: 0,
-    total_amount: 0,
-  };
-  const orderStat = (orderStats as unknown as OrderStatsRow[])[0] || {
-    total: 0,
-    active: 0,
-    total_amount: 0,
-  };
-  const invoiceStat = (invoiceStats as unknown as InvoiceStatsRow[])[0] || {
-    total: 0,
-    total_invoiced: 0,
-    total_receivables: 0,
-    unpaid_count: 0,
-  };
-  const paymentStat = (paymentStats as unknown as PaymentStatsRow[])[0] || {
-    total: 0,
-    total_collected: 0,
-  };
+  const quoteStat = (quoteStats as unknown as QuoteStatsRow[])[0] || { total: 0, validated: 0, total_amount: 0 };
+  const orderStat = (orderStats as unknown as OrderStatsRow[])[0] || { total: 0, active: 0, total_amount: 0 };
+  const invoiceStat = (invoiceStats as unknown as InvoiceStatsRow[])[0] || { total: 0, total_invoiced: 0, total_receivables: 0, unpaid_count: 0 };
+  const paymentStat = (paymentStats as unknown as PaymentStatsRow[])[0] || { total: 0, total_collected: 0 };
 
   const recentQuotes = recentQuotesRows as unknown as RecentQuoteRow[];
   const recentInvoices = recentInvoicesRows as unknown as RecentInvoiceRow[];
 
+  // Compute collection rate percentage
+  const collectionRate = invoiceStat.total_invoiced > 0
+    ? Math.min(100, Math.round((paymentStat.total_collected / invoiceStat.total_invoiced) * 100))
+    : 0;
+
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Overview Greeting Header */}
-      <PageHeader
-        greetingDate={new Date()}
-        title={`Bonjour, ${firstName}`}
-        description="Vue globale sur le portefeuille commercial, devis miniers et flux de trésorerie."
-        actions={
-          <div className="flex items-center gap-2">
+      {/* Comfort Shift Overview Header */}
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-xs">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            {/* Calendar Chip */}
+            <div className="flex flex-col items-center justify-center size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                {calendarChip.month}
+              </span>
+              <span className="text-lg font-black text-primary leading-none mt-0.5">
+                {calendarChip.day}
+              </span>
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
+                Bonjour, {firstName}
+              </h1>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Suivi des opérations commerciales, devis miniers, commandes et créances clients.
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Header Actions */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/dashboard/quotes/new"
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors"
             >
-              <FileSpreadsheet className="size-3.5" />
-              <span>Nouveau devis</span>
+              <FileSpreadsheet className="size-3.5" /> Nouveau Devis
             </Link>
             <Link
               href="/dashboard/clients"
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 text-xs font-semibold text-foreground hover:bg-secondary/60 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary/60 transition-colors"
             >
-              <Building2 className="size-3.5" />
-              <span>Clients</span>
-            </Link>
-          </div>
-        }
-      />
-
-      {/* 4 KPI Tiles Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile
-          label="Devis émis"
-          value={quoteStat.total}
-          subtitle={
-            <span className="flex items-center gap-1">
-              <span className="font-semibold text-success">{quoteStat.validated} validés</span>
-              <span>·</span>
-              <MoneyText value={quoteStat.total_amount} className="text-muted-foreground" />
-            </span>
-          }
-          icon={<FileSpreadsheet className="size-4" />}
-          href="/dashboard/quotes"
-        />
-
-        <StatTile
-          label="Bons de commande (PO)"
-          value={orderStat.total}
-          subtitle={
-            <span className="flex items-center gap-1">
-              <span className="font-semibold text-primary">{orderStat.active} en cours</span>
-              <span>·</span>
-              <MoneyText value={orderStat.total_amount} className="text-muted-foreground" />
-            </span>
-          }
-          icon={<ShoppingCart className="size-4" />}
-          href="/dashboard/orders"
-        />
-
-        <StatTile
-          label="Créances à recouvrer"
-          value={<MoneyText value={invoiceStat.total_receivables} />}
-          subtitle={
-            <span className="text-warning-foreground font-semibold">
-              {invoiceStat.unpaid_count} facture(s) en attente
-            </span>
-          }
-          icon={<Receipt className="size-4" />}
-          href="/dashboard/invoices"
-        />
-
-        <StatTile
-          label="Paiements encaissés"
-          value={<MoneyText value={paymentStat.total_collected} />}
-          subtitle={
-            <span>
-              {paymentStat.total} règlement(s) enregistré(s)
-            </span>
-          }
-          icon={<CreditCard className="size-4" />}
-          href="/dashboard/payments"
-        />
-      </div>
-
-      {/* Main Overview Grid */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Recent Activity (Devis & Proformas) */}
-        <div className="lg:col-span-7 rounded-2xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet className="size-4 text-primary" />
-                <h2 className="text-sm font-bold text-foreground">
-                  Derniers Devis & Proformas
-                </h2>
-              </div>
-              <Link
-                href="/dashboard/quotes"
-                className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <span>Tout afficher</span>
-                <ArrowRight className="size-3" />
-              </Link>
-            </div>
-
-            <div className="mt-3 divide-y divide-border/60">
-              {recentQuotes.length === 0 ? (
-                <div className="py-8 text-center text-xs text-muted-foreground">
-                  Aucun devis créé pour le moment.
-                </div>
-              ) : (
-                recentQuotes.map((q) => (
-                  <div
-                    key={q.id}
-                    className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-secondary/30 rounded-lg px-2 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-primary shrink-0">
-                        <FileSpreadsheet className="size-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <RefChip>{q.internal_reference}</RefChip>
-                          <span className="text-[11px] text-muted-foreground">
-                            {formatDate(q.document_date)}
-                          </span>
-                        </div>
-                        <p className="font-semibold text-foreground truncate mt-0.5">
-                          {q.client_name}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <MoneyText value={q.total} className="text-foreground font-bold" />
-                      <StatusPill status={q.status} />
-                      <Link
-                        href={`/dashboard/quotes`}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        title="Voir le devis"
-                      >
-                        <ExternalLink className="size-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-border/70 text-right">
-            <Link
-              href="/dashboard/quotes/new"
-              className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
-            >
-              Créer une nouvelle offre <ArrowRight className="size-3" />
+              <Building2 className="size-3.5 text-muted-foreground" /> Clients
             </Link>
           </div>
         </div>
 
-        {/* Right Column: Factures à surveiller & Créances */}
-        <div className="lg:col-span-5 rounded-2xl border border-border/80 bg-card p-5 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="size-4 text-warning-foreground" />
-                <h2 className="text-sm font-bold text-foreground">
-                  Factures à surveiller
-                </h2>
+        {/* Underlined Sub-navigation Tabs */}
+        <div className="flex items-center gap-6 border-b border-border mt-5 -mb-2 overflow-x-auto">
+          <span className="pb-3 text-xs font-bold text-primary border-b-2 border-accent cursor-pointer shrink-0">
+            Vue d&apos;ensemble
+          </span>
+          <Link
+            href="/dashboard/quotes"
+            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
+          >
+            Chiffrages ({quoteStat.total})
+          </Link>
+          <Link
+            href="/dashboard/orders"
+            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
+          >
+            Commandes en cours ({orderStat.active})
+          </Link>
+          <Link
+            href="/dashboard/invoices"
+            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
+          >
+            Créances (${formatUSD(invoiceStat.total_receivables)})
+          </Link>
+        </div>
+      </div>
+
+      {/* 4 KPI StatTiles matching template */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Devis Émis"
+          value={quoteStat.total}
+          icon={FileSpreadsheet}
+          href="/dashboard/quotes"
+          subtext={`${quoteStat.validated} validés · $ ${formatUSD(quoteStat.total_amount)}`}
+        />
+        <StatTile
+          label="Bons de Commande"
+          value={orderStat.total}
+          icon={ShoppingCart}
+          href="/dashboard/orders"
+          subtext={`${orderStat.active} en cours · $ ${formatUSD(orderStat.total_amount)}`}
+        />
+        <StatTile
+          label="Créances à recouvrer"
+          value={`$ ${formatUSD(invoiceStat.total_receivables)}`}
+          icon={Receipt}
+          href="/dashboard/invoices"
+          trend="down"
+          subtext={`${invoiceStat.unpaid_count} facture(s) en attente`}
+        />
+        <StatTile
+          label="Paiements Encaissés"
+          value={`$ ${formatUSD(paymentStat.total_collected)}`}
+          icon={CreditCard}
+          href="/dashboard/payments"
+          trend="up"
+          subtext={`${paymentStat.total} versement(s) reçu(s)`}
+        />
+      </div>
+
+      {/* Main Grid: Activity & Budget Summary */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Left Column: Recent Tasks / Quotes (8 cols) */}
+        <div className="lg:col-span-8 rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div>
+              <h2 className="text-sm font-black text-primary flex items-center gap-2">
+                <FileSpreadsheet className="size-4 text-accent" /> Devis & Propositions Récentes
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Dernières cotations industrielles émises aux clients miniers
+              </p>
+            </div>
+            <Link
+              href="/dashboard/quotes"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-accent transition-colors"
+            >
+              Consulter tout <ArrowRight className="size-3" />
+            </Link>
+          </div>
+
+          <div className="divide-y divide-border/60">
+            {recentQuotes.length === 0 ? (
+              <p className="py-8 text-center text-xs text-muted-foreground">
+                Aucun devis créé pour le moment.
+              </p>
+            ) : (
+              recentQuotes.map((q) => (
+                <div
+                  key={q.id}
+                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-secondary/30 px-2 rounded-xl transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <RefChip value={q.internal_reference} />
+                    <div>
+                      <p className="font-extrabold text-foreground">{q.client_name}</p>
+                      <p className="text-[10px] text-muted-foreground">{q.document_date}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-3.5">
+                    <MoneyText amount={q.total} className="text-xs font-black text-foreground" />
+                    <StatusBadge status={q.status} />
+                    <Link
+                      href="/dashboard/quotes"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                      title="Ouvrir la liste des devis"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Financial Balance & Invoices to Watch (4 cols) */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Moving Budget style summary card */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground">Suivi Trésorerie</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-md">
+                <TrendingUp className="size-3" /> {collectionRate}% recouvré
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[11px] text-muted-foreground font-medium">Total Facturé</p>
+              <p className="text-xl font-black text-primary font-mono">
+                $ {formatUSD(invoiceStat.total_invoiced)}
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="space-y-1.5 pt-1">
+              <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  style={{ width: `${collectionRate}%` }}
+                />
               </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Encaissé: ${formatUSD(paymentStat.total_collected)}</span>
+                <span>Reste: ${formatUSD(invoiceStat.total_receivables)}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border text-xs">
+              <div className="rounded-xl bg-secondary/50 p-2.5">
+                <p className="text-[10px] text-muted-foreground font-semibold">Encaissé</p>
+                <p className="text-xs font-mono font-bold text-success mt-0.5">
+                  ${formatUSD(paymentStat.total_collected)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-secondary/50 p-2.5">
+                <p className="text-[10px] text-muted-foreground font-semibold">Créances Dues</p>
+                <p className="text-xs font-mono font-bold text-destructive mt-0.5">
+                  ${formatUSD(invoiceStat.total_receivables)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Factures à surveiller */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-xs font-black text-primary flex items-center gap-1.5">
+                <AlertTriangle className="size-3.5 text-warning" /> Factures à Surveiller
+              </h3>
               <Link
                 href="/dashboard/invoices"
-                className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                className="text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors"
               >
-                <span>Factures</span>
-                <ArrowRight className="size-3" />
+                Tout voir
               </Link>
             </div>
 
-            <div className="mt-3 divide-y divide-border/60">
+            <div className="space-y-2.5">
               {recentInvoices.length === 0 ? (
-                <div className="py-8 text-center text-xs text-muted-foreground">
-                  Aucune facture en attente.
-                </div>
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  Aucune facture en retard.
+                </p>
               ) : (
                 recentInvoices.map((inv) => (
                   <div
                     key={inv.id}
-                    className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-secondary/30 rounded-lg px-2 transition-colors"
+                    className="p-3 rounded-xl border border-border/80 bg-secondary/20 flex items-center justify-between text-xs"
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <RefChip>{inv.invoice_number}</RefChip>
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatDate(inv.issue_date)}
-                        </span>
-                      </div>
-                      <p className="font-semibold text-foreground truncate mt-0.5">
+                    <div>
+                      <p className="font-mono font-extrabold text-primary text-[11px]">
+                        {inv.invoice_number}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
                         {inv.client_name}
                       </p>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <MoneyText value={inv.total} className="text-foreground block" />
-                      {inv.balance_due > 0 ? (
-                        <span className="text-[10px] font-semibold text-destructive">
-                          Solde: <MoneyText value={inv.balance_due} />
-                        </span>
-                      ) : (
-                        <StatusPill status={inv.status} />
-                      )}
+                    <div className="text-right">
+                      <p className="font-mono font-black text-destructive text-xs">
+                        ${formatUSD(inv.balance_due)}
+                      </p>
+                      <StatusBadge status={inv.status} />
                     </div>
                   </div>
                 ))
               )}
             </div>
-          </div>
-
-          <div className="pt-3 border-t border-border/70 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Clock className="size-3 text-muted-foreground" />
-              <span>Délai standard: 30 jours</span>
-            </span>
-            <Link
-              href="/dashboard/invoices"
-              className="font-semibold text-primary hover:underline"
-            >
-              Gérer les créances
-            </Link>
           </div>
         </div>
       </div>

@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
+import { useEffect } from "react";
+import { AlertTriangle, RotateCcw, Home } from "lucide-react";
 import Link from "next/link";
-import { AlertCircle, RefreshCw, LayoutDashboard } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export default function DashboardError({
   error,
@@ -12,46 +11,38 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  React.useEffect(() => {
-    // Log error internally if needed
+  useEffect(() => {
+    console.error("Dashboard error:", error);
   }, [error]);
 
   return (
-    <div className="flex min-h-[450px] flex-col items-center justify-center rounded-2xl border border-destructive/20 bg-card p-8 text-center shadow-xs max-w-xl mx-auto my-12">
-      <div className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive mb-4">
-        <AlertCircle className="size-6" />
+    <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6">
+      <div className="size-14 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center text-destructive mb-4">
+        <AlertTriangle className="size-7" />
       </div>
-      <h2 className="text-lg font-bold text-foreground">
-        Une erreur inattendue est survenue
-      </h2>
-      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-        L&apos;opération demandée n&apos;a pas pu aboutir. Veuillez réessayer ou contacter l&apos;administrateur si le problème persiste.
+
+      <h1 className="text-xl font-black text-primary tracking-tight">
+        Une erreur est survenue lors du chargement
+      </h1>
+      <p className="mt-1 text-xs text-muted-foreground max-w-md leading-relaxed">
+        Impossible de charger les données commerciales. Veuillez vérifier votre connexion ou réactualiser la vue.
       </p>
 
-      {error?.message && (
-        <div className="mt-4 rounded-xl border border-border/80 bg-secondary/50 p-3 text-[11px] font-mono text-muted-foreground max-w-md truncate">
-          {error.message}
-        </div>
-      )}
-
       <div className="mt-6 flex items-center gap-3">
-        <Button
+        <button
           type="button"
           onClick={() => reset()}
-          className="h-9 gap-1.5 bg-primary text-primary-foreground text-xs font-semibold"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
         >
-          <RefreshCw className="size-3.5" />
-          <span>Réessayer</span>
-        </Button>
+          <RotateCcw className="size-3.5" /> Réessayer
+        </button>
         <Link
           href="/dashboard"
-          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 text-xs font-semibold text-foreground hover:bg-secondary/60"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
         >
-          <LayoutDashboard className="size-3.5" />
-          <span>Tableau de bord</span>
+          <Home className="size-3.5 text-muted-foreground" /> Retour à l&apos;accueil
         </Link>
       </div>
     </div>
   );
 }
-

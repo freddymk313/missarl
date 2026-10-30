@@ -1,77 +1,102 @@
 "use client";
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import React from "react";
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetFooter,
 } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 export interface DetailSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: React.ReactNode;
-  subtitle?: React.ReactNode;
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  title: string;
   badge?: React.ReactNode;
-  chips?: React.ReactNode;
+  statusBadge?: React.ReactNode;
+  tabs?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  size?: "default" | "lg" | "xl";
 }
 
 export function DetailSheet({
   open,
+  isOpen,
   onOpenChange,
+  onClose,
   title,
-  subtitle,
   badge,
-  chips,
+  statusBadge,
+  tabs,
   children,
   footer,
   className,
+  size = "lg",
 }: DetailSheetProps) {
+  const isSheetOpen = open ?? isOpen ?? false;
+
+  const sizeClasses = {
+    default: "sm:max-w-md",
+    lg: "sm:max-w-xl",
+    xl: "sm:max-w-2xl",
+  };
+
+  const handleOpenChange = (newVal: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newVal);
+    }
+    if (!newVal && onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={isSheetOpen} onOpenChange={handleOpenChange}>
       <SheetContent
-        side="right"
         className={cn(
-          "w-full sm:max-w-xl p-0 flex flex-col justify-between overflow-hidden bg-card border-border",
-          "max-md:bottom-0 max-md:top-auto max-md:max-h-[92dvh] max-md:rounded-t-2xl max-md:border-t max-md:border-l-0",
+          "w-full flex flex-col p-0 gap-0 overflow-hidden bg-card border-l border-border",
+          sizeClasses[size],
+          "data-[side=bottom]:max-h-[92dvh] data-[side=bottom]:rounded-t-2xl sm:data-[side=bottom]:rounded-none",
           className
         )}
       >
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-          <SheetHeader className="space-y-2 pb-3 border-b border-border/80 text-left">
-            <div className="flex items-center justify-between gap-3 pr-6">
-              <div className="flex items-center gap-2 flex-wrap">
-                <SheetTitle className="text-base sm:text-lg font-bold text-foreground tracking-tight">
+        {/* Header with Title + ID chip + Status badge */}
+        <div className="border-b border-border p-5 bg-card/80 backdrop-blur-xs shrink-0">
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <SheetTitle className="text-lg font-bold tracking-tight text-foreground">
                   {title}
                 </SheetTitle>
-                {chips}
+                {badge}
               </div>
-              {badge}
-            </div>
-            {subtitle && (
-              <SheetDescription className="text-xs text-muted-foreground">
-                {subtitle}
+              <SheetDescription className="sr-only">
+                Détails complets de l&apos;élément sélectionné
               </SheetDescription>
-            )}
-          </SheetHeader>
+            </div>
+            {statusBadge && <div className="shrink-0">{statusBadge}</div>}
+          </div>
 
-          <div className="space-y-5 text-xs">{children}</div>
+          {tabs && <div className="mt-3.5 -mb-5">{tabs}</div>}
         </div>
 
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {children}
+        </div>
+
+        {/* Sticky Action Footer */}
         {footer && (
-          <SheetFooter className="p-4 sm:p-5 border-t border-border/80 bg-secondary/30 shrink-0 flex-row items-center justify-end gap-2.5">
+          <div className="border-t border-border bg-card p-4 shrink-0 shadow-xs flex items-center justify-end gap-2.5">
             {footer}
-          </SheetFooter>
+          </div>
         )}
       </SheetContent>
     </Sheet>
   );
 }
-

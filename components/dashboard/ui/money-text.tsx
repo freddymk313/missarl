@@ -1,19 +1,15 @@
-import * as React from "react";
+import { formatUSD } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "./formatters";
 
-export interface MoneyTextProps extends React.HTMLAttributes<HTMLSpanElement> {
-  value: number | null | undefined;
+interface MoneyTextProps {
+  amount: number | null | undefined;
+  className?: string;
 }
 
-export function MoneyText({ value, className, ...props }: MoneyTextProps) {
+export function MoneyText({ amount, className }: MoneyTextProps) {
   return (
-    <span
-      className={cn("tabular-nums whitespace-nowrap font-semibold", className)}
-      {...props}
-    >
-      {formatMoney(value)}
+    <span className={cn("font-semibold tabular-nums whitespace-nowrap", className)}>
+      {formatUSD(amount)}
     </span>
   );
 }
-

@@ -1,103 +1,65 @@
 "use client";
 
-import * as React from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
+  Search,
   FileSpreadsheet,
   CheckCircle2,
   XCircle,
-  Eye,
-  Calendar as CalendarIcon,
-  Clock,
   ArrowRight,
-  Download,
-  AlertCircle,
+  Eye,
+  Building2,
   FileText,
-  Building,
 } from "lucide-react";
-import { ColumnDef } from "@tanstack/react-table";
 import { QuotationRecord } from "@/lib/db/quotations";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 import { updateQuotationStatusAction } from "@/actions/quotations";
-import {
-  PageHeader,
-  StatTile,
-  DataTable,
-  DataTableToolbar,
-  DateRangePicker,
-  RefChip,
-  StatusPill,
-  MoneyText,
-  KeyValueTile,
-  DetailSheet,
-  formatDate,
-} from "@/components/dashboard/ui";
-import { Button } from "@/components/ui/button";
+import { RefChip } from "@/components/dashboard/ui/ref-chip";
+import { MoneyText } from "@/components/dashboard/ui/money-text";
+import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
+import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
+import { formatUSD } from "@/lib/formatters";
 
 interface QuotationsListProps {
   initialQuotations: QuotationRecord[];
 }
 
 export function QuotationsList({ initialQuotations }: QuotationsListProps) {
-  const [quotations, setQuotations] = React.useState<QuotationRecord[]>(initialQuotations);
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("ALL");
-  const [docTypeFilter, setDocTypeFilter] = React.useState("ALL");
+  const [quotations, setQuotations] = useState<QuotationRecord[]>(initialQuotations);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [docTypeFilter, setDocTypeFilter] = useState("ALL");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [selectedQuote, setSelectedQuote] = useState<QuotationRecord | null>(null);
 
-  // Detail Sheet state
-  const [selectedQuotation, setSelectedQuotation] = React.useState<QuotationRecord | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = React.useState(false);
-  const [cancellingId, setCancellingId] = React.useState<string | null>(null);
-  const [cancellationReason, setCancellationReason] = React.useState("");
-  const [actionError, setActionError] = React.useState("");
+  const filtered = quotations.filter((q) => {
+    const matchesSearch =
+      searchTerm.trim() === "" ||
+      q.internalReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (q.clientName && q.clientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (q.clientRfqNumber && q.clientRfqNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // Stats
-  const totalCount = quotations.length;
-  const draftCount = quotations.filter((q) => q.status === "DRAFT").length;
-  const submittedCount = quotations.filter((q) => q.status === "SUBMITTED").length;
+    const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
+    const matchesType = docTypeFilter === "ALL" || q.docType === docTypeFilter;
+
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const totalAmount = quotations.reduce((sum, q) => (q.status !== "CANCELLED" ? sum + q.total : sum), 0);
   const validatedCount = quotations.filter((q) => q.status === "VALIDATED").length;
-
-  const inProgressQuotes = React.useMemo(() => {
-    return quotations
-      .filter((q) => q.status === "SUBMITTED" || q.status === "DRAFT")
-      .slice(0, 3);
-  }, [quotations]);
-
-  const filtered = React.useMemo(() => {
-    return quotations.filter((q) => {
-      const s = searchTerm.toLowerCase().trim();
-      const matchesSearch =
-        s === "" ||
-        q.internalReference.toLowerCase().includes(s) ||
-        (q.clientName && q.clientName.toLowerCase().includes(s)) ||
-        (q.clientRfqNumber && q.clientRfqNumber.toLowerCase().includes(s));
-
-      const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
-      const matchesType = docTypeFilter === "ALL" || q.docType === docTypeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [quotations, searchTerm, statusFilter, docTypeFilter]);
-
-  const handleOpenDetail = (q: QuotationRecord) => {
-    setSelectedQuotation(q);
-    setCancellingId(null);
-    setCancellationReason("");
-    setActionError("");
-    setIsDetailOpen(true);
-  };
+  const draftCount = quotations.filter((q) => q.status === "DRAFT").length;
 
   const handleValidate = async (id: string) => {
     if (!confirm("Voulez-vous valider commercialement ce devis ?")) return;
-    setActionError("");
     const res = await updateQuotationStatusAction(id, "VALIDATED");
     if (res.success && res.quotation) {
-      setQuotations((prev) =>
-        prev.map((q) => (q.id === id ? res.quotation! : q))
-      );
-      setSelectedQuotation(res.quotation);
-    } else {
-      setActionError(res.error || "Erreur de validation");
+      setQuotations((prev) => prev.map((q) => (q.id === id ? res.quotation! : q)));
+      if (selectedQuote?.id === id) {
+        setSelectedQuote(res.quotation);
+      }
     }
   };
 
@@ -106,417 +68,327 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       alert("Veuillez indiquer un motif d'annulation.");
       return;
     }
-    setActionError("");
-    const res = await updateQuotationStatusAction(
-      id,
-      "CANCELLED",
-      cancellationReason
-    );
+    const res = await updateQuotationStatusAction(id, "CANCELLED", cancellationReason);
     if (res.success && res.quotation) {
-      setQuotations((prev) =>
-        prev.map((q) => (q.id === id ? res.quotation! : q))
-      );
-      setSelectedQuotation(res.quotation);
+      setQuotations((prev) => prev.map((q) => (q.id === id ? res.quotation! : q)));
+      if (selectedQuote?.id === id) {
+        setSelectedQuote(res.quotation);
+      }
       setCancellingId(null);
       setCancellationReason("");
-    } else {
-      setActionError(res.error || "Erreur d'annulation");
     }
   };
 
-  const columns = React.useMemo<ColumnDef<QuotationRecord>[]>(
-    () => [
-      {
-        accessorKey: "internalReference",
-        header: "Réf. Devis",
-        cell: ({ row }) => (
-          <RefChip variant="primary">
-            {row.original.internalReference}
-          </RefChip>
-        ),
-      },
-      {
-        accessorKey: "clientRfqNumber",
-        header: "RFQ Client",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground font-medium">
-            {row.original.clientRfqNumber || "—"}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "clientName",
-        header: "Client & Projet",
-        cell: ({ row }) => (
-          <div className="max-w-xs">
-            <span className="font-bold text-foreground block truncate">
-              {row.original.clientName}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              {row.original.docType === "PROFORMA" ? "Proforma" : "Devis Standard"}
-            </span>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "documentDate",
-        header: "Date d'émission",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground tabular-nums">
-            {formatDate(row.original.documentDate)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "total",
-        header: "Total ($ USD)",
-        cell: ({ row }) => (
-          <MoneyText
-            value={row.original.total}
-            className="font-bold text-foreground text-sm"
-          />
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: "Statut",
-        cell: ({ row }) => <StatusPill status={row.original.status} />,
-      },
-      {
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenDetail(row.original);
-              }}
-              className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors ml-auto"
-              title="Consulter"
-            >
-              <Eye className="size-3.5" />
-            </button>
-          </div>
-        ),
-      },
-    ],
-    []
-  );
-
   return (
-    <div className="space-y-6 max-w-7xl">
-      <PageHeader
-        title="Devis & Factures Proformas"
-        description="Gestion des chiffrages miniers et propositions avec numérotation séquentielle par client."
-        icon={<FileSpreadsheet className="size-5" />}
-        actions={
-          <Link
-            href="/dashboard/quotes/new"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="size-3.5" />
-            <span>Nouveau devis</span>
-          </Link>
-        }
-      />
-
-      {/* Stat Strip (Screenshot 3 pattern) */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatTile
-          label="Total chiffrages"
-          value={totalCount}
-          subtitle="Dossiers enregistrés"
-          icon={<FileSpreadsheet className="size-4" />}
-        />
-        <StatTile
-          label="Brouillons"
-          value={draftCount}
-          subtitle="En cours de rédaction"
-        />
-        <StatTile
-          label="Soumis au client"
-          value={submittedCount}
-          subtitle="En attente de retour RFQ"
-        />
-        <StatTile
-          label="Validés commercialement"
-          value={validatedCount}
-          subtitle="Prêts pour bon de commande (PO)"
-          icon={<CheckCircle2 className="size-4" />}
-        />
+    <div className="space-y-6">
+      {/* Quick Stat Summary Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-border bg-card">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+            Total Devis
+          </p>
+          <p className="text-xl font-black text-primary mt-1">{quotations.length}</p>
+        </div>
+        <div className="p-4 rounded-xl border border-border bg-card">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+            Brouillons
+          </p>
+          <p className="text-xl font-black text-foreground mt-1">{draftCount}</p>
+        </div>
+        <div className="p-4 rounded-xl border border-border bg-card">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+            Validés
+          </p>
+          <p className="text-xl font-black text-success mt-1">{validatedCount}</p>
+        </div>
+        <div className="p-4 rounded-xl border border-border bg-card">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+            Montant Total Cumulé
+          </p>
+          <p className="text-xl font-black text-primary font-mono mt-1">
+            $ {formatUSD(totalAmount)}
+          </p>
+        </div>
       </div>
 
-      {/* "Demandes en cours" Cards (Screenshot 3 pattern) */}
-      {inProgressQuotes.length > 0 && (
-        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs">
-          <div className="flex items-center justify-between pb-3.5 border-b border-border/70 mb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="size-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">
-                Demandes en cours de traitement
-              </h2>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {inProgressQuotes.length} dossier{inProgressQuotes.length > 1 ? "s" : ""} prioritaire{inProgressQuotes.length > 1 ? "s" : ""}
+      {/* Filters Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-3 max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher par référence devis, client, RFQ..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+              ⌘F
             </span>
           </div>
 
-          <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {inProgressQuotes.map((q) => (
-              <div
-                key={q.id}
-                onClick={() => handleOpenDetail(q)}
-                className="group flex flex-col justify-between rounded-xl border border-border/80 bg-secondary/30 p-4 hover:border-primary/40 hover:bg-card transition-all cursor-pointer shadow-2xs"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <RefChip variant="primary">{q.internalReference}</RefChip>
-                    <StatusPill status={q.status} />
-                  </div>
-                  <h4 className="mt-2.5 font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">
-                    {q.clientName}
-                  </h4>
-                  {q.clientRfqNumber && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      RFQ: {q.clientRfqNumber}
-                    </p>
-                  )}
-                </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
+          >
+            <option value="ALL">Tous statuts</option>
+            <option value="DRAFT">Brouillon</option>
+            <option value="SUBMITTED">Soumis</option>
+            <option value="VALIDATED">Validé</option>
+            <option value="CANCELLED">Annulé</option>
+          </select>
 
-                <div className="mt-3 pt-2.5 border-t border-border/70 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {formatDate(q.documentDate)}
-                  </span>
-                  <MoneyText
-                    value={q.total}
-                    className="font-bold text-foreground"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <select
+            value={docTypeFilter}
+            onChange={(e) => setDocTypeFilter(e.target.value)}
+            className="h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
+          >
+            <option value="ALL">Tous types</option>
+            <option value="QUOTATION">Devis Standard</option>
+            <option value="PROFORMA">Proforma</option>
+          </select>
         </div>
-      )}
 
-      {/* Main Data Table */}
-      <DataTable
-        columns={columns}
-        data={filtered}
-        onRowClick={handleOpenDetail}
-        toolbar={
-          <DataTableToolbar
-            searchPlaceholder="Rechercher par référence, RFQ ou client..."
-            searchValue={searchTerm}
-            onSearchChange={setSearchTerm}
-            activeFilterCount={
-              (statusFilter !== "ALL" ? 1 : 0) +
-              (docTypeFilter !== "ALL" ? 1 : 0)
-            }
-            filterContent={
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Statut du devis
-                  </label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-input bg-card px-2 text-xs font-medium text-foreground outline-none"
-                  >
-                    <option value="ALL">Tous les statuts</option>
-                    <option value="DRAFT">Brouillon</option>
-                    <option value="SUBMITTED">Soumis</option>
-                    <option value="VALIDATED">Validé</option>
-                    <option value="CANCELLED">Annulé</option>
-                  </select>
-                </div>
+        <Link
+          href="/dashboard/quotes/new"
+          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0"
+        >
+          <Plus className="size-4" /> Nouveau Devis
+        </Link>
+      </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Type de document
-                  </label>
-                  <select
-                    value={docTypeFilter}
-                    onChange={(e) => setDocTypeFilter(e.target.value)}
-                    className="h-9 w-full rounded-lg border border-input bg-card px-2 text-xs font-medium text-foreground outline-none"
+      {/* Quotations Table */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3.5 px-4">Réf. Interne</th>
+                <th className="py-3.5 px-4">Client</th>
+                <th className="py-3.5 px-4">Type</th>
+                <th className="py-3.5 px-4">Réf. RFQ Client</th>
+                <th className="py-3.5 px-4">Date</th>
+                <th className="py-3.5 px-4 text-right">Montant TTC</th>
+                <th className="py-3.5 px-4 text-center">Statut</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-muted-foreground">
+                    <FileSpreadsheet className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+                    <p className="font-bold text-foreground">Aucun devis trouvé</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Créez un nouveau devis pour démarrer une cotation.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((quote) => (
+                  <tr
+                    key={quote.id}
+                    onClick={() => setSelectedQuote(quote)}
+                    className="hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
-                    <option value="ALL">Tous les types</option>
-                    <option value="QUOTATION">Devis Standard</option>
-                    <option value="PROFORMA">Facture Proforma</option>
-                  </select>
-                </div>
+                    <td className="py-3 px-4">
+                      <RefChip value={quote.internalReference} />
+                    </td>
+                    <td className="py-3 px-4 font-semibold text-foreground">{quote.clientName}</td>
+                    <td className="py-3 px-4">
+                      <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground">
+                        {quote.docType === "PROFORMA" ? "Proforma" : "Devis"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground font-medium">{quote.clientRfqNumber || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{quote.documentDate}</td>
+                    <td className="py-3 px-4 text-right">
+                      <MoneyText amount={quote.total} className="text-xs font-black text-primary" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <StatusBadge status={quote.status} />
+                    </td>
+                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedQuote(quote)}
+                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                          title="Aperçu des détails"
+                        >
+                          <Eye className="size-3.5" />
+                        </button>
+                        {quote.status === "DRAFT" && (
+                          <button
+                            type="button"
+                            onClick={() => handleValidate(quote.id)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2 py-1 text-[10px] font-bold text-success hover:bg-success/25 transition-colors cursor-pointer border border-success/30"
+                            title="Valider le devis"
+                          >
+                            <CheckCircle2 className="size-3" /> Valider
+                          </button>
+                        )}
+                        {quote.status === "VALIDATED" && (
+                          <Link
+                            href={`/dashboard/orders?newOrderFromQuoteId=${quote.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer border border-primary/20"
+                            title="Convertir en commande d'achat"
+                          >
+                            Créer PO <ArrowRight className="size-3" />
+                          </Link>
+                        )}
+                        {quote.status !== "CANCELLED" && (
+                          <button
+                            type="button"
+                            onClick={() => setCancellingId(quote.id)}
+                            className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                            title="Annuler le devis"
+                          >
+                            <XCircle className="size-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-                <div className="pt-1 flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setStatusFilter("ALL");
-                      setDocTypeFilter("ALL");
-                    }}
-                    className="h-7 text-xs text-muted-foreground"
-                  >
-                    Réinitialiser
-                  </Button>
+      {/* Detail Sheet for Quotation */}
+      <DetailSheet
+        isOpen={!!selectedQuote}
+        onClose={() => setSelectedQuote(null)}
+        title={selectedQuote?.internalReference || "Détail du Devis"}
+        statusBadge={selectedQuote ? <StatusBadge status={selectedQuote.status} /> : undefined}
+      >
+        {selectedQuote && (
+          <div className="space-y-6">
+            <div>
+              <p className="text-xs font-bold text-muted-foreground">Client</p>
+              <h2 className="text-base font-black text-foreground mt-0.5 flex items-center gap-2">
+                <Building2 className="size-4 text-accent" />
+                {selectedQuote.clientName}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <KeyValueTile label="Date d'émission" value={selectedQuote.documentDate} />
+              <KeyValueTile label="Type de document" value={selectedQuote.docType === "PROFORMA" ? "Proforma" : "Devis Standard"} />
+              <KeyValueTile label="Échéance validité" value={selectedQuote.validityDate} />
+              <KeyValueTile label="Taux TVA" value={`${selectedQuote.vatRate}%`} />
+            </div>
+
+            {selectedQuote.clientRfqNumber && (
+              <div className="rounded-xl border border-border bg-secondary/30 p-3 text-xs">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">N° Appel d&apos;offre Client (RFQ)</span>
+                <p className="font-mono font-bold text-foreground mt-0.5">{selectedQuote.clientRfqNumber}</p>
+              </div>
+            )}
+
+            {/* Financial Summary */}
+            <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Sous-total HT :</span>
+                <MoneyText amount={selectedQuote.subtotal} className="font-mono font-bold text-foreground" />
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>TVA ({selectedQuote.vatRate}%) :</span>
+                <MoneyText amount={selectedQuote.vatAmount} className="font-mono font-bold text-foreground" />
+              </div>
+              <div className="flex justify-between text-sm font-black text-primary border-t border-border pt-2">
+                <span>TOTAL TTC :</span>
+                <MoneyText amount={selectedQuote.total} className="font-mono text-base text-primary" />
+              </div>
+            </div>
+
+            {/* Line items if available */}
+            {selectedQuote.items && selectedQuote.items.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-black text-primary flex items-center gap-1.5">
+                  <FileText className="size-3.5 text-accent" /> Articles chiffrés ({selectedQuote.items.length})
+                </p>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {selectedQuote.items.map((it, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg border border-border bg-card text-xs flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-foreground">{it.description}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {it.quantity} {it.unit} × ${it.unitPrice.toFixed(2)}
+                          {(it.discountPercent ?? 0) > 0 && ` (-${it.discountPercent}%)`}
+                        </p>
+                      </div>
+                      <MoneyText amount={it.lineSubtotal} className="font-mono font-bold text-foreground" />
+                    </div>
+                  ))}
                 </div>
               </div>
-            }
-            extraActions={
-              <DateRangePicker placeholder="Période d'émission" />
-            }
-          />
-        }
-        renderMobileCard={(q) => (
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-2">
-              <RefChip variant="primary">{q.internalReference}</RefChip>
-              <StatusPill status={q.status} />
-            </div>
-            <div>
-              <p className="font-bold text-foreground text-sm">{q.clientName}</p>
-              {q.clientRfqNumber && (
-                <p className="text-xs text-muted-foreground">RFQ: {q.clientRfqNumber}</p>
+            )}
+
+            {/* Action buttons inside drawer */}
+            <div className="pt-3 border-t border-border space-y-2">
+              {selectedQuote.status === "DRAFT" && (
+                <button
+                  type="button"
+                  onClick={() => handleValidate(selectedQuote.id)}
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs cursor-pointer"
+                >
+                  <CheckCircle2 className="size-4" /> Valider le devis
+                </button>
               )}
-            </div>
-            <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
-              <span className="text-muted-foreground">{formatDate(q.documentDate)}</span>
-              <MoneyText value={q.total} className="font-bold text-foreground" />
+              {selectedQuote.status === "VALIDATED" && (
+                <Link
+                  href={`/dashboard/orders?newOrderFromQuoteId=${selectedQuote.id}`}
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
+                >
+                  <ArrowRight className="size-4" /> Convertir en Bon de Commande (PO)
+                </Link>
+              )}
             </div>
           </div>
         )}
-      />
+      </DetailSheet>
 
-      {/* Right Detail Sheet */}
-      {selectedQuotation && (
-        <DetailSheet
-          open={isDetailOpen}
-          onOpenChange={setIsDetailOpen}
-          title={selectedQuotation.internalReference}
-          subtitle={`Client: ${selectedQuotation.clientName}`}
-          badge={<StatusPill status={selectedQuotation.status} />}
-          footer={
-            <div className="flex items-center gap-2 flex-wrap justify-end w-full">
-              {selectedQuotation.status === "SUBMITTED" && (
-                <Button
-                  type="button"
-                  onClick={() => handleValidate(selectedQuotation.id)}
-                  className="h-9 gap-1.5 bg-success text-success-foreground hover:bg-success/90 text-xs font-semibold"
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>Valider le devis</span>
-                </Button>
-              )}
-
-              {selectedQuotation.status !== "CANCELLED" && (
-                cancellingId === selectedQuotation.id ? (
-                  <div className="flex items-center gap-2 w-full pt-2">
-                    <input
-                      type="text"
-                      value={cancellationReason}
-                      onChange={(e) => setCancellationReason(e.target.value)}
-                      placeholder="Motif explicite d'annulation..."
-                      className="h-9 flex-1 rounded-lg border border-destructive/40 bg-card px-2.5 text-xs text-foreground outline-none"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setCancellingId(null)}
-                      className="h-9 text-xs"
-                    >
-                      Annuler
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => handleCancel(selectedQuotation.id)}
-                      className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-semibold"
-                    >
-                      Confirmer
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCancellingId(selectedQuotation.id)}
-                    className="h-9 gap-1.5 text-xs text-destructive border-destructive/20 hover:bg-destructive/10"
-                  >
-                    <XCircle className="size-3.5" />
-                    <span>Annuler l&apos;offre</span>
-                  </Button>
-                )
-              )}
-            </div>
-          }
-        >
-          {actionError && (
-            <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
-              {actionError}
-            </div>
-          )}
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile
-                label="Date d'émission"
-                value={formatDate(selectedQuotation.documentDate)}
-                icon={<CalendarIcon className="size-3.5" />}
-              />
-              <KeyValueTile
-                label="Validité"
-                value={`${selectedQuotation.validityDays} jours`}
-                icon={<Clock className="size-3.5" />}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile
-                label="N° RFQ Client"
-                value={selectedQuotation.clientRfqNumber || "Non spécifié"}
-              />
-              <KeyValueTile
-                label="Modalités de paiement"
-                value={selectedQuotation.paymentTerms || "30 jours"}
-              />
-            </div>
-
-            <KeyValueTile
-              label="Délai de livraison prévu"
-              value={selectedQuotation.deliveryLeadTime || "Ex-stock"}
+      {/* Cancellation Modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border space-y-4">
+            <h3 className="text-sm font-extrabold text-primary">
+              Motif d&apos;annulation obligatoire
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Conformément aux règles comptables, les devis émis ne sont pas supprimés mais archivés avec un motif traçable.
+            </p>
+            <textarea
+              required
+              rows={3}
+              placeholder="Indiquez la raison de l'annulation (rejet client, modification du cahier des charges...)"
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
             />
-
-            {/* Financial Summary */}
-            <div className="rounded-xl border border-border/80 bg-secondary/40 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Sous-total HT</span>
-                <MoneyText value={selectedQuotation.subtotal} className="font-semibold text-foreground" />
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">TVA ({selectedQuotation.vatRate} %)</span>
-                <MoneyText value={selectedQuotation.vatAmount} className="font-semibold text-foreground" />
-              </div>
-              <div className="flex items-center justify-between text-sm font-bold border-t border-border pt-2 text-primary">
-                <span>Total Général TTC</span>
-                <MoneyText value={selectedQuotation.total} className="text-base font-extrabold text-primary" />
-              </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCancellingId(null)}
+                className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+              >
+                Retour
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCancel(cancellingId)}
+                className="h-9 px-4 rounded-xl bg-destructive text-white hover:bg-destructive/90 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                Confirmer l&apos;annulation
+              </button>
             </div>
-
-            {selectedQuotation.notes && (
-              <div className="rounded-xl border border-border/80 bg-card p-3 space-y-1">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase">
-                  Remarques & Conditions particulières
-                </span>
-                <p className="text-xs text-foreground leading-relaxed">
-                  {selectedQuotation.notes}
-                </p>
-              </div>
-            )}
           </div>
-        </DetailSheet>
+        </div>
       )}
     </div>
   );

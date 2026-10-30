@@ -1,40 +1,34 @@
-import * as React from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 
-export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
-  icon?: React.ReactNode;
+interface EmptyStateProps {
+  icon: React.ComponentType<{ className?: string }>;
   title: string;
-  description?: string;
+  description: string;
   action?: React.ReactNode;
+  className?: string;
 }
 
 export function EmptyState({
-  icon,
+  icon: Icon,
   title,
   description,
   action,
   className,
-  ...props
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        "flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/60 p-8 text-center",
+        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 p-10 text-center",
         className
       )}
-      {...props}
     >
-      {icon && (
-        <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-secondary text-muted-foreground border border-border/60">
-          {icon}
-        </div>
-      )}
-      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-      {description && (
-        <p className="mt-1 max-w-sm text-xs text-muted-foreground">{description}</p>
-      )}
+      <div className="flex size-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground mb-3.5">
+        <Icon className="size-6" />
+      </div>
+      <h3 className="text-base font-semibold text-foreground tracking-tight">{title}</h3>
+      <p className="mt-1 max-w-sm text-xs text-muted-foreground leading-relaxed">{description}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
-

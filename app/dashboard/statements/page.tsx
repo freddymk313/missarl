@@ -3,7 +3,7 @@ import { getClients } from "@/lib/db/clients";
 import { getClientAccountStatement } from "@/lib/db/statements";
 import { StatementsViewer } from "@/components/dashboard/statements-viewer";
 
-export default async function StatementsPage({
+export default async function RelevesPage({
   searchParams,
 }: {
   searchParams: Promise<{ clientId?: string; startDate?: string; endDate?: string }>;
@@ -19,12 +19,24 @@ export default async function StatementsPage({
     : null;
 
   return (
-    <StatementsViewer
-      clients={clients}
-      statement={statement}
-      selectedClientId={selectedClientId}
-      startDate={startDate}
-      endDate={endDate}
-    />
+    <div className="space-y-6 max-w-7xl">
+      <div>
+        <p className="kicker">Comptabilité Tiers</p>
+        <h1 className="text-2xl font-black text-primary tracking-tight mt-1">
+          Relevés de Compte Clients
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Extrait chronologique des facturations et encaissements avec calcul du solde progressif et balance de clôture.
+        </p>
+      </div>
+
+      <StatementsViewer
+        clients={clients}
+        statement={statement}
+        selectedClientId={selectedClientId}
+        startDate={startDate}
+        endDate={endDate}
+      />
+    </div>
   );
 }

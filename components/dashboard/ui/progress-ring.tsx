@@ -1,70 +1,65 @@
-import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export interface ProgressRingProps extends React.SVGProps<SVGSVGElement> {
-  value: number; // 0 to 100
+export interface ProgressRingProps {
+  percentage?: number;
+  value?: number;
   size?: number;
   strokeWidth?: number;
-  showLabel?: boolean;
+  className?: string;
   colorClass?: string;
-  trackClass?: string;
+  showText?: boolean;
 }
 
 export function ProgressRing({
+  percentage,
   value,
   size = 48,
   strokeWidth = 4,
-  showLabel = true,
-  colorClass = "text-primary",
-  trackClass = "text-border",
   className,
-  ...props
+  colorClass,
+  showText = true,
 }: ProgressRingProps) {
-  const clamped = Math.min(100, Math.max(0, isNaN(value) ? 0 : value));
+  const raw = value ?? percentage ?? 0;
+  const clamped = Math.min(100, Math.max(0, raw));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (clamped / 100) * circumference;
 
   return (
-    <div
-      className={cn("relative inline-flex items-center justify-center shrink-0", className)}
-      style={{ width: size, height: size }}
-    >
+    <div className={cn("relative inline-flex items-center justify-center shrink-0", className)}>
       <svg
         width={size}
         height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="rotate-[-90deg]"
-        {...props}
+        className="-rotate-90 transform"
+        aria-hidden="true"
       >
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          strokeWidth={strokeWidth}
           stroke="currentColor"
-          fill="none"
-          className={cn("transition-colors", trackClass)}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          className="text-border"
         />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          strokeWidth={strokeWidth}
           stroke="currentColor"
-          fill="none"
+          strokeWidth={strokeWidth}
+          fill="transparent"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className={cn("transition-all duration-300 ease-out", colorClass)}
+          className={cn("transition-all duration-300 ease-out", colorClass || "text-primary")}
         />
       </svg>
-      {showLabel && (
-        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums text-foreground">
+      {showText && (
+        <span className="absolute text-[11px] font-bold text-foreground tabular-nums">
           {Math.round(clamped)}%
         </span>
       )}
     </div>
   );
 }
-

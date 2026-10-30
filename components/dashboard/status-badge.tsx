@@ -1,216 +1,161 @@
-import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export type StatusCategory =
-  | "quotation"
-  | "order"
-  | "invoice"
-  | "delivery"
-  | "payment"
-  | "export"
-  | "general";
-
-interface StatusConfig {
+export interface StatusConfig {
   label: string;
-  dotClass: string;
-  bgClass: string;
-  textClass: string;
+  pillClasses: string;
+  dotClasses: string;
   struck?: boolean;
 }
 
-const STATUS_MAP: Record<string, StatusConfig> = {
+export const STATUS_MAP: Record<string, StatusConfig> = {
   // Quotations
   DRAFT: {
     label: "Brouillon",
-    dotClass: "bg-muted-foreground",
-    bgClass: "bg-muted text-muted-foreground border-border",
-    textClass: "text-muted-foreground",
+    pillClasses: "bg-muted text-muted-foreground border-border",
+    dotClasses: "bg-muted-foreground",
   },
   SUBMITTED: {
     label: "Soumis",
-    dotClass: "bg-primary",
-    bgClass: "bg-primary/10 text-primary border-primary/20",
-    textClass: "text-primary",
+    pillClasses: "bg-primary/10 text-primary border-primary/20",
+    dotClasses: "bg-primary",
   },
   VALIDATED: {
     label: "Validé",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
   EXPIRED: {
     label: "Expiré",
-    dotClass: "bg-warning",
-    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
-    textClass: "text-warning-foreground",
+    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
+    dotClasses: "bg-bronze",
   },
   REJECTED: {
     label: "Rejeté",
-    dotClass: "bg-destructive",
-    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
-    textClass: "text-destructive",
+    pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
+    dotClasses: "bg-destructive",
   },
   CANCELLED: {
     label: "Annulé",
-    dotClass: "bg-muted-foreground/60",
-    bgClass: "bg-muted/70 text-muted-foreground/70 border-border",
-    textClass: "text-muted-foreground line-through",
+    pillClasses: "bg-muted text-muted-foreground border-border opacity-70",
+    dotClasses: "bg-muted-foreground",
     struck: true,
   },
 
   // Orders
   PENDING: {
     label: "En attente",
-    dotClass: "bg-warning",
-    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
-    textClass: "text-warning-foreground",
+    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
+    dotClasses: "bg-bronze",
   },
   CONFIRMED: {
     label: "Confirmée",
-    dotClass: "bg-primary",
-    bgClass: "bg-primary/10 text-primary border-primary/20",
-    textClass: "text-primary",
+    pillClasses: "bg-primary/10 text-primary border-primary/20",
+    dotClasses: "bg-primary",
   },
   PARTIALLY_DELIVERED: {
     label: "Livrée partiellement",
-    dotClass: "bg-warning",
-    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
-    textClass: "text-warning-foreground",
+    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
+    dotClasses: "bg-bronze",
   },
   COMPLETED: {
     label: "Terminée",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
 
   // Invoices
   ISSUED: {
     label: "Émise",
-    dotClass: "bg-primary",
-    bgClass: "bg-primary/10 text-primary border-primary/20",
-    textClass: "text-primary",
+    pillClasses: "bg-primary/10 text-primary border-primary/20",
+    dotClasses: "bg-primary",
   },
   PARTIALLY_PAID: {
     label: "Partiellement payée",
-    dotClass: "bg-warning",
-    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
-    textClass: "text-warning-foreground",
+    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
+    dotClasses: "bg-bronze",
   },
   PAID: {
     label: "Payée",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
   OVERDUE: {
     label: "En retard",
-    dotClass: "bg-destructive",
-    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
-    textClass: "text-destructive",
+    pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
+    dotClasses: "bg-destructive",
   },
 
-  // Delivery Notes
+  // Delivery notes
   PREPARED: {
     label: "Préparé",
-    dotClass: "bg-muted-foreground",
-    bgClass: "bg-muted text-muted-foreground border-border",
-    textClass: "text-muted-foreground",
+    pillClasses: "bg-muted text-muted-foreground border-border",
+    dotClasses: "bg-muted-foreground",
   },
   IN_TRANSIT: {
     label: "En transit",
-    dotClass: "bg-primary",
-    bgClass: "bg-primary/10 text-primary border-primary/20",
-    textClass: "text-primary",
+    pillClasses: "bg-primary/10 text-primary border-primary/20",
+    dotClasses: "bg-primary",
   },
   DELIVERED: {
     label: "Livré",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
 
   // Payments
   RECORDED: {
     label: "Enregistré",
-    dotClass: "bg-muted-foreground",
-    bgClass: "bg-muted text-muted-foreground border-border",
-    textClass: "text-muted-foreground",
+    pillClasses: "bg-muted text-muted-foreground border-border",
+    dotClasses: "bg-muted-foreground",
   },
   RECONCILED: {
     label: "Rapproché",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
 
-  // Document Exports
+  // Document exports
   GENERATED: {
     label: "Généré",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
+    pillClasses: "bg-success/15 text-success border-success/30",
+    dotClasses: "bg-success",
   },
   FAILED: {
     label: "Échec",
-    dotClass: "bg-destructive",
-    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
-    textClass: "text-destructive",
+    pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
+    dotClasses: "bg-destructive",
   },
   MODIFIED: {
     label: "Modifié",
-    dotClass: "bg-warning",
-    bgClass: "bg-warning/10 text-warning-foreground border-warning/25",
-    textClass: "text-warning-foreground",
-  },
-
-  // General active / inactive
-  ACTIVE: {
-    label: "Actif",
-    dotClass: "bg-success",
-    bgClass: "bg-success/10 text-success border-success/20",
-    textClass: "text-success",
-  },
-  INACTIVE: {
-    label: "Inactif",
-    dotClass: "bg-muted-foreground",
-    bgClass: "bg-muted text-muted-foreground border-border",
-    textClass: "text-muted-foreground",
+    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
+    dotClasses: "bg-bronze",
   },
 };
 
-export interface StatusBadgeProps {
+export function StatusBadge({
+  status,
+  className,
+}: {
   status: string;
   className?: string;
-  showDot?: boolean;
-}
-
-export function StatusBadge({ status, className, showDot = true }: StatusBadgeProps) {
+}) {
   const normalized = (status || "").toUpperCase();
   const config = STATUS_MAP[normalized] || {
-    label: status,
-    dotClass: "bg-muted-foreground",
-    bgClass: "bg-muted text-muted-foreground border-border",
-    textClass: "text-muted-foreground",
+    label: status || "—",
+    pillClasses: "bg-muted text-muted-foreground border-border",
+    dotClasses: "bg-muted-foreground",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border select-none whitespace-nowrap",
-        config.bgClass,
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap select-none transition-colors",
+        config.pillClasses,
         className
       )}
     >
-      {showDot && (
-        <span
-          className={cn("size-1.5 rounded-full shrink-0", config.dotClass)}
-          aria-hidden="true"
-        />
-      )}
-      <span className={cn(config.struck && "line-through")}>{config.label}</span>
+      <span className={cn("size-1.5 rounded-full shrink-0", config.dotClasses)} aria-hidden="true" />
+      <span className={config.struck ? "line-through" : ""}>{config.label}</span>
     </span>
   );
 }
-
-export const StatusPill = StatusBadge;

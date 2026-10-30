@@ -7,9 +7,9 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get("mis_session");
 
   // Si l'utilisateur possède déjà une session, quitter la page de connexion
-  if (pathname === "/login" && sessionCookie?.value) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // if (pathname === "/login" && sessionCookie?.value) {
+  //   return NextResponse.redirect(new URL("/dashboard", request.url));
+  // }
 
   // Protéger le dashboard si aucune session n'existe
   if (pathname.startsWith("/dashboard") && !sessionCookie?.value) {
