@@ -85,7 +85,10 @@ export default async function DashboardPage() {
       FROM items
       WHERE is_active = TRUE
     `;
-    const itemStat = (itemStatsRows as unknown as ItemStatsRow[])[0] || { total: 0, categories: 0 };
+    const itemStat = (itemStatsRows as unknown as ItemStatsRow[])[0] || {
+      total: 0,
+      categories: 0,
+    };
 
     return (
       <div className="space-y-6 max-w-7xl">
@@ -110,7 +113,8 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Consultez et recherchez l&apos;ensemble des articles du catalogue industriel MIS SARL.
+                Consultez et recherchez l&apos;ensemble des articles du
+                catalogue industriel MIS SARL.
               </p>
             </div>
           </div>
@@ -146,10 +150,15 @@ export default async function DashboardPage() {
         {/* Catalogue Info Banner */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-3 border-l-4 border-l-accent">
           <h2 className="text-sm font-black text-primary flex items-center gap-2">
-            <Layers className="size-4 text-accent" /> Mode Consultation Catalogue
+            <Layers className="size-4 text-accent" /> Mode Consultation
+            Catalogue
           </h2>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-            Votre profil vous permet d&apos;accéder en lecture seule à la base articles de Lubumbashi : désignations complètes, codes SKU, marques agréées et tarifs publics en vigueur. Pour toute modification ou ajout de référence, veuillez vous rapprocher de la Direction Commerciale.
+            Votre profil vous permet d&apos;accéder en lecture seule à la base
+            articles de Lubumbashi : désignations complètes, codes SKU, marques
+            agréées et tarifs publics en vigueur. Pour toute modification ou
+            ajout de référence, veuillez vous rapprocher de la Direction
+            Commerciale.
           </p>
         </div>
       </div>
@@ -216,18 +225,40 @@ export default async function DashboardPage() {
     `,
   ]);
 
-  const quoteStat = (quoteStats as unknown as QuoteStatsRow[])[0] || { total: 0, validated: 0, total_amount: 0 };
-  const orderStat = (orderStats as unknown as OrderStatsRow[])[0] || { total: 0, active: 0, total_amount: 0 };
-  const invoiceStat = (invoiceStats as unknown as InvoiceStatsRow[])[0] || { total: 0, total_invoiced: 0, total_receivables: 0, unpaid_count: 0 };
-  const paymentStat = (paymentStats as unknown as PaymentStatsRow[])[0] || { total: 0, total_collected: 0 };
+  const quoteStat = (quoteStats as unknown as QuoteStatsRow[])[0] || {
+    total: 0,
+    validated: 0,
+    total_amount: 0,
+  };
+  const orderStat = (orderStats as unknown as OrderStatsRow[])[0] || {
+    total: 0,
+    active: 0,
+    total_amount: 0,
+  };
+  const invoiceStat = (invoiceStats as unknown as InvoiceStatsRow[])[0] || {
+    total: 0,
+    total_invoiced: 0,
+    total_receivables: 0,
+    unpaid_count: 0,
+  };
+  const paymentStat = (paymentStats as unknown as PaymentStatsRow[])[0] || {
+    total: 0,
+    total_collected: 0,
+  };
 
   const recentQuotes = recentQuotesRows as unknown as RecentQuoteRow[];
   const recentInvoices = recentInvoicesRows as unknown as RecentInvoiceRow[];
 
   // Compute collection rate percentage
-  const collectionRate = invoiceStat.total_invoiced > 0
-    ? Math.min(100, Math.round((paymentStat.total_collected / invoiceStat.total_invoiced) * 100))
-    : 0;
+  const collectionRate =
+    invoiceStat.total_invoiced > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (paymentStat.total_collected / invoiceStat.total_invoiced) * 100,
+          ),
+        )
+      : 0;
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -249,12 +280,10 @@ export default async function DashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
                   Bonjour, {firstName}
                 </h1>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/15 text-primary border border-accent/30">
-                  Lubumbashi, RDC
-                </span>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Suivi des opérations commerciales, devis miniers, commandes et créances clients.
+                Suivi des opérations commerciales, devis miniers, commandes et
+                créances clients.
               </p>
             </div>
           </div>
@@ -263,7 +292,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/dashboard/quotes/new"
-              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
               <FileSpreadsheet className="size-3.5" /> Nouveau Devis
             </Link>
@@ -271,7 +300,7 @@ export default async function DashboardPage() {
               href="/dashboard/clients"
               className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary/60 transition-colors"
             >
-              <Building2 className="size-3.5 text-accent" /> Clients
+              <Building2 className="size-3.5 text-primary" /> Clients
             </Link>
           </div>
         </div>
@@ -295,7 +324,7 @@ export default async function DashboardPage() {
         />
         <StatTile
           label="Créances à recouvrer"
-          value={`$ ${formatUSD(invoiceStat.total_receivables)}`}
+          value={` ${formatUSD(invoiceStat.total_receivables)}`}
           icon={Receipt}
           href="/dashboard/invoices"
           trend="down"
@@ -303,7 +332,7 @@ export default async function DashboardPage() {
         />
         <StatTile
           label="Paiements Encaissés"
-          value={`$ ${formatUSD(paymentStat.total_collected)}`}
+          value={`${formatUSD(paymentStat.total_collected)}`}
           icon={CreditCard}
           href="/dashboard/payments"
           trend="up"
@@ -318,7 +347,8 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
               <h2 className="text-sm font-black text-primary flex items-center gap-2">
-                <FileSpreadsheet className="size-4 text-accent" /> Devis & Propositions Récentes
+                <FileSpreadsheet className="size-4 text-accent" /> Devis &
+                Propositions Récentes
               </h2>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Dernières cotations industrielles émises aux clients miniers
@@ -346,15 +376,21 @@ export default async function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <RefChip value={q.internal_reference} />
                     <div>
-                      <p className="font-extrabold text-foreground">{q.client_name}</p>
+                      <p className="font-extrabold text-foreground">
+                        {q.client_name}
+                      </p>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="size-3 text-accent" /> {q.document_date}
+                        <Clock className="size-3 text-accent" />{" "}
+                        {q.document_date}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-3.5">
-                    <MoneyText amount={q.total} className="text-xs font-black text-foreground" />
+                    <MoneyText
+                      amount={q.total}
+                      className="text-xs font-black text-foreground"
+                    />
                     <StatusBadge status={q.status} />
                     <Link
                       href="/dashboard/quotes"
@@ -375,16 +411,20 @@ export default async function DashboardPage() {
           {/* Treasury Summary Card */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-muted-foreground">Suivi Trésorerie</span>
+              <span className="text-xs font-bold text-muted-foreground">
+                Suivi Trésorerie
+              </span>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-md">
                 <TrendingUp className="size-3" /> {collectionRate}% recouvré
               </span>
             </div>
 
             <div className="space-y-1">
-              <p className="text-[11px] text-muted-foreground font-medium">Total Facturé</p>
+              <p className="text-[11px] text-muted-foreground font-medium">
+                Total Facturé
+              </p>
               <p className="text-xl font-black text-primary font-mono">
-                $ {formatUSD(invoiceStat.total_invoiced)}
+                {formatUSD(invoiceStat.total_invoiced)}
               </p>
             </div>
 
@@ -404,13 +444,17 @@ export default async function DashboardPage() {
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border text-xs">
               <div className="rounded-xl bg-secondary/50 p-2.5">
-                <p className="text-[10px] text-muted-foreground font-semibold">Encaissé</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">
+                  Encaissé
+                </p>
                 <p className="text-xs font-mono font-bold text-success mt-0.5">
                   ${formatUSD(paymentStat.total_collected)}
                 </p>
               </div>
               <div className="rounded-xl bg-secondary/50 p-2.5">
-                <p className="text-[10px] text-muted-foreground font-semibold">Créances Dues</p>
+                <p className="text-[10px] text-muted-foreground font-semibold">
+                  Créances Dues
+                </p>
                 <p className="text-xs font-mono font-bold text-destructive mt-0.5">
                   ${formatUSD(invoiceStat.total_receivables)}
                 </p>
@@ -422,7 +466,8 @@ export default async function DashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-border">
               <h3 className="text-xs font-black text-primary flex items-center gap-1.5">
-                <AlertTriangle className="size-3.5 text-accent" /> Factures à Surveiller
+                <AlertTriangle className="size-3.5 text-accent" /> Factures à
+                Surveiller
               </h3>
               <Link
                 href="/dashboard/invoices"

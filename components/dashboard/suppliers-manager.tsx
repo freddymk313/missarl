@@ -48,7 +48,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
   return (
     <div className="space-y-6">
       {/* Search and Action Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -90,7 +90,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <RefChip value={supplier.code} />
-                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary border border-border px-2 py-0.5 text-[10px] font-bold text-foreground">
                     <Globe className="size-3 text-muted-foreground" />
                     {supplier.country || "International"}
                   </span>
@@ -113,19 +113,19 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
                 <div className="mt-4 space-y-1.5 border-t border-border/80 pt-3 text-xs text-muted-foreground">
                   {supplier.phone && (
                     <p className="flex items-center gap-2">
-                      <Phone className="size-3.5 text-accent shrink-0" />
+                      <Phone className="size-3.5 text-primary shrink-0" />
                       <span>{supplier.phone}</span>
                     </p>
                   )}
                   {supplier.email && (
                     <p className="flex items-center gap-2">
-                      <Mail className="size-3.5 text-accent shrink-0" />
+                      <Mail className="size-3.5 text-primary shrink-0" />
                       <span className="truncate">{supplier.email}</span>
                     </p>
                   )}
                   {supplier.address && (
                     <p className="flex items-start gap-2">
-                      <MapPin className="size-3.5 text-accent shrink-0 mt-0.5" />
+                      <MapPin className="size-3.5 text-primary shrink-0 mt-0.5" />
                       <span className="line-clamp-2">{supplier.address}</span>
                     </p>
                   )}
