@@ -9,7 +9,6 @@ export default async function UtilisateursPage() {
   return (
     <div className="space-y-6 max-w-7xl">
       <div>
-        <p className="kicker">Sécurité & Contrôle d&apos;Accès</p>
         <h1 className="text-2xl font-black text-primary tracking-tight mt-1">
           Gestion des Utilisateurs & Rôles
         </h1>

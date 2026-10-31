@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   ExternalLink,
   Layers,
+  FileText,
+  Clock,
 } from "lucide-react";
 import { getCurrentSession } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -87,11 +89,11 @@ export default async function DashboardPage() {
 
     return (
       <div className="space-y-6 max-w-7xl">
-        {/* Comfort Shift Greeting Header */}
+        {/* Welcome Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-6 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-center justify-center size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              <span className="text-[10px] font-black uppercase tracking-wider text-accent">
                 {calendarChip.month}
               </span>
               <span className="text-lg font-black text-primary leading-none mt-0.5">
@@ -103,7 +105,7 @@ export default async function DashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
                   Bonjour, {firstName}
                 </h1>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-foreground border border-accent/30">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-foreground border border-accent/40">
                   Collecteur de Prix
                 </span>
               </div>
@@ -116,7 +118,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2.5">
             <Link
               href="/dashboard/items"
-              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
               <Package className="size-4" /> Consulter le Catalogue
             </Link>
@@ -142,7 +144,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Catalogue Info Banner */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-3">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-3 border-l-4 border-l-accent">
           <h2 className="text-sm font-black text-primary flex items-center gap-2">
             <Layers className="size-4 text-accent" /> Mode Consultation Catalogue
           </h2>
@@ -229,13 +231,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Comfort Shift Overview Header */}
-      <div className="bg-card p-6 rounded-2xl border border-border shadow-xs">
+      {/* Overview Header Banner avec touche d'or/jaune discrète */}
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-xs border-l-4 border-l-accent">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             {/* Calendar Chip */}
             <div className="flex flex-col items-center justify-center size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+              <span className="text-[10px] font-black uppercase tracking-wider text-accent">
                 {calendarChip.month}
               </span>
               <span className="text-lg font-black text-primary leading-none mt-0.5">
@@ -243,9 +245,14 @@ export default async function DashboardPage() {
               </span>
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
-                Bonjour, {firstName}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
+                  Bonjour, {firstName}
+                </h1>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/15 text-primary border border-accent/30">
+                  Lubumbashi, RDC
+                </span>
+              </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Suivi des opérations commerciales, devis miniers, commandes et créances clients.
               </p>
@@ -256,7 +263,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               href="/dashboard/quotes/new"
-              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
               <FileSpreadsheet className="size-3.5" /> Nouveau Devis
             </Link>
@@ -264,38 +271,13 @@ export default async function DashboardPage() {
               href="/dashboard/clients"
               className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary/60 transition-colors"
             >
-              <Building2 className="size-3.5 text-muted-foreground" /> Clients
+              <Building2 className="size-3.5 text-accent" /> Clients
             </Link>
           </div>
         </div>
-
-        {/* Underlined Sub-navigation Tabs */}
-        <div className="flex items-center gap-6 border-b border-border mt-5 -mb-2 overflow-x-auto">
-          <span className="pb-3 text-xs font-bold text-primary border-b-2 border-accent cursor-pointer shrink-0">
-            Vue d&apos;ensemble
-          </span>
-          <Link
-            href="/dashboard/quotes"
-            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
-          >
-            Chiffrages ({quoteStat.total})
-          </Link>
-          <Link
-            href="/dashboard/orders"
-            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
-          >
-            Commandes en cours ({orderStat.active})
-          </Link>
-          <Link
-            href="/dashboard/invoices"
-            className="pb-3 text-xs font-medium text-muted-foreground hover:text-primary transition-colors shrink-0"
-          >
-            Créances (${formatUSD(invoiceStat.total_receivables)})
-          </Link>
-        </div>
       </div>
 
-      {/* 4 KPI StatTiles matching template */}
+      {/* 4 KPI StatTiles */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Devis Émis"
@@ -346,7 +328,7 @@ export default async function DashboardPage() {
               href="/dashboard/quotes"
               className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-accent transition-colors"
             >
-              Consulter tout <ArrowRight className="size-3" />
+              Consulter tout <ArrowRight className="size-3 text-accent" />
             </Link>
           </div>
 
@@ -365,7 +347,9 @@ export default async function DashboardPage() {
                     <RefChip value={q.internal_reference} />
                     <div>
                       <p className="font-extrabold text-foreground">{q.client_name}</p>
-                      <p className="text-[10px] text-muted-foreground">{q.document_date}</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Clock className="size-3 text-accent" /> {q.document_date}
+                      </p>
                     </div>
                   </div>
 
@@ -374,7 +358,7 @@ export default async function DashboardPage() {
                     <StatusBadge status={q.status} />
                     <Link
                       href="/dashboard/quotes"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-accent hover:bg-secondary transition-colors"
                       title="Ouvrir la liste des devis"
                     >
                       <ExternalLink className="size-3.5" />
@@ -388,7 +372,7 @@ export default async function DashboardPage() {
 
         {/* Right Column: Financial Balance & Invoices to Watch (4 cols) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Moving Budget style summary card */}
+          {/* Treasury Summary Card */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-muted-foreground">Suivi Trésorerie</span>
@@ -404,11 +388,11 @@ export default async function DashboardPage() {
               </p>
             </div>
 
-            {/* Progress bar */}
+            {/* Progress bar avec touche jaune/or */}
             <div className="space-y-1.5 pt-1">
               <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
                 <div
-                  className="h-full bg-primary transition-all duration-500 rounded-full"
+                  className="h-full bg-accent transition-all duration-500 rounded-full"
                   style={{ width: `${collectionRate}%` }}
                 />
               </div>
@@ -438,11 +422,11 @@ export default async function DashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-border">
               <h3 className="text-xs font-black text-primary flex items-center gap-1.5">
-                <AlertTriangle className="size-3.5 text-warning" /> Factures à Surveiller
+                <AlertTriangle className="size-3.5 text-accent" /> Factures à Surveiller
               </h3>
               <Link
                 href="/dashboard/invoices"
-                className="text-[11px] font-bold text-muted-foreground hover:text-primary transition-colors"
+                className="text-[11px] font-bold text-muted-foreground hover:text-accent transition-colors"
               >
                 Tout voir
               </Link>

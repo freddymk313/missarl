@@ -10,5 +10,6 @@ export * from "./date-range-picker";
 export * from "./detail-sheet";
 export * from "./data-table";
 export * from "./data-table-toolbar";
-export { StatusBadge, StatusPill } from "../status-badge";
+export { StatusBadge } from "../status-badge";
+export { StatusPill } from "./status-pill";
 

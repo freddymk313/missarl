@@ -22,6 +22,7 @@ import {
   Users,
   Settings,
   ChevronRight,
+  InfoIcon,
 } from "lucide-react";
 import { UserSession, ROLES } from "@/lib/permissions";
 import { siteConfig } from "@/app/config/site";
@@ -65,7 +66,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
   const roleMeta = ROLES[user.role] || { label: user.role, description: "" };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-card/90 px-4 sm:px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-[77px] w-full items-center justify-between border-b border-border bg-card/90 px-4 sm:px-6 backdrop-blur-md">
       {/* Left: Mobile hamburger + Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
@@ -100,7 +101,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
             className="flex size-9 items-center justify-center rounded-xl bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors border border-border/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Aide et assistance"
           >
-            <HelpCircle className="size-4" />
+            <InfoIcon className="size-4" />
           </button>
 
           {helpOpen && (
@@ -113,7 +114,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
               <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border bg-popover p-4 shadow-lg text-popover-foreground z-50 animate-in fade-in-50 zoom-in-95">
                 <div className="flex items-center gap-2 pb-2.5 border-b border-border">
                   <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <HelpCircle className="size-4" />
+                    <InfoIcon className="size-4" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-foreground">Support & Assistance</p>
@@ -192,21 +193,6 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
               </div>
             </>
           )}
-        </div>
-
-        {/* User Identity Chip on Right (Header) */}
-        <div className="ml-1 hidden sm:flex items-center gap-2 pl-2 border-l border-border/80">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-2xs">
-            {user.fullName.charAt(0).toUpperCase()}
-          </div>
-          <div className="text-left hidden md:block">
-            <p className="text-xs font-bold text-foreground leading-tight truncate max-w-[120px]">
-              {user.fullName}
-            </p>
-            <span className="inline-block text-[10px] font-semibold text-primary leading-tight">
-              {roleMeta.label}
-            </span>
-          </div>
         </div>
       </div>
     </header>

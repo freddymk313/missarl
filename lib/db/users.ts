@@ -100,22 +100,24 @@ export async function updateUser(
   id: string,
   data: {
     fullName?: string;
+    email?: string;
     role?: UserRole;
     password?: string;
     isActive?: boolean;
   }
 ): Promise<UserRecord | null> {
-  if (data.password) {
-    const passwordHash = hashPassword(data.password);
+  if (data.password && data.password.trim().length > 0) {
+    const passwordHash = hashPassword(data.password.trim());
     await sql`UPDATE users SET password_hash = ${passwordHash} WHERE id = ${id}`;
   }
 
   const rows = await sql`
     UPDATE users
     SET 
-      full_name = COALESCE(${data.fullName ?? null}, full_name),
+      full_name = COALESCE(${data.fullName ? data.fullName.trim() : null}, full_name),
+      email = COALESCE(${data.email ? data.email.trim().toLowerCase() : null}, email),
       role = COALESCE(${data.role ?? null}, role),
-      is_active = COALESCE(${data.isActive ?? null}, is_active),
+      is_active = COALESCE(${data.isActive !== undefined ? data.isActive : null}, is_active),
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING 
@@ -131,4 +133,13 @@ export async function updateUser(
 
   if (!rows || rows.length === 0) return null;
   return rows[0] as unknown as UserRecord;
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+  const rows = await sql`
+    DELETE FROM users
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return rows && rows.length > 0;
 }
