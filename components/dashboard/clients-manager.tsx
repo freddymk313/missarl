@@ -48,8 +48,8 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
 
   return (
     <div className="space-y-6">
-      {/* Top Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Top Controls & Search Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -89,12 +89,12 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               className="flex flex-col justify-between p-6 bg-card border border-border rounded-2xl shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
+                {/* <div className="flex items-start justify-between gap-3">
                   <RefChip value={client.code} />
                   <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-[10px] font-bold text-success border border-success/30">
                     <ShieldCheck className="size-3" /> Actif
                   </span>
-                </div>
+                </div> */}
 
                 <h3 className="mt-3 text-base font-black text-primary">{client.name}</h3>
 
@@ -107,19 +107,19 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 <div className="mt-4 space-y-2 border-t border-border/80 pt-3 text-xs text-muted-foreground">
                   {client.phone && (
                     <p className="flex items-center gap-2">
-                      <Phone className="size-3.5 text-accent shrink-0" />
+                      <Phone className="size-3.5 text-primary shrink-0" />
                       <span>{client.phone}</span>
                     </p>
                   )}
                   {client.email && (
                     <p className="flex items-center gap-2">
-                      <Mail className="size-3.5 text-accent shrink-0" />
+                      <Mail className="size-3.5 text-primary shrink-0" />
                       <span className="truncate">{client.email}</span>
                     </p>
                   )}
                   {client.deliveryAddress && (
                     <p className="flex items-start gap-2">
-                      <MapPin className="size-3.5 text-accent shrink-0 mt-0.5" />
+                      <MapPin className="size-3.5 text-primary shrink-0 mt-0.5" />
                       <span className="line-clamp-2">{client.deliveryAddress}</span>
                     </p>
                   )}
