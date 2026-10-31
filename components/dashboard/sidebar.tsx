@@ -117,140 +117,121 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex w-[264px] flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0",
+          "fixed top-0 bottom-0 left-0 z-50 flex w-[264px] flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0 h-screen overflow-hidden",
           mobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
         )}
       >
-        {/* Mobile Header Logo & Close */}
-        <div className="flex h-14 items-center justify-between border-b border-border px-4 lg:hidden">
-          <Link href="/dashboard" onClick={onCloseMobile} className="flex items-center gap-2.5">
-            <div className="bg-white p-1 rounded-md border border-border">
-              <Image
-                src={siteConfig.logo}
-                alt={siteConfig.name}
-                width={28}
-                height={28}
-                className="h-5 w-auto object-contain"
-              />
-            </div>
-            <span className="text-xs font-bold text-primary">{siteConfig.shortName}</span>
-          </Link>
-          <button
-            type="button"
-            onClick={onCloseMobile}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Fermer le menu"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        {/* 1. User Switcher Block at Top */}
-        <div className="relative border-b border-border p-3">
-          <button
-            type="button"
-            onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-            className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-secondary/80 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-expanded={userDropdownOpen}
-          >
-            <div className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs">
-              {user.fullName.charAt(0).toUpperCase()}
-              {/* Role badge dot */}
-              <span
-                className={cn(
-                  "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card",
-                  user.role === "SUPER_ADMIN"
-                    ? "bg-accent"
-                    : user.role === "ADMIN"
-                    ? "bg-primary"
-                    : "bg-success"
-                )}
-                title={roleMeta.label}
-              />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-foreground truncate leading-tight">
-                {user.fullName}
-              </p>
-              <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
-                {user.email}
-              </p>
-            </div>
-
-            <ChevronDown
-              className={cn(
-                "size-4 text-muted-foreground transition-transform shrink-0",
-                userDropdownOpen && "rotate-180"
-              )}
-            />
-          </button>
-
-          {/* User Switcher Dropdown */}
-          {userDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-30"
-                onClick={() => setUserDropdownOpen(false)}
-                aria-hidden="true"
-              />
-              <div className="absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-border bg-popover p-1.5 shadow-lg text-popover-foreground animate-in fade-in-50 zoom-in-95">
-                <div className="px-2.5 py-2 border-b border-border/80">
-                  <p className="text-xs font-bold text-foreground">{user.fullName}</p>
-                  <p className="text-[10px] font-semibold text-primary mt-0.5">
-                    {roleMeta.label}
-                  </p>
-                </div>
-
-                <div className="py-1">
-                  {user.role === "SUPER_ADMIN" && (
-                    <Link
-                      href="/dashboard/settings"
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        onCloseMobile();
-                      }}
-                      className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                    >
-                      <UserIcon className="size-3.5 text-muted-foreground" />
-                      <span>Mon compte</span>
-                    </Link>
+        {/* ========================================================= */}
+        <div className="shrink-0">
+          {/* 1. User Switcher Block at Top */}
+          <div className="relative border-b border-border p-3">
+            <button
+              type="button"
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-secondary/80 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-expanded={userDropdownOpen}
+            >
+              <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-xs">
+                {user.fullName.charAt(0).toUpperCase()}
+                {/* Role badge dot */}
+                <span
+                  className={cn(
+                    "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card",
+                    user.role === "SUPER_ADMIN"
+                      ? "bg-accent"
+                      : user.role === "ADMIN"
+                      ? "bg-primary"
+                      : "bg-success"
                   )}
-
-                  <form action={logoutAction} className="w-full">
-                    <button
-                      type="submit"
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <LogOut className="size-3.5" />
-                      <span>Se déconnecter</span>
-                    </button>
-                  </form>
-                </div>
+                  title={roleMeta.label}
+                />
               </div>
-            </>
-          )}
-        </div>
 
-        {/* 2. Search Input with Keyboard Shortcut Hint */}
-        <div className="px-3 pt-3 pb-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Rechercher..."
-              className="h-9 w-full rounded-xl border border-border bg-secondary/50 pl-8 pr-8 text-xs placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring transition-colors"
-            />
-            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-card px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70">
-              ⌘F
-            </kbd>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-foreground truncate leading-tight">
+                  {user.fullName}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                  {user.email}
+                </p>
+              </div>
+
+              <ChevronDown
+                className={cn(
+                  "size-4 text-muted-foreground transition-transform shrink-0",
+                  userDropdownOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {/* User Switcher Dropdown */}
+            {userDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setUserDropdownOpen(false)}
+                  aria-hidden="true"
+                />
+                <div className="absolute left-3 right-3 top-full z-40 mt-1 rounded-xl border border-border bg-popover p-1.5 shadow-lg text-popover-foreground animate-in fade-in-50 zoom-in-95">
+                  <div className="px-2.5 py-2 border-b border-border/80">
+                    <p className="text-xs font-bold text-foreground">{user.fullName}</p>
+                    <p className="text-[10px] font-semibold text-primary mt-0.5">
+                      {roleMeta.label}
+                    </p>
+                  </div>
+
+                  <div className="py-1">
+                    {user.role === "SUPER_ADMIN" && (
+                      <Link
+                        href="/dashboard/settings"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          onCloseMobile();
+                        }}
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+                      >
+                        <UserIcon className="size-3.5 text-muted-foreground" />
+                        <span>Mon compte</span>
+                      </Link>
+                    )}
+
+                    <form action={logoutAction} className="w-full">
+                      <button
+                        type="submit"
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <LogOut className="size-3.5" />
+                        <span>Se déconnecter</span>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 2. Search Input with Keyboard Shortcut Hint */}
+          <div className="px-3 pt-3 pb-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                placeholder="Rechercher..."
+                className="h-9 w-full rounded-xl border border-border bg-secondary/50 pl-8 pr-8 text-xs placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+              />
+              <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-card px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70">
+                ⌘F
+              </kbd>
+            </div>
           </div>
         </div>
+        {/* ========================================================= */}
 
-        {/* 3. Navigation List with 40px rows, 10px radius, collapsible groups */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4 no-scrollbar">
+        {/* ========================================================= */}
+        {/* 3. Navigation List (Scrollable Area) */}
+        <nav className="flex-1 overflow-y-auto min-h-0 px-3 py-2 space-y-4 no-scrollbar">
           {navigationStructure.map((entry) => {
             // Standalone Leaf Item
             if ("href" in entry) {
@@ -379,9 +360,11 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
             );
           })}
         </nav>
+        {/* ========================================================= */}
 
-        {/* 4. Promotional-style Card Pinned to the Bottom */}
-        <div className="p-3 border-t border-border mt-auto">
+        {/* ========================================================= */}
+        {/* 4. Promotional-style Card Pinned to the Bottom (Fixed) */}
+        <div className="shrink-0 p-3 border-t border-border bg-card">
           {user.role === "PRICE_COLLECTOR" ? (
             <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
               <p className="text-xs font-bold leading-tight">Rechercher un article</p>
@@ -414,6 +397,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
             </div>
           )}
         </div>
+        {/* ========================================================= */}
       </aside>
     </>
   );
