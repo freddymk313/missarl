@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
-import { createSupplier, updateSupplier, SupplierRecord } from "@/lib/db/suppliers";
+import { createSupplier, updateSupplier, deleteSupplier, SupplierRecord } from "@/lib/db/suppliers";
 import { logAudit } from "@/lib/db/audit";
 
 export async function createSupplierAction(formData: FormData) {
@@ -41,6 +41,7 @@ export async function createSupplierAction(formData: FormData) {
       details: { code: supplier.code, name: supplier.name },
     });
 
+    revalidatePath("/dashboard/suppliers");
     revalidatePath("/dashboard/fournisseurs");
     return { success: true, supplier };
   } catch (err: unknown) {
@@ -55,6 +56,13 @@ export async function updateSupplierAction(
 ) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
+  if (data.code !== undefined && !data.code.trim()) {
+    return { success: false, error: "Le code fournisseur ne peut pas être vide." };
+  }
+  if (data.name !== undefined && !data.name.trim()) {
+    return { success: false, error: "Le nom du fournisseur ne peut pas être vide." };
+  }
+
   try {
     const updated = await updateSupplier(supplierId, data);
     if (!updated) return { success: false, error: "Fournisseur introuvable." };
@@ -67,10 +75,37 @@ export async function updateSupplierAction(
       details: data,
     });
 
+    revalidatePath("/dashboard/suppliers");
     revalidatePath("/dashboard/fournisseurs");
     return { success: true, supplier: updated };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur de mise à jour.";
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteSupplierAction(supplierId: string) {
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
+
+  try {
+    const deleted = await deleteSupplier(supplierId);
+    if (!deleted) {
+      return { success: false, error: "Fournisseur introuvable." };
+    }
+
+    await logAudit({
+      userId: session.id,
+      action: "SUPPLIER_DELETED",
+      entityType: "SUPPLIER",
+      entityId: supplierId,
+      details: { deletedSupplierId: supplierId },
+    });
+
+    revalidatePath("/dashboard/suppliers");
+    revalidatePath("/dashboard/fournisseurs");
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur lors de la suppression du fournisseur.";
     return { success: false, error: message };
   }
 }

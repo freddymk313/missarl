@@ -147,6 +147,7 @@ export async function updateClient(
   const rows = await sql`
     UPDATE clients
     SET 
+      code = COALESCE(${data.code ? data.code.trim().toUpperCase() : null}, code),
       name = COALESCE(${data.name ?? null}, name),
       contact_person = COALESCE(${data.contactPerson ?? null}, contact_person),
       email = COALESCE(${data.email ?? null}, email),
@@ -156,7 +157,7 @@ export async function updateClient(
       tax_id = COALESCE(${data.taxId ?? null}, tax_id),
       payment_terms = COALESCE(${data.paymentTerms ?? null}, payment_terms),
       currency = COALESCE(${data.currency ?? null}, currency),
-      is_active = COALESCE(${data.isActive ?? null}, is_active),
+      is_active = COALESCE(${data.isActive !== undefined ? data.isActive : null}, is_active),
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING 
@@ -168,6 +169,16 @@ export async function updateClient(
   `;
   if (!rows || rows.length === 0) return null;
   return rows[0] as unknown as ClientRecord;
+}
+
+export async function deleteClient(id: string): Promise<boolean> {
+  await sql`DELETE FROM client_quotation_sequences WHERE client_id = ${id}`;
+  const rows = await sql`
+    DELETE FROM clients
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return rows && rows.length > 0;
 }
 
 /**

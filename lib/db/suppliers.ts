@@ -115,6 +115,7 @@ export async function updateSupplier(
   const rows = await sql`
     UPDATE suppliers
     SET 
+      code = COALESCE(${data.code ? data.code.trim().toUpperCase() : null}, code),
       name = COALESCE(${data.name ?? null}, name),
       country = COALESCE(${data.country ?? null}, country),
       contact_person = COALESCE(${data.contactPerson ?? null}, contact_person),
@@ -122,7 +123,7 @@ export async function updateSupplier(
       phone = COALESCE(${data.phone ?? null}, phone),
       address = COALESCE(${data.address ?? null}, address),
       notes = COALESCE(${data.notes ?? null}, notes),
-      is_active = COALESCE(${data.isActive ?? null}, is_active),
+      is_active = COALESCE(${data.isActive !== undefined ? data.isActive : null}, is_active),
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING 
@@ -135,4 +136,13 @@ export async function updateSupplier(
   `;
   if (!rows || rows.length === 0) return null;
   return rows[0] as unknown as SupplierRecord;
+}
+
+export async function deleteSupplier(id: string): Promise<boolean> {
+  const rows = await sql`
+    DELETE FROM suppliers
+    WHERE id = ${id}
+    RETURNING id
+  `;
+  return rows && rows.length > 0;
 }

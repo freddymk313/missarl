@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
-import { createClient, updateClient, ClientRecord } from "@/lib/db/clients";
+import { createClient, updateClient, deleteClient, ClientRecord } from "@/lib/db/clients";
 import { logAudit } from "@/lib/db/audit";
 
 export async function createClientAction(formData: FormData) {
@@ -59,6 +59,13 @@ export async function updateClientAction(
 ) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
+  if (data.code !== undefined && !data.code.trim()) {
+    return { success: false, error: "Le code client ne peut pas être vide." };
+  }
+  if (data.name !== undefined && !data.name.trim()) {
+    return { success: false, error: "Le nom du client ne peut pas être vide." };
+  }
+
   try {
     const updated = await updateClient(clientId, data);
     if (!updated) return { success: false, error: "Client introuvable." };
@@ -76,6 +83,38 @@ export async function updateClientAction(
     return { success: true, client: updated };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur de mise à jour.";
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteClientAction(clientId: string) {
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
+
+  try {
+    const deleted = await deleteClient(clientId);
+    if (!deleted) {
+      return { success: false, error: "Client introuvable." };
+    }
+
+    await logAudit({
+      userId: session.id,
+      action: "CLIENT_DELETED",
+      entityType: "CLIENT",
+      entityId: clientId,
+      details: { deletedClientId: clientId },
+    });
+
+    revalidatePath("/dashboard/clients");
+    return { success: true };
+  } catch (err: unknown) {
+    const errObj = err as { code?: string; message?: string };
+    if (errObj?.code === "23503" || errObj?.message?.includes("foreign key")) {
+      return {
+        success: false,
+        error: "Impossible de supprimer ce client car des documents commerciaux (devis, commandes, factures ou paiements) lui sont rattachés. Vous pouvez plutôt désactiver ce client.",
+      };
+    }
+    const message = err instanceof Error ? err.message : "Erreur lors de la suppression du client.";
     return { success: false, error: message };
   }
 }
