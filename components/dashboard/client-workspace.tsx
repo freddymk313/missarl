@@ -70,8 +70,8 @@ export function ClientWorkspace({
           <div>
             <div className="flex items-center gap-2.5">
               <RefChip value={client.code} />
-              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-[10px] font-bold text-success border border-success/30">
-                <ShieldCheck className="size-3" /> Client Actif
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-[10px] font-bold text-success">
+                 Actif
               </span>
             </div>
             <h1 className="mt-2 text-2xl font-black text-primary tracking-tight">
@@ -89,7 +89,7 @@ export function ClientWorkspace({
               href={`/dashboard/quotes/new?clientId=${client.id}`}
               className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
             >
-              <Plus className="size-4" /> Nouveau Devis pour {client.code}
+              <Plus className="size-4" /> Nouveau Devis
             </Link>
           </div>
         </div>
