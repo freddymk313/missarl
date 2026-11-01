@@ -139,7 +139,7 @@ export function PaymentsManager({
             Total Encaissé
           </p>
           <p className="text-xl font-black text-success font-mono mt-1">
-            $ {formatUSD(totalCollected)}
+             {formatUSD(totalCollected)}
           </p>
         </div>
         <div className="p-4 rounded-xl border border-border bg-card">
@@ -147,7 +147,7 @@ export function PaymentsManager({
             Solde Non Affecté
           </p>
           <p className="text-xl font-black text-muted-foreground font-mono mt-1">
-            $ {formatUSD(totalUnallocated)}
+             {formatUSD(totalUnallocated)}
           </p>
         </div>
       </div>

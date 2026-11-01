@@ -27,20 +27,25 @@ interface QuotationsListProps {
 }
 
 export function QuotationsList({ initialQuotations }: QuotationsListProps) {
-  const [quotations, setQuotations] = useState<QuotationRecord[]>(initialQuotations);
+  const [quotations, setQuotations] =
+    useState<QuotationRecord[]>(initialQuotations);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [docTypeFilter, setDocTypeFilter] = useState("ALL");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancellationReason, setCancellationReason] = useState("");
-  const [selectedQuote, setSelectedQuote] = useState<QuotationRecord | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<QuotationRecord | null>(
+    null,
+  );
 
   const filtered = quotations.filter((q) => {
     const matchesSearch =
       searchTerm.trim() === "" ||
       q.internalReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (q.clientName && q.clientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (q.clientRfqNumber && q.clientRfqNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      (q.clientName &&
+        q.clientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (q.clientRfqNumber &&
+        q.clientRfqNumber.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
     const matchesType = docTypeFilter === "ALL" || q.docType === docTypeFilter;
@@ -48,15 +53,22 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const totalAmount = quotations.reduce((sum, q) => (q.status !== "CANCELLED" ? sum + q.total : sum), 0);
-  const validatedCount = quotations.filter((q) => q.status === "VALIDATED").length;
+  const totalAmount = quotations.reduce(
+    (sum, q) => (q.status !== "CANCELLED" ? sum + q.total : sum),
+    0,
+  );
+  const validatedCount = quotations.filter(
+    (q) => q.status === "VALIDATED",
+  ).length;
   const draftCount = quotations.filter((q) => q.status === "DRAFT").length;
 
   const handleValidate = async (id: string) => {
     if (!confirm("Voulez-vous valider commercialement ce devis ?")) return;
     const res = await updateQuotationStatusAction(id, "VALIDATED");
     if (res.success && res.quotation) {
-      setQuotations((prev) => prev.map((q) => (q.id === id ? res.quotation! : q)));
+      setQuotations((prev) =>
+        prev.map((q) => (q.id === id ? res.quotation! : q)),
+      );
       if (selectedQuote?.id === id) {
         setSelectedQuote(res.quotation);
       }
@@ -68,9 +80,15 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       alert("Veuillez indiquer un motif d'annulation.");
       return;
     }
-    const res = await updateQuotationStatusAction(id, "CANCELLED", cancellationReason);
+    const res = await updateQuotationStatusAction(
+      id,
+      "CANCELLED",
+      cancellationReason,
+    );
     if (res.success && res.quotation) {
-      setQuotations((prev) => prev.map((q) => (q.id === id ? res.quotation! : q)));
+      setQuotations((prev) =>
+        prev.map((q) => (q.id === id ? res.quotation! : q)),
+      );
       if (selectedQuote?.id === id) {
         setSelectedQuote(res.quotation);
       }
@@ -82,37 +100,43 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
   return (
     <div className="space-y-6">
       {/* Quick Stat Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Total Devis
           </p>
-          <p className="text-xl font-black text-primary mt-1">{quotations.length}</p>
+          <p className="text-xl font-black text-primary mt-1">
+            {quotations.length}
+          </p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Brouillons
           </p>
-          <p className="text-xl font-black text-foreground mt-1">{draftCount}</p>
+          <p className="text-xl font-black text-foreground mt-1">
+            {draftCount}
+          </p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Validés
           </p>
-          <p className="text-xl font-black text-success mt-1">{validatedCount}</p>
+          <p className="text-xl font-black text-success mt-1">
+            {validatedCount}
+          </p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Montant Total Cumulé
           </p>
           <p className="text-xl font-black text-primary font-mono mt-1">
-            $ {formatUSD(totalAmount)}
+            {formatUSD(totalAmount)}
           </p>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Filters & Actions Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="flex flex-1 items-center gap-3 max-w-2xl">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -160,7 +184,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       </div>
 
       {/* Quotations Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
@@ -178,9 +202,14 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             <tbody className="divide-y divide-border/60">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-muted-foreground">
+                  <td
+                    colSpan={8}
+                    className="py-16 text-center text-muted-foreground"
+                  >
                     <FileSpreadsheet className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-                    <p className="font-bold text-foreground">Aucun devis trouvé</p>
+                    <p className="font-bold text-foreground">
+                      Aucun devis trouvé
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Créez un nouveau devis pour démarrer une cotation.
                     </p>
@@ -193,29 +222,41 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                     onClick={() => setSelectedQuote(quote)}
                     className="hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <RefChip value={quote.internalReference} />
                     </td>
-                    <td className="py-3 px-4 font-semibold text-foreground">{quote.clientName}</td>
-                    <td className="py-3 px-4">
-                      <span className="rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground">
+                    <td className="py-3.5 px-4 font-semibold text-foreground">
+                      {quote.clientName}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="rounded-md bg-secondary border border-border px-2 py-0.5 text-[10px] font-bold text-foreground">
                         {quote.docType === "PROFORMA" ? "Proforma" : "Devis"}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground font-medium">{quote.clientRfqNumber || "—"}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{quote.documentDate}</td>
-                    <td className="py-3 px-4 text-right">
-                      <MoneyText amount={quote.total} className="text-xs font-black text-primary" />
+                    <td className="py-3.5 px-4 text-muted-foreground font-medium">
+                      {quote.clientRfqNumber || "—"}
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3.5 px-4 text-muted-foreground">
+                      {quote.documentDate}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <MoneyText
+                        amount={quote.total}
+                        className="text-xs font-black text-primary"
+                      />
+                    </td>
+                    <td className="py-3.5 px-4 text-center">
                       <StatusBadge status={quote.status} />
                     </td>
-                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td
+                      className="py-3.5 px-4 text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setSelectedQuote(quote)}
-                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
                           title="Aperçu des détails"
                         >
                           <Eye className="size-3.5" />
@@ -264,29 +305,53 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
         isOpen={!!selectedQuote}
         onClose={() => setSelectedQuote(null)}
         title={selectedQuote?.internalReference || "Détail du Devis"}
-        statusBadge={selectedQuote ? <StatusBadge status={selectedQuote.status} /> : undefined}
+        statusBadge={
+          selectedQuote ? (
+            <StatusBadge status={selectedQuote.status} />
+          ) : undefined
+        }
       >
         {selectedQuote && (
           <div className="space-y-6">
             <div>
               <p className="text-xs font-bold text-muted-foreground">Client</p>
               <h2 className="text-base font-black text-foreground mt-0.5 flex items-center gap-2">
-                <Building2 className="size-4 text-accent" />
+                <Building2 className="size-4 text-primary" />
                 {selectedQuote.clientName}
               </h2>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile label="Date d'émission" value={selectedQuote.documentDate} />
-              <KeyValueTile label="Type de document" value={selectedQuote.docType === "PROFORMA" ? "Proforma" : "Devis Standard"} />
-              <KeyValueTile label="Échéance validité" value={selectedQuote.validityDate} />
-              <KeyValueTile label="Taux TVA" value={`${selectedQuote.vatRate}%`} />
+              <KeyValueTile
+                label="Date d'émission"
+                value={selectedQuote.documentDate}
+              />
+              <KeyValueTile
+                label="Type de document"
+                value={
+                  selectedQuote.docType === "PROFORMA"
+                    ? "Proforma"
+                    : "Devis Standard"
+                }
+              />
+              <KeyValueTile
+                label="Échéance validité"
+                value={selectedQuote.validityDate}
+              />
+              <KeyValueTile
+                label="Taux TVA"
+                value={`${selectedQuote.vatRate}%`}
+              />
             </div>
 
             {selectedQuote.clientRfqNumber && (
               <div className="rounded-xl border border-border bg-secondary/30 p-3 text-xs">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">N° Appel d&apos;offre Client (RFQ)</span>
-                <p className="font-mono font-bold text-foreground mt-0.5">{selectedQuote.clientRfqNumber}</p>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                  N° Appel d&apos;offre Client (RFQ)
+                </span>
+                <p className="font-mono font-bold text-foreground mt-0.5">
+                  {selectedQuote.clientRfqNumber}
+                </p>
               </div>
             )}
 
@@ -294,15 +359,24 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Sous-total HT :</span>
-                <MoneyText amount={selectedQuote.subtotal} className="font-mono font-bold text-foreground" />
+                <MoneyText
+                  amount={selectedQuote.subtotal}
+                  className="font-mono font-bold text-foreground"
+                />
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>TVA ({selectedQuote.vatRate}%) :</span>
-                <MoneyText amount={selectedQuote.vatAmount} className="font-mono font-bold text-foreground" />
+                <MoneyText
+                  amount={selectedQuote.vatAmount}
+                  className="font-mono font-bold text-foreground"
+                />
               </div>
               <div className="flex justify-between text-sm font-black text-primary border-t border-border pt-2">
                 <span>TOTAL TTC :</span>
-                <MoneyText amount={selectedQuote.total} className="font-mono text-base text-primary" />
+                <MoneyText
+                  amount={selectedQuote.total}
+                  className="font-mono text-base text-primary"
+                />
               </div>
             </div>
 
@@ -310,19 +384,29 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             {selectedQuote.items && selectedQuote.items.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-black text-primary flex items-center gap-1.5">
-                  <FileText className="size-3.5 text-accent" /> Articles chiffrés ({selectedQuote.items.length})
+                  <FileText className="size-3.5 text-primary" /> Articles
+                  chiffrés ({selectedQuote.items.length})
                 </p>
-                <div className="space-y-2 max-h-56 overflow-y-auto">
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {selectedQuote.items.map((it, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg border border-border bg-card text-xs flex justify-between items-center">
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-lg border border-border bg-card text-xs flex justify-between items-center shadow-2xs"
+                    >
                       <div>
-                        <p className="font-bold text-foreground">{it.description}</p>
+                        <p className="font-bold text-foreground">
+                          {it.description}
+                        </p>
                         <p className="text-[10px] text-muted-foreground">
                           {it.quantity} {it.unit} × ${it.unitPrice.toFixed(2)}
-                          {(it.discountPercent ?? 0) > 0 && ` (-${it.discountPercent}%)`}
+                          {(it.discountPercent ?? 0) > 0 &&
+                            ` (-${it.discountPercent}%)`}
                         </p>
                       </div>
-                      <MoneyText amount={it.lineSubtotal} className="font-mono font-bold text-foreground" />
+                      <MoneyText
+                        amount={it.lineSubtotal}
+                        className="font-mono font-bold text-foreground"
+                      />
                     </div>
                   ))}
                 </div>
@@ -345,7 +429,8 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                   href={`/dashboard/orders?newOrderFromQuoteId=${selectedQuote.id}`}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
                 >
-                  <ArrowRight className="size-4" /> Convertir en Bon de Commande (PO)
+                  <ArrowRight className="size-4" /> Convertir en Bon de Commande
+                  (PO)
                 </Link>
               )}
             </div>
@@ -361,7 +446,8 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
               Motif d&apos;annulation obligatoire
             </h3>
             <p className="text-xs text-muted-foreground">
-              Conformément aux règles comptables, les devis émis ne sont pas supprimés mais archivés avec un motif traçable.
+              Conformément aux règles comptables, les devis émis ne sont pas
+              supprimés mais archivés avec un motif traçable.
             </p>
             <textarea
               required

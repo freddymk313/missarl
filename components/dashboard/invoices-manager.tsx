@@ -68,39 +68,39 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
   return (
     <div className="space-y-6">
       {/* Top Stat Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Total Factures
           </p>
           <p className="text-xl font-black text-primary mt-1">{invoices.length}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Factures Non Soldées
           </p>
           <p className="text-xl font-black text-warning mt-1">{unpaidCount}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Volume Total Facturé
           </p>
           <p className="text-xl font-black text-primary font-mono mt-1">
-            $ {formatUSD(totalInvoiced)}
+             {formatUSD(totalInvoiced)}
           </p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Créances à Recouvrer
           </p>
           <p className="text-xl font-black text-destructive font-mono mt-1">
-            $ {formatUSD(totalReceivables)}
+             {formatUSD(totalReceivables)}
           </p>
         </div>
       </div>
 
       {/* Top Filter and Actions */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="flex flex-1 items-center gap-3 max-w-xl">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -139,7 +139,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
       </div>
 
       {/* Invoices Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
@@ -174,31 +174,31 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                     onClick={() => setSelectedInvoice(inv)}
                     className="hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <RefChip value={inv.invoiceNumber} />
                     </td>
-                    <td className="py-3 px-4 font-semibold text-foreground">{inv.clientName}</td>
-                    <td className="py-3 px-4 font-mono text-muted-foreground">{inv.orderNumber || "—"}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{inv.issueDate}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{inv.dueDate}</td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 font-semibold text-foreground">{inv.clientName}</td>
+                    <td className="py-3.5 px-4 font-mono text-muted-foreground">{inv.orderNumber || "—"}</td>
+                    <td className="py-3.5 px-4 text-muted-foreground">{inv.issueDate}</td>
+                    <td className="py-3.5 px-4 text-muted-foreground">{inv.dueDate}</td>
+                    <td className="py-3.5 px-4 text-right">
                       <MoneyText amount={inv.total} className="text-xs font-bold text-foreground" />
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       <MoneyText amount={inv.paidAmount} className="text-xs font-bold text-success" />
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       <MoneyText amount={inv.balanceDue} className="text-xs font-black text-destructive" />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center">
                       <StatusBadge status={inv.status} />
                     </td>
-                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setSelectedInvoice(inv)}
-                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
                           title="Aperçu détails"
                         >
                           <Eye className="size-3.5" />
@@ -244,7 +244,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
             <div>
               <p className="text-xs font-bold text-muted-foreground">Client facturé</p>
               <h2 className="text-base font-black text-foreground mt-0.5 flex items-center gap-2">
-                <Building2 className="size-4 text-accent" />
+                <Building2 className="size-4 text-primary" />
                 {selectedInvoice.clientName}
               </h2>
             </div>

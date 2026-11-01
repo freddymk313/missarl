@@ -171,7 +171,7 @@ export function StatementsViewer({
                 Solde Net Débiteur
               </span>
               <p className="text-2xl font-black text-destructive font-mono mt-0.5">
-                $ {formatUSD(statement.closingBalance)}
+                 {formatUSD(statement.closingBalance)}
               </p>
               <p className="text-[11px] text-muted-foreground font-semibold">
                 Devise officielle : {statement.currency}
@@ -184,7 +184,7 @@ export function StatementsViewer({
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Solde Initial</p>
               <p className="text-sm font-mono font-bold text-foreground mt-0.5">
-                $ {formatUSD(statement.openingBalance)}
+                 {formatUSD(statement.openingBalance)}
               </p>
             </div>
             <div>
@@ -192,7 +192,7 @@ export function StatementsViewer({
                 <TrendingUp className="size-3 text-destructive" /> Facturations Période
               </p>
               <p className="text-sm font-mono font-bold text-foreground mt-0.5">
-                +$ {formatUSD(statement.totalDebits)}
+                + {formatUSD(statement.totalDebits)}
               </p>
             </div>
             <div>
@@ -208,7 +208,7 @@ export function StatementsViewer({
                 <Scale className="size-3 text-primary" /> Solde Net de Clôture
               </p>
               <p className="text-sm font-mono font-black text-destructive mt-0.5">
-                $ {formatUSD(statement.closingBalance)}
+                 {formatUSD(statement.closingBalance)}
               </p>
             </div>
           </div>
@@ -254,13 +254,13 @@ export function StatementsViewer({
                       </td>
                       <td className="py-3 px-3 text-foreground">{tx.description}</td>
                       <td className="py-3 px-3 text-right font-mono text-foreground">
-                        {tx.debit > 0 ? `$ ${formatUSD(tx.debit)}` : "—"}
+                        {tx.debit > 0 ? ` ${formatUSD(tx.debit)}` : "—"}
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-success font-bold">
-                        {tx.credit > 0 ? `$ ${formatUSD(tx.credit)}` : "—"}
+                        {tx.credit > 0 ? ` ${formatUSD(tx.credit)}` : "—"}
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-black text-foreground">
-                        $ {formatUSD(tx.runningBalance)}
+                         {formatUSD(tx.runningBalance)}
                       </td>
                     </tr>
                   ))

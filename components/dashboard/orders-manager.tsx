@@ -99,44 +99,44 @@ export function OrdersManager({
   return (
     <div className="space-y-6">
       {/* Top Stat Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Total Commandes (BC)
           </p>
           <p className="text-xl font-black text-primary mt-1">{orders.length}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             En Cours de Livraison
           </p>
           <p className="text-xl font-black text-primary mt-1">{activeOrders.length}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Clôturées
           </p>
           <p className="text-xl font-black text-success mt-1">
             {orders.filter((o) => o.status === "COMPLETED").length}
           </p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Volume Commandé
           </p>
           <p className="text-xl font-black text-primary font-mono mt-1">
-            $ {formatUSD(totalAmount)}
+           {formatUSD(totalAmount)}
           </p>
         </div>
       </div>
 
-      {/* Ongoing Delivery Cards (matching reference screenshot 3) */}
+      {/* Ongoing Delivery Cards */}
       {activeOrders.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Truck className="size-3.5 text-accent" /> Commandes actives & En cours d&apos;exécution
+            <Truck className="size-3.5 text-primary" /> Commandes actives & En cours d&apos;exécution
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activeOrders.slice(0, 3).map((ord) => (
               <div
                 key={ord.id}
@@ -169,7 +169,7 @@ export function OrdersManager({
                       e.stopPropagation();
                       handleCreateInvoice(ord.id);
                     }}
-                    className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold transition-colors cursor-pointer border border-primary/20"
                   >
                     <Receipt className="size-3" /> Facturer
                   </button>
@@ -181,7 +181,7 @@ export function OrdersManager({
       )}
 
       {/* Track Orders Filter & Search Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="flex flex-1 items-center gap-3 max-w-xl">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -219,7 +219,7 @@ export function OrdersManager({
       </div>
 
       {/* Orders Data Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
@@ -252,25 +252,25 @@ export function OrdersManager({
                     onClick={() => setSelectedOrder(order)}
                     className="hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
-                    <td className="py-3 px-4">
+                    <td className="py-3.5 px-4">
                       <RefChip value={order.orderNumber} />
                     </td>
-                    <td className="py-3 px-4 font-semibold text-foreground">{order.clientName}</td>
-                    <td className="py-3 px-4 font-bold text-foreground">{order.clientPoNumber}</td>
-                    <td className="py-3 px-4 font-mono text-muted-foreground">{order.quotationReference}</td>
-                    <td className="py-3 px-4 text-muted-foreground">{order.poDate}</td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 font-semibold text-foreground">{order.clientName}</td>
+                    <td className="py-3.5 px-4 font-bold text-foreground">{order.clientPoNumber}</td>
+                    <td className="py-3.5 px-4 font-mono text-muted-foreground">{order.quotationReference}</td>
+                    <td className="py-3.5 px-4 text-muted-foreground">{order.poDate}</td>
+                    <td className="py-3.5 px-4 text-right">
                       <MoneyText amount={order.total} className="text-xs font-black text-primary" />
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center">
                       <StatusBadge status={order.status} />
                     </td>
-                    <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setSelectedOrder(order)}
-                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                          className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
                           title="Voir les détails"
                         >
                           <Eye className="size-3.5" />
