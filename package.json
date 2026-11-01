@@ -6,7 +6,8 @@
     "dev": "next dev -p 3000 -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/apply-migration.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

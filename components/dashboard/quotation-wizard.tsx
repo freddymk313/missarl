@@ -97,9 +97,11 @@ export function QuotationWizard({
         return {
           ...line,
           itemId: found.id,
-          description: found.description,
-          unit: found.unit,
-          unitPrice: found.sellingPrice,
+          description: found.designation
+            ? `${found.designation} — ${found.description}`
+            : found.description,
+          unit: found.unitCode || "EA",
+          unitPrice: found.cheapestOfferUsd ?? 0,
         };
       })
     );
@@ -340,7 +342,10 @@ export function QuotationWizard({
                           <option value="">Sélectionner un article...</option>
                           {items.map((it) => (
                             <option key={it.id} value={it.id}>
-                              {it.skuRef} — {it.description.substring(0, 35)}... (${it.sellingPrice})
+                              {it.designation || it.description.substring(0, 35)}
+                              {it.manufacturerPartNumber ? ` [MPN: ${it.manufacturerPartNumber}]` : ""}
+                              {it.skuRef ? ` (${it.skuRef})` : ""}
+                              {it.cheapestOfferUsd != null ? ` - ${it.cheapestOfferUsd.toFixed(2)}` : " - (No offer)"}
                             </option>
                           ))}
                         </select>
@@ -396,6 +401,11 @@ export function QuotationWizard({
                           onChange={(e) => updateLine(index, "unitPrice", parseFloat(e.target.value) || 0)}
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
+                        {line.itemId && items.find((it) => it.id === line.itemId)?.cheapestOfferUsd == null && (
+                          <span className="text-[10px] text-warning font-semibold block mt-0.5">
+                            ⚠️ Aucune offre fournisseur (prix à définir)
+                          </span>
+                        )}
                       </div>
 
                       <div>

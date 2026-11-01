@@ -1,14 +1,40 @@
 import { requireSession } from "@/lib/auth";
-import { getItems } from "@/lib/db/items";
+import {
+  searchItems,
+  getItemStats,
+  getItemCategories,
+  getBrands,
+  getUnits,
+  getCurrencies,
+  getExchangeRates,
+} from "@/lib/db/items";
 import { getSuppliers } from "@/lib/db/suppliers";
+import { getClients } from "@/lib/db/clients";
 import { ArticlesManager } from "@/components/dashboard/articles-manager";
-import { Package, ShieldCheck } from "lucide-react";
 
 export default async function ItemsPage() {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN", "PRICE_COLLECTOR"]);
-  const [items, suppliers] = await Promise.all([
-    getItems({ activeOnly: false }),
+
+  const [
+    items,
+    stats,
+    categories,
+    brands,
+    units,
+    suppliers,
+    clients,
+    currencies,
+    exchangeRates,
+  ] = await Promise.all([
+    searchItems(""),
+    getItemStats(),
+    getItemCategories(),
+    getBrands(),
+    getUnits(),
     getSuppliers(),
+    getClients(),
+    getCurrencies(),
+    getExchangeRates(),
   ]);
 
   return (
@@ -18,10 +44,10 @@ export default async function ItemsPage() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Articles & Tarifs en Vigueur
+              Items & Sourcing Catalog
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Consultation des équipements, pièces d&apos;usure minière, fournitures et gestion des prix de vente.
+              Multi-code product database (client codes, MPN, supplier codes) with buy-on-demand supplier pricing.
             </p>
           </div>
         </div>
@@ -29,7 +55,14 @@ export default async function ItemsPage() {
 
       <ArticlesManager
         initialItems={items}
+        stats={stats}
+        categories={categories}
+        brands={brands}
+        units={units}
         suppliers={suppliers}
+        clients={clients}
+        currencies={currencies}
+        exchangeRates={exchangeRates}
         role={session.role}
       />
     </div>
