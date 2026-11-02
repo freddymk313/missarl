@@ -311,7 +311,10 @@ export function QuotationWizard({
 
             <div className="space-y-3.5">
               {lines.map((line, index) => {
-                const lineSubtotal = line.quantity * line.unitPrice * (1 - (line.discountPercent || 0) / 100);
+                const qty = Math.max(0, line.quantity || 0);
+                const price = Math.max(0, line.unitPrice || 0);
+                const disc = Math.min(100, Math.max(0, line.discountPercent || 0));
+                const lineSubtotal = qty * price * (1 - disc / 100);
 
                 return (
                   <div
@@ -341,13 +344,13 @@ export function QuotationWizard({
                         >
                           <option value="">Sélectionner un article...</option>
                           {items.map((it) => {
-                            const price = it.supplyPrice ?? it.cheapestOfferUsd;
+                            const itemPrice = it.supplyPrice ?? it.cheapestOfferUsd;
                             return (
                               <option key={it.id} value={it.id}>
                                 {it.designation || it.description.substring(0, 35)}
                                 {it.manufacturerPartNumber ? ` [MPN: ${it.manufacturerPartNumber}]` : ""}
                                 {it.skuRef ? ` (${it.skuRef})` : ""}
-                                {price != null ? ` - $ ${price.toFixed(2)}` : " - (No price)"}
+                                {itemPrice != null ? ` - $ ${itemPrice.toFixed(2)}` : " - (No price)"}
                               </option>
                             );
                           })}
@@ -404,13 +407,6 @@ export function QuotationWizard({
                           onChange={(e) => updateLine(index, "unitPrice", parseFloat(e.target.value) || 0)}
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
-                        {line.itemId &&
-                          items.find((it) => it.id === line.itemId)?.supplyPrice == null &&
-                          items.find((it) => it.id === line.itemId)?.cheapestOfferUsd == null && (
-                            <span className="text-[10px] text-warning font-semibold block mt-0.5">
-                              ⚠️ Aucun prix d&apos;achat / offre fournisseur (prix à définir)
-                            </span>
-                          )}
                       </div>
 
                       <div>

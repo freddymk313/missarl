@@ -2,13 +2,14 @@ import { requireSession } from "@/lib/auth";
 import { getClients } from "@/lib/db/clients";
 import { getItems } from "@/lib/db/items";
 import { QuotationWizard } from "@/components/dashboard/quotation-wizard";
+import { FileSpreadsheet, ShieldCheck } from "lucide-react";
 
 export default async function NewQuotationPage({
   searchParams,
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  await requireSession(["SUPER_ADMIN", "ADMIN"]);
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
   const { clientId } = await searchParams;
 
   const [clients, items] = await Promise.all([
@@ -18,14 +19,22 @@ export default async function NewQuotationPage({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <p className="kicker">Élaboration Commerciale</p>
-        <h1 className="text-2xl font-black text-primary tracking-tight mt-1">
-          Nouveau Devis / Facture Proforma
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          La référence interne unique sera générée de façon transactionnelle par le système pour le client sélectionné.
-        </p>
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
+        <div className="flex items-center gap-4">
+          
+          <div>
+            
+            <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
+              Nouveau Devis / Facture Proforma
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              La référence interne unique sera générée de façon transactionnelle par le système pour le client sélectionné.
+            </p>
+          </div>
+        </div>
+
+        
       </div>
 
       <QuotationWizard
