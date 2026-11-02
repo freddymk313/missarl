@@ -116,6 +116,7 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS manufacturer_part_number TEXT;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS mpn_normalized        TEXT;
 ALTER TABLE items ADD COLUMN IF NOT EXISTS specs                 JSONB NOT NULL DEFAULT '{}';
 ALTER TABLE items ADD COLUMN IF NOT EXISTS unit_code             TEXT REFERENCES units(code) ON DELETE SET NULL;
+ALTER TABLE items ADD COLUMN IF NOT EXISTS supply_price           NUMERIC(18,4);
 
 -- Update sku_ref default to use the sequence
 ALTER TABLE items ALTER COLUMN sku_ref SET DEFAULT ('MIS-' || lpad(nextval('items_sku_seq')::text, 6, '0'));

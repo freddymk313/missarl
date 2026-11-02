@@ -95,6 +95,7 @@ export interface ItemRecord {
   brandName: string | null;
   manufacturerPartNumber: string | null;
   unitCode: string | null;
+  supplyPrice: number | null;
   specs: Record<string, string>;
   isActive: boolean;
   createdAt: string;
@@ -258,6 +259,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -289,6 +291,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -317,6 +320,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -348,6 +352,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -380,6 +385,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -428,6 +434,7 @@ export async function searchItems(
           b.name as "brandName",
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
+          i.supply_price::float as "supplyPrice",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -456,6 +463,7 @@ export async function searchItems(
     brandName: string | null;
     manufacturerPartNumber: string | null;
     unitCode: string | null;
+    supplyPrice: number | null;
     specs: Record<string, string>;
     isActive: boolean;
     createdAt: string;
@@ -491,6 +499,7 @@ export async function searchItems(
       brandName: row.brandName,
       manufacturerPartNumber: row.manufacturerPartNumber,
       unitCode: row.unitCode,
+      supplyPrice: row.supplyPrice != null ? Number(row.supplyPrice) : null,
       specs: row.specs ?? {},
       isActive: row.isActive,
       createdAt: row.createdAt,
@@ -567,6 +576,7 @@ export async function getItemById(id: string): Promise<ItemRecord | null> {
       b.name as "brandName",
       i.manufacturer_part_number as "manufacturerPartNumber",
       i.unit_code as "unitCode",
+      i.supply_price::float as "supplyPrice",
       i.specs,
       i.is_active as "isActive",
       i.created_at as "createdAt",
@@ -648,6 +658,7 @@ export async function createItem(data: {
   brandId?: string;
   manufacturerPartNumber?: string;
   unitCode?: string;
+  supplyPrice?: number | null;
   specs?: Record<string, string>;
   isActive?: boolean;
 }): Promise<ItemRecord> {
@@ -658,7 +669,7 @@ export async function createItem(data: {
   const rows = await sql`
     INSERT INTO items (
       unit, unit_code, designation, description, category_id, brand_id,
-      manufacturer_part_number, mpn_normalized, specs, is_active
+      manufacturer_part_number, mpn_normalized, supply_price, specs, is_active
     )
     VALUES (
       ${data.unitCode || "EA"},
@@ -669,6 +680,7 @@ export async function createItem(data: {
       ${data.brandId ?? null},
       ${data.manufacturerPartNumber?.trim() ?? null},
       ${mpnNorm},
+      ${data.supplyPrice !== undefined && data.supplyPrice !== null ? data.supplyPrice : null},
       ${JSON.stringify(data.specs ?? {})}::jsonb,
       ${data.isActive !== false}
     )
@@ -677,7 +689,9 @@ export async function createItem(data: {
       category_id as "categoryId", brand_id as "brandId",
       manufacturer_part_number as "manufacturerPartNumber",
       mpn_normalized as "mpnNormalized",
-      unit_code as "unitCode", specs,
+      unit_code as "unitCode",
+      supply_price::float as "supplyPrice",
+      specs,
       is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
   `;
   const item = rows[0] as unknown as ItemRecord;
@@ -698,6 +712,7 @@ export async function updateItem(
     brandId?: string | null;
     manufacturerPartNumber?: string | null;
     unitCode?: string | null;
+    supplyPrice?: number | null;
     specs?: Record<string, string>;
     isActive?: boolean;
   }
@@ -713,6 +728,7 @@ export async function updateItem(
     UPDATE items SET
       unit           = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? "EA"} ELSE unit END,
       unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
+      supply_price   = CASE WHEN ${data.supplyPrice !== undefined} THEN ${data.supplyPrice ?? null}::numeric ELSE supply_price END,
       designation    = COALESCE(${data.designation?.trim() ?? null}, designation),
       description    = COALESCE(${data.description?.trim() ?? null}, description),
       category_id    = CASE WHEN ${data.categoryId !== undefined} THEN ${data.categoryId ?? null}::uuid ELSE category_id END,
@@ -727,7 +743,9 @@ export async function updateItem(
       id, sku_ref as "skuRef", designation, description,
       category_id as "categoryId", brand_id as "brandId",
       manufacturer_part_number as "manufacturerPartNumber",
-      unit_code as "unitCode", specs,
+      unit_code as "unitCode",
+      supply_price::float as "supplyPrice",
+      specs,
       is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
   `;
   if (!rows || rows.length === 0) return null;
@@ -1002,22 +1020,26 @@ export async function getItemsForPicker(): Promise<
       i.designation,
       i.description,
       i.unit_code as "unitCode",
-      (
-        SELECT (so.unit_price * COALESCE(
-          (SELECT er.rate_to_usd FROM exchange_rates er
-           WHERE er.currency_code = so.currency_code
-           ORDER BY er.effective_on DESC LIMIT 1),
-          NULL
-        ))::float
-        FROM supplier_offers so
-        WHERE so.item_id = i.id AND so.is_current = TRUE
-        ORDER BY (so.unit_price * COALESCE(
-          (SELECT er.rate_to_usd FROM exchange_rates er
-           WHERE er.currency_code = so.currency_code
-           ORDER BY er.effective_on DESC LIMIT 1),
-          1
-        )) ASC
-        LIMIT 1
+      i.supply_price::float as "supplyPrice",
+      COALESCE(
+        (
+          SELECT (so.unit_price * COALESCE(
+            (SELECT er.rate_to_usd FROM exchange_rates er
+             WHERE er.currency_code = so.currency_code
+             ORDER BY er.effective_on DESC LIMIT 1),
+            NULL
+          ))::float
+          FROM supplier_offers so
+          WHERE so.item_id = i.id AND so.is_current = TRUE
+          ORDER BY (so.unit_price * COALESCE(
+            (SELECT er.rate_to_usd FROM exchange_rates er
+             WHERE er.currency_code = so.currency_code
+             ORDER BY er.effective_on DESC LIMIT 1),
+            1
+          )) ASC
+          LIMIT 1
+        ),
+        i.supply_price::float
       ) as "cheapestOfferUsd"
     FROM items i
     WHERE i.is_active = TRUE
@@ -1030,6 +1052,7 @@ export async function getItemsForPicker(): Promise<
     designation: string | null;
     description: string;
     unitCode: string | null;
+    supplyPrice: number | null;
     cheapestOfferUsd: number | null;
   }>;
 }

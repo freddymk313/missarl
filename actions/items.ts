@@ -53,6 +53,7 @@ export async function createItemAction(data: {
   brandName?: string;
   manufacturerPartNumber?: string;
   unitCode?: string;
+  supplyPrice?: number | null;
   specs?: Record<string, string>;
   // Optional first supplier offer
   offer?: {
@@ -89,6 +90,11 @@ export async function createItemAction(data: {
       brandId = brand.id;
     }
 
+    const initialSupplyPrice =
+      data.supplyPrice !== undefined && data.supplyPrice !== null
+        ? data.supplyPrice
+        : (data.offer && data.offer.unitPrice >= 0 ? data.offer.unitPrice : null);
+
     const item = await createItem({
       designation: data.designation,
       description: data.description,
@@ -96,6 +102,7 @@ export async function createItemAction(data: {
       brandId,
       manufacturerPartNumber: data.manufacturerPartNumber,
       unitCode: data.unitCode,
+      supplyPrice: initialSupplyPrice,
       specs: data.specs,
     });
 
@@ -161,6 +168,7 @@ export async function updateItemAction(
     brandName?: string | null;
     manufacturerPartNumber?: string | null;
     unitCode?: string | null;
+    supplyPrice?: number | null;
     specs?: Record<string, string>;
     isActive?: boolean;
   }
@@ -185,6 +193,7 @@ export async function updateItemAction(
       brandId,
       manufacturerPartNumber: data.manufacturerPartNumber,
       unitCode: data.unitCode,
+      supplyPrice: data.supplyPrice,
       specs: data.specs,
       isActive: data.isActive,
     });

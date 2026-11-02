@@ -18,6 +18,7 @@ import {
   Building2,
   Hash,
   Barcode,
+  DollarSign,
 } from "lucide-react";
 import {
   ItemRecord,
@@ -282,6 +283,7 @@ export function ArticlesManager({
   const [brandName, setBrandName] = useState("");
   const [mpn, setMpn] = useState("");
   const [unitCode, setUnitCode] = useState("EA");
+  const [supplyPrice, setSupplyPrice] = useState("");
   const [specs, setSpecs] = useState<Record<string, string>>({});
   const [clientCodes, setClientCodes] = useState<ClientCodeRow[]>([]);
   // Offer fields in create form
@@ -309,6 +311,7 @@ export function ArticlesManager({
     setBrandName("");
     setMpn("");
     setUnitCode("EA");
+    setSupplyPrice("");
     setSpecs({});
     setClientCodes([]);
     setOfferSupplierId(suppliers[0]?.id ?? "");
@@ -338,6 +341,7 @@ export function ArticlesManager({
     setBrandName(item.brandName ?? "");
     setMpn(item.manufacturerPartNumber ?? "");
     setUnitCode(item.unitCode ?? "EA");
+    setSupplyPrice(item.supplyPrice != null ? item.supplyPrice.toString() : "");
     setSpecs(item.specs ?? {});
     setClientCodes([]);
     setIncludeOffer(false);
@@ -368,6 +372,7 @@ export function ArticlesManager({
           brandName: brandName || null,
           manufacturerPartNumber: mpn || null,
           unitCode: unitCode || null,
+          supplyPrice: supplyPrice ? parseFloat(supplyPrice) : null,
           specs,
         });
         if (!res.success) {
@@ -387,6 +392,11 @@ export function ArticlesManager({
           brandName: brandName || undefined,
           manufacturerPartNumber: mpn || undefined,
           unitCode,
+          supplyPrice: supplyPrice
+            ? parseFloat(supplyPrice)
+            : offerPrice
+            ? parseFloat(offerPrice)
+            : undefined,
           specs,
           clientCodes,
           offer:
@@ -599,7 +609,7 @@ export function ArticlesManager({
                 <th className="py-3.5 px-4">Category</th>
                 <th className="py-3.5 px-4">Brand / MPN</th>
                 <th className="py-3.5 px-4">Unit</th>
-                <th className="py-3.5 px-4 text-right">Best Offer (USD)</th>
+                <th className="py-3.5 px-4 text-right">Supply Price ($)</th>
                 <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
@@ -657,13 +667,24 @@ export function ArticlesManager({
                       {item.unitCode || "—"}
                     </td>
                     <td className="py-3 px-4 text-right font-mono">
-                      {item.cheapestOfferUsd != null ? (
+                      {item.supplyPrice != null ? (
+                        <div>
+                          <span className="font-bold text-primary">
+                            $ {item.supplyPrice.toFixed(2)}
+                          </span>
+                          {item.cheapestOfferUsd != null && item.cheapestOfferUsd !== item.supplyPrice && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Offer: $ {item.cheapestOfferUsd.toFixed(2)}
+                            </p>
+                          )}
+                        </div>
+                      ) : item.cheapestOfferUsd != null ? (
                         <span className="font-bold text-primary">
                           $ {item.cheapestOfferUsd.toFixed(2)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">
-                          No offer
+                          —
                         </span>
                       )}
                     </td>
@@ -763,6 +784,21 @@ export function ArticlesManager({
               <KeyValueTile label="Brand" value={detailItem.brandName || "—"} />
               <KeyValueTile label="Unit" value={detailItem.unitCode || "—"} />
             </div>
+
+            {/* Supply Price */}
+            {detailItem.supplyPrice != null && (
+              <div className="rounded-xl bg-secondary/30 border border-border p-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Supply Price
+                  </p>
+                  <p className="font-mono font-bold text-primary text-base mt-0.5">
+                    $ {detailItem.supplyPrice.toFixed(2)}
+                  </p>
+                </div>
+                <DollarSign className="size-5 text-primary/60" />
+              </div>
+            )}
 
             {/* MPN */}
             {detailItem.manufacturerPartNumber && (
@@ -1015,7 +1051,7 @@ export function ArticlesManager({
                       </select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-foreground">
                         Brand / Manufacturer
@@ -1041,6 +1077,20 @@ export function ArticlesManager({
                         value={mpn}
                         onChange={(e) => setMpn(e.target.value)}
                         placeholder="SDW6205050AENORV"
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Supply Price ($)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={supplyPrice}
+                        onChange={(e) => setSupplyPrice(e.target.value)}
+                        placeholder="0.00"
                         className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                       />
                     </div>
