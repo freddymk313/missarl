@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/db/audit";
 import {
   searchItems,
+  getItemById,
   createItem,
   updateItem,
   deleteItem,
@@ -138,7 +139,8 @@ export async function createItemAction(data: {
     });
 
     revalidatePath("/dashboard/items");
-    return { success: true, item };
+    const fullItem = (await getItemById(item.id)) || item;
+    return { success: true, item: fullItem };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to create item.";
@@ -198,7 +200,8 @@ export async function updateItemAction(
     });
 
     revalidatePath("/dashboard/items");
-    return { success: true, item: updated };
+    const fullItem = (await getItemById(itemId)) || updated;
+    return { success: true, item: fullItem };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update item.";

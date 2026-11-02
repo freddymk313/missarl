@@ -251,7 +251,7 @@ export function ArticlesManager({
 
   // State
   const [items, setItems] = useState<ItemRecord[]>(initialItems);
-  const [currentStats] = useState<ItemStats>(stats);
+  const [currentStats, setCurrentStats] = useState<ItemStats>(stats);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterSupplier, setFilterSupplier] = useState("");
@@ -412,7 +412,16 @@ export function ArticlesManager({
           setFormError(res.error || "Creation failed.");
         } else if (res.item) {
           setItems((prev) => [res.item!, ...prev]);
+          setCurrentStats((prev) => ({
+            ...prev,
+            totalItems: prev.totalItems + 1,
+            itemsWithoutOffer:
+              res.item!.currentOffers && res.item!.currentOffers.length > 0
+                ? prev.itemsWithoutOffer
+                : prev.itemsWithoutOffer + 1,
+          }));
           setModalOpen(false);
+          resetForm();
         }
       }
     });
@@ -427,6 +436,10 @@ export function ArticlesManager({
         setDeleteError(res.error || "Delete failed.");
       } else {
         setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+        setCurrentStats((prev) => ({
+          ...prev,
+          totalItems: Math.max(0, prev.totalItems - 1),
+        }));
         setDeleteTarget(null);
       }
     });

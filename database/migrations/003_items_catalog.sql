@@ -120,6 +120,10 @@ ALTER TABLE items ADD COLUMN IF NOT EXISTS unit_code             TEXT REFERENCES
 -- Update sku_ref default to use the sequence
 ALTER TABLE items ALTER COLUMN sku_ref SET DEFAULT ('MIS-' || lpad(nextval('items_sku_seq')::text, 6, '0'));
 
+-- Make legacy unit column nullable with default
+ALTER TABLE items ALTER COLUMN unit DROP NOT NULL;
+ALTER TABLE items ALTER COLUMN unit SET DEFAULT 'EA';
+
 -- Drop legacy stock / price / supplier columns (old demo data; safe because of ON CONFLICT DO NOTHING seed)
 ALTER TABLE items DROP COLUMN IF EXISTS stock_quantity;
 ALTER TABLE items DROP COLUMN IF EXISTS min_stock_level;

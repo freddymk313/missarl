@@ -657,17 +657,18 @@ export async function createItem(data: {
 
   const rows = await sql`
     INSERT INTO items (
-      designation, description, category_id, brand_id,
-      manufacturer_part_number, mpn_normalized, unit_code, specs, is_active
+      unit, unit_code, designation, description, category_id, brand_id,
+      manufacturer_part_number, mpn_normalized, specs, is_active
     )
     VALUES (
+      ${data.unitCode || "EA"},
+      ${data.unitCode ?? null},
       ${data.designation.trim()},
       ${data.description.trim()},
       ${data.categoryId ?? null},
       ${data.brandId ?? null},
       ${data.manufacturerPartNumber?.trim() ?? null},
       ${mpnNorm},
-      ${data.unitCode ?? null},
       ${JSON.stringify(data.specs ?? {})}::jsonb,
       ${data.isActive !== false}
     )
@@ -710,13 +711,14 @@ export async function updateItem(
 
   const rows = await sql`
     UPDATE items SET
+      unit           = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? "EA"} ELSE unit END,
+      unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
       designation    = COALESCE(${data.designation?.trim() ?? null}, designation),
       description    = COALESCE(${data.description?.trim() ?? null}, description),
       category_id    = CASE WHEN ${data.categoryId !== undefined} THEN ${data.categoryId ?? null}::uuid ELSE category_id END,
       brand_id       = CASE WHEN ${data.brandId !== undefined} THEN ${data.brandId ?? null}::uuid ELSE brand_id END,
       manufacturer_part_number = CASE WHEN ${data.manufacturerPartNumber !== undefined} THEN ${data.manufacturerPartNumber ?? null} ELSE manufacturer_part_number END,
       mpn_normalized = CASE WHEN ${mpnNorm !== undefined} THEN ${mpnNorm ?? null} ELSE mpn_normalized END,
-      unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
       specs          = CASE WHEN ${data.specs !== undefined} THEN ${JSON.stringify(data.specs ?? {})}::jsonb ELSE specs END,
       is_active      = COALESCE(${data.isActive ?? null}, is_active),
       updated_at     = NOW()
@@ -813,21 +815,113 @@ export async function addSupplierOffer(data: {
     ? normalizeCode(data.supplierItemCode)
     : null;
 
-  // Use sql.transaction to archive previous + insert new in one shot
-  if (!sql.transaction) {
-    throw new Error("Neon transaction API is unavailable.");
-  }
-  const results = await sql.transaction([
-    // 1. Archive previous current offer for this item+supplier
-    sql`
+  let insertedRows: SupplierOfferRecord[];
+
+  // Execute in a transaction via callback or fallback sequentially
+  if (typeof sql.transaction === "function") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results = await sql.transaction((txn: any) => [
+        // 1. Archive previous current offer for this item+supplier
+        txn`
+          UPDATE supplier_offers
+          SET is_current = FALSE
+          WHERE item_id = ${data.itemId}::uuid
+            AND supplier_id = ${data.supplierId}::uuid
+            AND is_current = TRUE
+        `,
+        // 2. Insert new offer
+        txn`
+          INSERT INTO supplier_offers (
+            item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
+            currency_code, unit_price, lead_time_days, min_order_qty,
+            quoted_on, valid_until, is_current, notes, created_by
+          )
+          VALUES (
+            ${data.itemId}::uuid,
+            ${data.supplierId}::uuid,
+            ${data.supplierItemCode?.trim() ?? null},
+            ${supplierCodeNorm},
+            ${data.currencyCode},
+            ${data.unitPrice},
+            ${data.leadTimeDays ?? null},
+            ${data.minOrderQty ?? null},
+            ${data.quotedOn ?? null}::date,
+            ${data.validUntil ?? null}::date,
+            TRUE,
+            ${data.notes?.trim() ?? null},
+            ${data.userId}::uuid
+          )
+          RETURNING
+            id,
+            supplier_id as "supplierId",
+            supplier_item_code as "supplierItemCode",
+            currency_code as "currencyCode",
+            unit_price::float as "unitPrice",
+            lead_time_days as "leadTimeDays",
+            min_order_qty::float as "minOrderQty",
+            quoted_on::text as "quotedOn",
+            valid_until::text as "validUntil",
+            is_current as "isCurrent",
+            notes,
+            created_at as "createdAt"
+        `,
+      ]);
+      insertedRows = results[1] as unknown as SupplierOfferRecord[];
+    } catch {
+      await sql`
+        UPDATE supplier_offers
+        SET is_current = FALSE
+        WHERE item_id = ${data.itemId}::uuid
+          AND supplier_id = ${data.supplierId}::uuid
+          AND is_current = TRUE
+      `;
+      const res = await sql`
+        INSERT INTO supplier_offers (
+          item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
+          currency_code, unit_price, lead_time_days, min_order_qty,
+          quoted_on, valid_until, is_current, notes, created_by
+        )
+        VALUES (
+          ${data.itemId}::uuid,
+          ${data.supplierId}::uuid,
+          ${data.supplierItemCode?.trim() ?? null},
+          ${supplierCodeNorm},
+          ${data.currencyCode},
+          ${data.unitPrice},
+          ${data.leadTimeDays ?? null},
+          ${data.minOrderQty ?? null},
+          ${data.quotedOn ?? null}::date,
+          ${data.validUntil ?? null}::date,
+          TRUE,
+          ${data.notes?.trim() ?? null},
+          ${data.userId}::uuid
+        )
+        RETURNING
+          id,
+          supplier_id as "supplierId",
+          supplier_item_code as "supplierItemCode",
+          currency_code as "currencyCode",
+          unit_price::float as "unitPrice",
+          lead_time_days as "leadTimeDays",
+          min_order_qty::float as "minOrderQty",
+          quoted_on::text as "quotedOn",
+          valid_until::text as "validUntil",
+          is_current as "isCurrent",
+          notes,
+          created_at as "createdAt"
+      `;
+      insertedRows = res as unknown as SupplierOfferRecord[];
+    }
+  } else {
+    await sql`
       UPDATE supplier_offers
       SET is_current = FALSE
       WHERE item_id = ${data.itemId}::uuid
         AND supplier_id = ${data.supplierId}::uuid
         AND is_current = TRUE
-    `,
-    // 2. Insert new offer
-    sql`
+    `;
+    const res = await sql`
       INSERT INTO supplier_offers (
         item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
         currency_code, unit_price, lead_time_days, min_order_qty,
@@ -861,11 +955,9 @@ export async function addSupplierOffer(data: {
         is_current as "isCurrent",
         notes,
         created_at as "createdAt"
-    `,
-  ]);
-
-  // results[1] is the INSERT result array
-  const insertedRows = results[1] as unknown as SupplierOfferRecord[];
+    `;
+    insertedRows = res as unknown as SupplierOfferRecord[];
+  }
   return insertedRows[0];
 }
 
