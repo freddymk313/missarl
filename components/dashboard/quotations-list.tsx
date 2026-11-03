@@ -21,6 +21,7 @@ import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { formatUSD } from "@/lib/formatters";
+import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 
 interface QuotationsListProps {
   initialQuotations: QuotationRecord[];
@@ -261,6 +262,12 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                         >
                           <Eye className="size-3.5" />
                         </button>
+                        {/* PDF Actions (compact) */}
+                        <QuotationPdfActions
+                          quotationId={quote.id}
+                          quotationRef={quote.internalReference}
+                          compact
+                        />
                         {quote.status === "DRAFT" && (
                           <button
                             type="button"
@@ -412,6 +419,17 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                 </div>
               </div>
             )}
+
+            {/* PDF Actions */}
+            <div className="rounded-xl border border-border bg-secondary/20 p-4">
+              <p className="text-xs font-black text-primary mb-3 flex items-center gap-1.5">
+                <FileText className="size-3.5" /> Document PDF
+              </p>
+              <QuotationPdfActions
+                quotationId={selectedQuote.id}
+                quotationRef={selectedQuote.internalReference}
+              />
+            </div>
 
             {/* Action buttons inside drawer */}
             <div className="pt-3 border-t border-border space-y-2">

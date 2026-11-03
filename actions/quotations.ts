@@ -13,13 +13,23 @@ export async function createQuotationAction(payload: {
   paymentTerms?: string;
   deliveryLeadTime?: string;
   notes?: string;
+  defaultCommissionPercent?: number;
   items: Array<{
     itemId?: string;
+    supplierOfferId?: string | null;
     description: string;
     unit: string;
     quantity: number;
     unitPrice: number;
     discountPercent?: number;
+    supplierPriceSnapshot?: number | null;
+    supplierCurrencySnapshot?: string | null;
+    supplierVatIncludedSnapshot?: boolean | null;
+    supplierVatRateSnapshot?: number | null;
+    exchangeRateSnapshot?: number | null;
+    baseCostUsdSnapshot?: number | null;
+    commissionPercent?: number | null;
+    commissionAmount?: number | null;
   }>;
 }) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);

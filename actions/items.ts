@@ -54,16 +54,23 @@ export async function createItemAction(data: {
   manufacturerPartNumber?: string;
   unitCode?: string;
   supplyPrice?: number | null;
+  quotedPrice?: number | null;
+  vatIncluded?: boolean;
   specs?: Record<string, string>;
   // Optional first supplier offer
   offer?: {
     supplierId: string;
     supplierItemCode?: string;
     currencyCode: string;
-    unitPrice: number;
+    currency?: string;
+    unitPrice?: number;
+    supplyPrice?: number;
+    vatIncluded?: boolean;
+    vatRate?: number | null;
     leadTimeDays?: number;
     minOrderQty?: number;
     quotedOn?: string;
+    offerDate?: string;
     validUntil?: string;
     notes?: string;
   };
@@ -90,10 +97,14 @@ export async function createItemAction(data: {
       brandId = brand.id;
     }
 
+    const offerPrice = data.offer
+      ? data.offer.supplyPrice ?? data.offer.unitPrice ?? null
+      : null;
+
     const initialSupplyPrice =
       data.supplyPrice !== undefined && data.supplyPrice !== null
         ? data.supplyPrice
-        : (data.offer && data.offer.unitPrice >= 0 ? data.offer.unitPrice : null);
+        : (offerPrice !== null && offerPrice >= 0 ? offerPrice : null);
 
     const item = await createItem({
       designation: data.designation,
@@ -103,6 +114,8 @@ export async function createItemAction(data: {
       manufacturerPartNumber: data.manufacturerPartNumber,
       unitCode: data.unitCode,
       supplyPrice: initialSupplyPrice,
+      quotedPrice: data.quotedPrice,
+      vatIncluded: data.vatIncluded,
       specs: data.specs,
     });
 
@@ -121,16 +134,21 @@ export async function createItemAction(data: {
     }
 
     // Add first supplier offer
-    if (data.offer && data.offer.supplierId && data.offer.unitPrice >= 0) {
+    if (data.offer && data.offer.supplierId && offerPrice !== null && offerPrice >= 0) {
       await addSupplierOffer({
         itemId: item.id,
         supplierId: data.offer.supplierId,
         supplierItemCode: data.offer.supplierItemCode,
-        currencyCode: data.offer.currencyCode,
-        unitPrice: data.offer.unitPrice,
+        currencyCode: data.offer.currencyCode || data.offer.currency || "USD",
+        currency: data.offer.currency || data.offer.currencyCode || "USD",
+        unitPrice: offerPrice,
+        supplyPrice: offerPrice,
+        vatIncluded: data.offer.vatIncluded,
+        vatRate: data.offer.vatRate,
         leadTimeDays: data.offer.leadTimeDays,
         minOrderQty: data.offer.minOrderQty,
-        quotedOn: data.offer.quotedOn,
+        quotedOn: data.offer.quotedOn || data.offer.offerDate,
+        offerDate: data.offer.offerDate || data.offer.quotedOn,
         validUntil: data.offer.validUntil,
         notes: data.offer.notes,
         userId: session.id,
@@ -169,6 +187,8 @@ export async function updateItemAction(
     manufacturerPartNumber?: string | null;
     unitCode?: string | null;
     supplyPrice?: number | null;
+    quotedPrice?: number | null;
+    vatIncluded?: boolean;
     specs?: Record<string, string>;
     isActive?: boolean;
   }
@@ -194,6 +214,8 @@ export async function updateItemAction(
       manufacturerPartNumber: data.manufacturerPartNumber,
       unitCode: data.unitCode,
       supplyPrice: data.supplyPrice,
+      quotedPrice: data.quotedPrice,
+      vatIncluded: data.vatIncluded,
       specs: data.specs,
       isActive: data.isActive,
     });
@@ -256,10 +278,15 @@ export async function addSupplierOfferAction(
     supplierId: string;
     supplierItemCode?: string;
     currencyCode: string;
-    unitPrice: number;
+    currency?: string;
+    unitPrice?: number;
+    supplyPrice?: number;
+    vatIncluded?: boolean;
+    vatRate?: number | null;
     leadTimeDays?: number;
     minOrderQty?: number;
     quotedOn?: string;
+    offerDate?: string;
     validUntil?: string;
     notes?: string;
   }
@@ -269,10 +296,12 @@ export async function addSupplierOfferAction(
   if (!data.supplierId) {
     return { success: false, error: "Supplier is required." };
   }
-  if (!data.currencyCode) {
+  const curr = data.currencyCode || data.currency;
+  if (!curr) {
     return { success: false, error: "Currency is required." };
   }
-  if (data.unitPrice < 0) {
+  const price = data.supplyPrice ?? data.unitPrice ?? 0;
+  if (price < 0) {
     return { success: false, error: "Price must be ≥ 0." };
   }
 
@@ -280,6 +309,9 @@ export async function addSupplierOfferAction(
     const offer = await addSupplierOffer({
       itemId,
       ...data,
+      currencyCode: curr,
+      unitPrice: price,
+      supplyPrice: price,
       userId: session.id,
     });
 

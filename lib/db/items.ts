@@ -53,14 +53,20 @@ export interface SupplierOfferRecord {
   supplierName: string;
   supplierItemCode: string | null;
   currencyCode: string;
+  currency?: string;
   currencySymbol: string;
-  unitPrice: number; // stored as string from DB, we parse
+  unitPrice: number; // original currency unit price
+  supplyPrice?: number; // alias for unitPrice in original currency
   unitPriceUsd: number | null; // converted via latest exchange rate
+  vatIncluded?: boolean;
+  vatRate?: number | null;
   leadTimeDays: number | null;
   minOrderQty: number | null;
   quotedOn: string;
+  offerDate?: string;
   validUntil: string | null;
   isCurrent: boolean;
+  isActive?: boolean;
   notes: string | null;
   createdAt: string;
 }
@@ -96,6 +102,8 @@ export interface ItemRecord {
   manufacturerPartNumber: string | null;
   unitCode: string | null;
   supplyPrice: number | null;
+  quotedPrice?: number | null; // Reference/latest quoted price in USD
+  vatIncluded?: boolean; // Whether associated supplier price includes VAT
   specs: Record<string, string>;
   isActive: boolean;
   createdAt: string;
@@ -260,6 +268,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -292,6 +302,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -321,6 +333,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -353,6 +367,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -386,6 +402,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -435,6 +453,8 @@ export async function searchItems(
           i.manufacturer_part_number as "manufacturerPartNumber",
           i.unit_code as "unitCode",
           i.supply_price::float as "supplyPrice",
+          (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+          COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
           i.specs,
           i.is_active as "isActive",
           i.created_at as "createdAt",
@@ -464,6 +484,8 @@ export async function searchItems(
     manufacturerPartNumber: string | null;
     unitCode: string | null;
     supplyPrice: number | null;
+    quotedPrice: number | null;
+    vatIncluded: boolean;
     specs: Record<string, string>;
     isActive: boolean;
     createdAt: string;
@@ -500,6 +522,8 @@ export async function searchItems(
       manufacturerPartNumber: row.manufacturerPartNumber,
       unitCode: row.unitCode,
       supplyPrice: row.supplyPrice != null ? Number(row.supplyPrice) : null,
+      quotedPrice: row.quotedPrice != null ? Number(row.quotedPrice) : null,
+      vatIncluded: Boolean(row.vatIncluded),
       specs: row.specs ?? {},
       isActive: row.isActive,
       createdAt: row.createdAt,
@@ -577,6 +601,8 @@ export async function getItemById(id: string): Promise<ItemRecord | null> {
       i.manufacturer_part_number as "manufacturerPartNumber",
       i.unit_code as "unitCode",
       i.supply_price::float as "supplyPrice",
+      (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+      COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
       i.specs,
       i.is_active as "isActive",
       i.created_at as "createdAt",
@@ -613,8 +639,12 @@ export async function getItemById(id: string): Promise<ItemRecord | null> {
       s.name as "supplierName",
       so.supplier_item_code as "supplierItemCode",
       so.currency_code as "currencyCode",
+      COALESCE(to_jsonb(so)->>'currency', so.currency_code) as "currency",
       c.symbol as "currencySymbol",
       so.unit_price::float as "unitPrice",
+      COALESCE((to_jsonb(so)->>'supply_price')::numeric, so.unit_price)::float as "supplyPrice",
+      COALESCE((to_jsonb(so)->>'vat_included')::boolean, FALSE) as "vatIncluded",
+      (to_jsonb(so)->>'vat_rate')::numeric::float as "vatRate",
       (so.unit_price * COALESCE(
         (SELECT er.rate_to_usd FROM exchange_rates er
          WHERE er.currency_code = so.currency_code
@@ -624,8 +654,10 @@ export async function getItemById(id: string): Promise<ItemRecord | null> {
       so.lead_time_days as "leadTimeDays",
       so.min_order_qty::float as "minOrderQty",
       so.quoted_on::text as "quotedOn",
+      COALESCE(to_jsonb(so)->>'offer_date', so.quoted_on::text) as "offerDate",
       so.valid_until::text as "validUntil",
       so.is_current as "isCurrent",
+      COALESCE((to_jsonb(so)->>'is_active')::boolean, so.is_current) as "isActive",
       so.notes,
       so.created_at as "createdAt"
     FROM supplier_offers so
@@ -659,6 +691,8 @@ export async function createItem(data: {
   manufacturerPartNumber?: string;
   unitCode?: string;
   supplyPrice?: number | null;
+  quotedPrice?: number | null;
+  vatIncluded?: boolean;
   specs?: Record<string, string>;
   isActive?: boolean;
 }): Promise<ItemRecord> {
@@ -666,34 +700,70 @@ export async function createItem(data: {
     ? normalizeCode(data.manufacturerPartNumber)
     : null;
 
-  const rows = await sql`
-    INSERT INTO items (
-      unit, unit_code, designation, description, category_id, brand_id,
-      manufacturer_part_number, mpn_normalized, supply_price, specs, is_active
-    )
-    VALUES (
-      ${data.unitCode || "EA"},
-      ${data.unitCode ?? null},
-      ${data.designation.trim()},
-      ${data.description.trim()},
-      ${data.categoryId ?? null},
-      ${data.brandId ?? null},
-      ${data.manufacturerPartNumber?.trim() ?? null},
-      ${mpnNorm},
-      ${data.supplyPrice !== undefined && data.supplyPrice !== null ? data.supplyPrice : null},
-      ${JSON.stringify(data.specs ?? {})}::jsonb,
-      ${data.isActive !== false}
-    )
-    RETURNING
-      id, sku_ref as "skuRef", designation, description,
-      category_id as "categoryId", brand_id as "brandId",
-      manufacturer_part_number as "manufacturerPartNumber",
-      mpn_normalized as "mpnNormalized",
-      unit_code as "unitCode",
-      supply_price::float as "supplyPrice",
-      specs,
-      is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
-  `;
+  let rows;
+  try {
+    rows = await sql`
+      INSERT INTO items (
+        unit, unit_code, designation, description, category_id, brand_id,
+        manufacturer_part_number, mpn_normalized, supply_price, quoted_price, vat_included, specs, is_active
+      )
+      VALUES (
+        ${data.unitCode || "EA"},
+        ${data.unitCode ?? null},
+        ${data.designation.trim()},
+        ${data.description.trim()},
+        ${data.categoryId ?? null},
+        ${data.brandId ?? null},
+        ${data.manufacturerPartNumber?.trim() ?? null},
+        ${mpnNorm},
+        ${data.supplyPrice !== undefined && data.supplyPrice !== null ? data.supplyPrice : null},
+        ${data.quotedPrice !== undefined && data.quotedPrice !== null ? data.quotedPrice : null},
+        ${data.vatIncluded === true},
+        ${JSON.stringify(data.specs ?? {})}::jsonb,
+        ${data.isActive !== false}
+      )
+      RETURNING
+        id, sku_ref as "skuRef", designation, description,
+        category_id as "categoryId", brand_id as "brandId",
+        manufacturer_part_number as "manufacturerPartNumber",
+        mpn_normalized as "mpnNormalized",
+        unit_code as "unitCode",
+        supply_price::float as "supplyPrice",
+        quoted_price::float as "quotedPrice",
+        vat_included as "vatIncluded",
+        specs,
+        is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+  } catch {
+    rows = await sql`
+      INSERT INTO items (
+        unit, unit_code, designation, description, category_id, brand_id,
+        manufacturer_part_number, mpn_normalized, supply_price, specs, is_active
+      )
+      VALUES (
+        ${data.unitCode || "EA"},
+        ${data.unitCode ?? null},
+        ${data.designation.trim()},
+        ${data.description.trim()},
+        ${data.categoryId ?? null},
+        ${data.brandId ?? null},
+        ${data.manufacturerPartNumber?.trim() ?? null},
+        ${mpnNorm},
+        ${data.supplyPrice !== undefined && data.supplyPrice !== null ? data.supplyPrice : null},
+        ${JSON.stringify(data.specs ?? {})}::jsonb,
+        ${data.isActive !== false}
+      )
+      RETURNING
+        id, sku_ref as "skuRef", designation, description,
+        category_id as "categoryId", brand_id as "brandId",
+        manufacturer_part_number as "manufacturerPartNumber",
+        mpn_normalized as "mpnNormalized",
+        unit_code as "unitCode",
+        supply_price::float as "supplyPrice",
+        specs,
+        is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+  }
   const item = rows[0] as unknown as ItemRecord;
   item.specs = item.specs ?? {};
   return item;
@@ -713,6 +783,8 @@ export async function updateItem(
     manufacturerPartNumber?: string | null;
     unitCode?: string | null;
     supplyPrice?: number | null;
+    quotedPrice?: number | null;
+    vatIncluded?: boolean;
     specs?: Record<string, string>;
     isActive?: boolean;
   }
@@ -724,30 +796,62 @@ export async function updateItem(
         : null
       : undefined;
 
-  const rows = await sql`
-    UPDATE items SET
-      unit           = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? "EA"} ELSE unit END,
-      unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
-      supply_price   = CASE WHEN ${data.supplyPrice !== undefined} THEN ${data.supplyPrice ?? null}::numeric ELSE supply_price END,
-      designation    = COALESCE(${data.designation?.trim() ?? null}, designation),
-      description    = COALESCE(${data.description?.trim() ?? null}, description),
-      category_id    = CASE WHEN ${data.categoryId !== undefined} THEN ${data.categoryId ?? null}::uuid ELSE category_id END,
-      brand_id       = CASE WHEN ${data.brandId !== undefined} THEN ${data.brandId ?? null}::uuid ELSE brand_id END,
-      manufacturer_part_number = CASE WHEN ${data.manufacturerPartNumber !== undefined} THEN ${data.manufacturerPartNumber ?? null} ELSE manufacturer_part_number END,
-      mpn_normalized = CASE WHEN ${mpnNorm !== undefined} THEN ${mpnNorm ?? null} ELSE mpn_normalized END,
-      specs          = CASE WHEN ${data.specs !== undefined} THEN ${JSON.stringify(data.specs ?? {})}::jsonb ELSE specs END,
-      is_active      = COALESCE(${data.isActive ?? null}, is_active),
-      updated_at     = NOW()
-    WHERE id = ${id}::uuid
-    RETURNING
-      id, sku_ref as "skuRef", designation, description,
-      category_id as "categoryId", brand_id as "brandId",
-      manufacturer_part_number as "manufacturerPartNumber",
-      unit_code as "unitCode",
-      supply_price::float as "supplyPrice",
-      specs,
-      is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
-  `;
+  let rows;
+  try {
+    rows = await sql`
+      UPDATE items SET
+        unit           = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? "EA"} ELSE unit END,
+        unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
+        supply_price   = CASE WHEN ${data.supplyPrice !== undefined} THEN ${data.supplyPrice ?? null}::numeric ELSE supply_price END,
+        quoted_price   = CASE WHEN ${data.quotedPrice !== undefined} THEN ${data.quotedPrice ?? null}::numeric ELSE quoted_price END,
+        vat_included   = CASE WHEN ${data.vatIncluded !== undefined} THEN ${data.vatIncluded === true} ELSE vat_included END,
+        designation    = COALESCE(${data.designation?.trim() ?? null}, designation),
+        description    = COALESCE(${data.description?.trim() ?? null}, description),
+        category_id    = CASE WHEN ${data.categoryId !== undefined} THEN ${data.categoryId ?? null}::uuid ELSE category_id END,
+        brand_id       = CASE WHEN ${data.brandId !== undefined} THEN ${data.brandId ?? null}::uuid ELSE brand_id END,
+        manufacturer_part_number = CASE WHEN ${data.manufacturerPartNumber !== undefined} THEN ${data.manufacturerPartNumber ?? null} ELSE manufacturer_part_number END,
+        mpn_normalized = CASE WHEN ${mpnNorm !== undefined} THEN ${mpnNorm ?? null} ELSE mpn_normalized END,
+        specs          = CASE WHEN ${data.specs !== undefined} THEN ${JSON.stringify(data.specs ?? {})}::jsonb ELSE specs END,
+        is_active      = COALESCE(${data.isActive ?? null}, is_active),
+        updated_at     = NOW()
+      WHERE id = ${id}::uuid
+      RETURNING
+        id, sku_ref as "skuRef", designation, description,
+        category_id as "categoryId", brand_id as "brandId",
+        manufacturer_part_number as "manufacturerPartNumber",
+        unit_code as "unitCode",
+        supply_price::float as "supplyPrice",
+        quoted_price::float as "quotedPrice",
+        vat_included as "vatIncluded",
+        specs,
+        is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+  } catch {
+    rows = await sql`
+      UPDATE items SET
+        unit           = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? "EA"} ELSE unit END,
+        unit_code      = CASE WHEN ${data.unitCode !== undefined} THEN ${data.unitCode ?? null} ELSE unit_code END,
+        supply_price   = CASE WHEN ${data.supplyPrice !== undefined} THEN ${data.supplyPrice ?? null}::numeric ELSE supply_price END,
+        designation    = COALESCE(${data.designation?.trim() ?? null}, designation),
+        description    = COALESCE(${data.description?.trim() ?? null}, description),
+        category_id    = CASE WHEN ${data.categoryId !== undefined} THEN ${data.categoryId ?? null}::uuid ELSE category_id END,
+        brand_id       = CASE WHEN ${data.brandId !== undefined} THEN ${data.brandId ?? null}::uuid ELSE brand_id END,
+        manufacturer_part_number = CASE WHEN ${data.manufacturerPartNumber !== undefined} THEN ${data.manufacturerPartNumber ?? null} ELSE manufacturer_part_number END,
+        mpn_normalized = CASE WHEN ${mpnNorm !== undefined} THEN ${mpnNorm ?? null} ELSE mpn_normalized END,
+        specs          = CASE WHEN ${data.specs !== undefined} THEN ${JSON.stringify(data.specs ?? {})}::jsonb ELSE specs END,
+        is_active      = COALESCE(${data.isActive ?? null}, is_active),
+        updated_at     = NOW()
+      WHERE id = ${id}::uuid
+      RETURNING
+        id, sku_ref as "skuRef", designation, description,
+        category_id as "categoryId", brand_id as "brandId",
+        manufacturer_part_number as "manufacturerPartNumber",
+        unit_code as "unitCode",
+        supply_price::float as "supplyPrice",
+        specs,
+        is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt"
+    `;
+  }
   if (!rows || rows.length === 0) return null;
   const item = rows[0] as unknown as ItemRecord;
   item.specs = item.specs ?? {};
@@ -813,7 +917,7 @@ export async function deleteItemIdentifier(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Supplier offers — history-aware (ONE transaction)
+// Supplier offers — history-aware (atomic CTE, no transaction() needed)
 // ---------------------------------------------------------------------------
 
 export async function addSupplierOffer(data: {
@@ -821,10 +925,15 @@ export async function addSupplierOffer(data: {
   supplierId: string;
   supplierItemCode?: string;
   currencyCode: string;
-  unitPrice: number;
+  currency?: string;
+  unitPrice?: number;
+  supplyPrice?: number;
+  vatIncluded?: boolean;
+  vatRate?: number | null;
   leadTimeDays?: number;
   minOrderQty?: number;
   quotedOn?: string;
+  offerDate?: string;
   validUntil?: string;
   notes?: string;
   userId: string;
@@ -833,113 +942,22 @@ export async function addSupplierOffer(data: {
     ? normalizeCode(data.supplierItemCode)
     : null;
 
-  let insertedRows: SupplierOfferRecord[];
+  const price = data.supplyPrice ?? data.unitPrice ?? 0;
+  const currCode = data.currencyCode || data.currency || "USD";
+  const dateVal = data.offerDate || data.quotedOn || null;
 
-  // Execute in a transaction via callback or fallback sequentially
-  if (typeof sql.transaction === "function") {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const results = await sql.transaction((txn: any) => [
-        // 1. Archive previous current offer for this item+supplier
-        txn`
-          UPDATE supplier_offers
-          SET is_current = FALSE
-          WHERE item_id = ${data.itemId}::uuid
-            AND supplier_id = ${data.supplierId}::uuid
-            AND is_current = TRUE
-        `,
-        // 2. Insert new offer
-        txn`
-          INSERT INTO supplier_offers (
-            item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
-            currency_code, unit_price, lead_time_days, min_order_qty,
-            quoted_on, valid_until, is_current, notes, created_by
-          )
-          VALUES (
-            ${data.itemId}::uuid,
-            ${data.supplierId}::uuid,
-            ${data.supplierItemCode?.trim() ?? null},
-            ${supplierCodeNorm},
-            ${data.currencyCode},
-            ${data.unitPrice},
-            ${data.leadTimeDays ?? null},
-            ${data.minOrderQty ?? null},
-            ${data.quotedOn ?? null}::date,
-            ${data.validUntil ?? null}::date,
-            TRUE,
-            ${data.notes?.trim() ?? null},
-            ${data.userId}::uuid
-          )
-          RETURNING
-            id,
-            supplier_id as "supplierId",
-            supplier_item_code as "supplierItemCode",
-            currency_code as "currencyCode",
-            unit_price::float as "unitPrice",
-            lead_time_days as "leadTimeDays",
-            min_order_qty::float as "minOrderQty",
-            quoted_on::text as "quotedOn",
-            valid_until::text as "validUntil",
-            is_current as "isCurrent",
-            notes,
-            created_at as "createdAt"
-        `,
-      ]);
-      insertedRows = results[1] as unknown as SupplierOfferRecord[];
-    } catch {
-      await sql`
+  // Use a single CTE to atomically archive the old offer and insert the new one.
+  // This avoids sql.transaction() entirely and works reliably with the Neon HTTP driver.
+  let insertedRows: SupplierOfferRecord[];
+  try {
+    const res = await sql`
+      WITH archive AS (
         UPDATE supplier_offers
         SET is_current = FALSE
         WHERE item_id = ${data.itemId}::uuid
           AND supplier_id = ${data.supplierId}::uuid
           AND is_current = TRUE
-      `;
-      const res = await sql`
-        INSERT INTO supplier_offers (
-          item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
-          currency_code, unit_price, lead_time_days, min_order_qty,
-          quoted_on, valid_until, is_current, notes, created_by
-        )
-        VALUES (
-          ${data.itemId}::uuid,
-          ${data.supplierId}::uuid,
-          ${data.supplierItemCode?.trim() ?? null},
-          ${supplierCodeNorm},
-          ${data.currencyCode},
-          ${data.unitPrice},
-          ${data.leadTimeDays ?? null},
-          ${data.minOrderQty ?? null},
-          ${data.quotedOn ?? null}::date,
-          ${data.validUntil ?? null}::date,
-          TRUE,
-          ${data.notes?.trim() ?? null},
-          ${data.userId}::uuid
-        )
-        RETURNING
-          id,
-          supplier_id as "supplierId",
-          supplier_item_code as "supplierItemCode",
-          currency_code as "currencyCode",
-          unit_price::float as "unitPrice",
-          lead_time_days as "leadTimeDays",
-          min_order_qty::float as "minOrderQty",
-          quoted_on::text as "quotedOn",
-          valid_until::text as "validUntil",
-          is_current as "isCurrent",
-          notes,
-          created_at as "createdAt"
-      `;
-      insertedRows = res as unknown as SupplierOfferRecord[];
-    }
-  } else {
-    await sql`
-      UPDATE supplier_offers
-      SET is_current = FALSE
-      WHERE item_id = ${data.itemId}::uuid
-        AND supplier_id = ${data.supplierId}::uuid
-        AND is_current = TRUE
-    `;
-    const res = await sql`
+      )
       INSERT INTO supplier_offers (
         item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
         currency_code, unit_price, lead_time_days, min_order_qty,
@@ -950,11 +968,11 @@ export async function addSupplierOffer(data: {
         ${data.supplierId}::uuid,
         ${data.supplierItemCode?.trim() ?? null},
         ${supplierCodeNorm},
-        ${data.currencyCode},
-        ${data.unitPrice},
+        ${currCode},
+        ${price},
         ${data.leadTimeDays ?? null},
         ${data.minOrderQty ?? null},
-        ${data.quotedOn ?? null}::date,
+        ${dateVal !== null ? (dateVal as string) : null}::date,
         ${data.validUntil ?? null}::date,
         TRUE,
         ${data.notes?.trim() ?? null},
@@ -975,6 +993,8 @@ export async function addSupplierOffer(data: {
         created_at as "createdAt"
     `;
     insertedRows = res as unknown as SupplierOfferRecord[];
+  } catch (err) {
+    throw err;
   }
   return insertedRows[0];
 }
@@ -1020,14 +1040,13 @@ export async function getItemsForPicker(): Promise<
       i.designation,
       i.description,
       i.unit_code as "unitCode",
-      i.supply_price::float as "supplyPrice",
       COALESCE(
         (
           SELECT (so.unit_price * COALESCE(
             (SELECT er.rate_to_usd FROM exchange_rates er
              WHERE er.currency_code = so.currency_code
              ORDER BY er.effective_on DESC LIMIT 1),
-            NULL
+            1
           ))::float
           FROM supplier_offers so
           WHERE so.item_id = i.id AND so.is_current = TRUE
@@ -1052,7 +1071,6 @@ export async function getItemsForPicker(): Promise<
     designation: string | null;
     description: string;
     unitCode: string | null;
-    supplyPrice: number | null;
     cheapestOfferUsd: number | null;
   }>;
 }

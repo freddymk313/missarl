@@ -3,6 +3,8 @@ import { resolve4 } from "dns/promises";
 import https from "https";
 import fs from "fs";
 import path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 
 const host = "ep-jolly-mountain-b5doskvz-pooler.c-7.us-east-2.aws.neon.tech";
 
@@ -50,9 +52,7 @@ const customFetch = async (url, opts = {}) => {
 
 neonConfig.fetchFunction = customFetch;
 
-const sql = neon(
-  `postgresql://neondb_owner:npg_1wVXhipYy4eO@${host}/neondb?sslmode=require`
-);
+const sql = neon(process.env.DATABASE_URL);
 
 function splitSqlStatements(sqlText) {
   // Strip block comments and line comments
@@ -75,36 +75,61 @@ async function run() {
   console.log("Checking database connection and migrations...");
   const applied = await sql`SELECT version, name FROM schema_migrations ORDER BY version`;
   console.log("Currently applied migrations:", applied);
+  const appliedVersions = new Set(applied.map((a) => a.version));
 
-  const migrationFile = path.resolve("database/migrations/003_items_catalog.sql");
-  const sqlContent = fs.readFileSync(migrationFile, "utf8");
+  // Determine target files
+  const argFile = process.argv[2];
+  let filesToRun = [];
 
-  const statements = splitSqlStatements(sqlContent);
-  console.log(`Found ${statements.length} SQL statements to execute.`);
+  if (argFile) {
+    filesToRun.push(path.resolve(argFile));
+  } else {
+    const migrationsDir = path.resolve("database/migrations");
+    const allFiles = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
 
-  for (let i = 0; i < statements.length; i++) {
-    const stmt = statements[i];
-    console.log(`[${i + 1}/${statements.length}] Executing: ${stmt.slice(0, 60).replace(/\n/g, " ")}...`);
-    try {
-      await sql.query(stmt);
-    } catch (e) {
-      console.error(`Error on statement ${i + 1}:`, stmt);
-      throw e;
+    for (const f of allFiles) {
+      const match = f.match(/^(\d+)/);
+      const version = match ? match[1] : null;
+      if (!version || !appliedVersions.has(version)) {
+        filesToRun.push(path.join(migrationsDir, f));
+      }
     }
   }
 
-  console.log("✅ All statements in 003_items_catalog.sql executed successfully!");
+  if (filesToRun.length === 0) {
+    console.log("✅ All migrations are already up to date!");
+    return;
+  }
 
-  const cols = await sql`
-    SELECT column_name, data_type 
-    FROM information_schema.columns 
-    WHERE table_name = 'items'
-    ORDER BY ordinal_position
-  `;
-  console.log("Updated columns in items table:", cols.map(c => c.column_name));
+  console.log(`Found ${filesToRun.length} migration(s) to run:`, filesToRun.map((f) => path.basename(f)));
 
-  const cats = await sql`SELECT code, name_fr FROM item_categories ORDER BY sort_order`;
-  console.log("Seeded categories:", cats);
+  for (const migrationFile of filesToRun) {
+    const fileName = path.basename(migrationFile);
+    console.log(`\n========================================`);
+    console.log(`Running migration: ${fileName}`);
+    console.log(`========================================`);
+    const sqlContent = fs.readFileSync(migrationFile, "utf8");
+    const statements = splitSqlStatements(sqlContent);
+    console.log(`Found ${statements.length} SQL statement(s) to execute.`);
+
+    for (let i = 0; i < statements.length; i++) {
+      const stmt = statements[i];
+      console.log(`[${i + 1}/${statements.length}] Executing: ${stmt.slice(0, 60).replace(/\n/g, " ")}...`);
+      try {
+        await sql.query(stmt);
+      } catch (e) {
+        console.error(`Error on statement ${i + 1} of ${fileName}:`, stmt);
+        throw e;
+      }
+    }
+
+    console.log(`✅ ${fileName} executed successfully!`);
+  }
+
+  console.log("\nAll requested migrations finished successfully.");
 }
 
 run().catch((err) => {

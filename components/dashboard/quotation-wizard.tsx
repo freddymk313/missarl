@@ -13,6 +13,7 @@ import { ClientRecord } from "@/lib/db/clients";
 import { ItemRecord } from "@/lib/db/items";
 import { createQuotationAction } from "@/actions/quotations";
 import { formatUSD } from "@/lib/formatters";
+import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 
 interface QuotationWizardProps {
   clients: ClientRecord[];
@@ -45,6 +46,10 @@ export function QuotationWizard({
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [savedQuotation, setSavedQuotation] = useState<{
+    id: string;
+    reference: string;
+  } | null>(null);
 
   const [lines, setLines] = useState<LineItemDraft[]>([
     {
@@ -150,6 +155,13 @@ export function QuotationWizard({
       if (!res.success) {
         setError(res.error || "Erreur de création.");
         setIsSubmitting(false);
+      } else if (res.quotation) {
+        // Show success state with PDF actions before redirecting
+        setSavedQuotation({
+          id: res.quotation.id,
+          reference: res.quotation.internalReference,
+        });
+        setIsSubmitting(false);
       } else {
         router.push("/dashboard/quotes");
       }
@@ -158,6 +170,46 @@ export function QuotationWizard({
       setIsSubmitting(false);
     }
   };
+
+  // ── Success State ─────────────────────────────────────────────────────────
+  if (savedQuotation) {
+    return (
+      <div className="rounded-2xl border border-success/30 bg-success/5 p-8 space-y-6 max-w-lg mx-auto text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-14 rounded-full bg-success/15 flex items-center justify-center">
+            <CheckCircle2 className="size-7 text-success" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-success">Devis enregistré !</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Référence :{" "}
+              <span className="font-mono font-bold text-foreground">
+                {savedQuotation.reference}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs font-black text-primary mb-3">
+            Générer le document PDF
+          </p>
+          <QuotationPdfActions
+            quotationId={savedQuotation.id}
+            quotationRef={savedQuotation.reference}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/quotes")}
+          className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="size-4" /> Retour à la liste des devis
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -195,7 +247,7 @@ export function QuotationWizard({
               <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 1
               </span>
-              Paramètres Commerciaux & Client
+              Paramètres Commerciaux &amp; Client
             </h3>
 
             <div className="grid gap-4 sm:grid-cols-3">
