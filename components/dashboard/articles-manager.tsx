@@ -800,6 +800,7 @@ export function ArticlesManager({
         isOpen={!!detailItem}
         onClose={() => setDetailItem(null)}
         title={detailItem?.skuRef || "Item Detail"}
+        size="xl"
         statusBadge={
           detailItem ? (
             <span

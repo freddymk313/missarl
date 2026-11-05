@@ -191,6 +191,7 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
 export async function createQuotation(data: {
   clientId: string;
   docType: "QUOTATION" | "PROFORMA";
+  internalReference?: string;
   clientRfqNumber?: string;
   validityDays?: number;
   vatRate?: number;
@@ -288,11 +289,25 @@ export async function createQuotation(data: {
   const vatAmount = Math.round(subtotal * (vatRate / 100) * 100) / 100;
   const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
-  // 2. Concurrency-safe atomic reference generation
-  const { reference, sequenceNumber, year } = await getNextQuotationReference(
-    data.clientId,
-    data.docType
-  );
+  // 2. Reference generation (use user-specified reference or fallback to sequence generator)
+  let reference: string;
+  let sequenceNumber: number;
+  let year: number;
+
+  if (data.internalReference && data.internalReference.trim()) {
+    reference = data.internalReference.trim();
+    const match = reference.match(/^(\d+)/);
+    sequenceNumber = match ? parseInt(match[1], 10) : 1;
+    year = new Date().getFullYear();
+  } else {
+    const nextRef = await getNextQuotationReference(
+      data.clientId,
+      data.docType
+    );
+    reference = nextRef.reference;
+    sequenceNumber = nextRef.sequenceNumber;
+    year = nextRef.year;
+  }
 
   const validityDays = data.validityDays ?? 30;
   const validityDate = new Date();

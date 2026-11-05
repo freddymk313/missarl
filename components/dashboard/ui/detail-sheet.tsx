@@ -43,7 +43,7 @@ export function DetailSheet({
   const sizeClasses = {
     default: "sm:max-w-md",
     lg: "sm:max-w-xl",
-    xl: "sm:max-w-2xl",
+    xl: "sm:min-w-2xl",
   };
 
   const handleOpenChange = (newVal: boolean) => {
@@ -62,7 +62,7 @@ export function DetailSheet({
           "w-full flex flex-col p-0 gap-0 overflow-hidden bg-card border-l border-border",
           sizeClasses[size],
           "data-[side=bottom]:max-h-[92dvh] data-[side=bottom]:rounded-t-2xl sm:data-[side=bottom]:rounded-none",
-          className
+          className,
         )}
       >
         {/* Header with Title + ID chip + Status badge */}
@@ -86,9 +86,7 @@ export function DetailSheet({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-6">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">{children}</div>
 
         {/* Sticky Action Footer */}
         {footer && (

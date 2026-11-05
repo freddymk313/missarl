@@ -7,6 +7,7 @@ import { createQuotation, updateQuotationStatus } from "@/lib/db/quotations";
 export async function createQuotationAction(payload: {
   clientId: string;
   docType: "QUOTATION" | "PROFORMA";
+  internalReference?: string;
   clientRfqNumber?: string;
   validityDays?: number;
   vatRate?: number;
