@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/db/audit";
 export interface QuotationLineItem {
   id?: string;
   itemId?: string | null;
+  brand?: string | null;
   supplierOfferId?: string | null;
   lineNumber: number;
   description: string;
@@ -160,6 +161,7 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
     SELECT 
       qi.id,
       qi.item_id as "itemId",
+      it.brand as "brand",
       (to_jsonb(qi)->>'supplier_offer_id')::uuid as "supplierOfferId",
       qi.line_number as "lineNumber",
       qi.description_snapshot as "description",
@@ -177,6 +179,7 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
       (to_jsonb(qi)->>'commission_percent_snapshot')::numeric::float as "commissionPercentSnapshot",
       (to_jsonb(qi)->>'commission_amount_snapshot')::numeric::float as "commissionAmountSnapshot"
     FROM quotation_items qi
+    LEFT JOIN items it ON qi.item_id = it.id
     WHERE qi.quotation_id = ${id}
     ORDER BY qi.line_number ASC
   `;

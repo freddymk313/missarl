@@ -37,7 +37,7 @@ export const permissions = {
   // Articles & Prices
   canReadArticles: (role: UserRole) =>
     role === "SUPER_ADMIN" || role === "ADMIN" || role === "PRICE_COLLECTOR",
-  canManageArticles: (role: UserRole) => role === "SUPER_ADMIN",
+  canManageArticles: (role: UserRole) => role === "SUPER_ADMIN" || role === "ADMIN",
 
   // Clients & Suppliers
   canReadClients: (role: UserRole) => role === "SUPER_ADMIN" || role === "ADMIN",

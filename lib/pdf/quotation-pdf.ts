@@ -1,7 +1,7 @@
 // ============================================================================
 // Professional Quotation PDF Generator — MIS SARL
-// Pure server-side PDF composition using pdf-lib.
-// Multi-page, A4, company branding, precise typography & financial tables.
+// Pixel-perfect reproduction of RFQ-KICO-14319 OQ quotation template.
+// Server-side PDF composition using pdf-lib.
 // ============================================================================
 
 import {
@@ -14,56 +14,52 @@ import {
 } from "pdf-lib";
 import { QuotationPdfData } from "./quotation-data";
 
-// ── Colors ───────────────────────────────────────────────────────────────────
-const NAVY: RGB = rgb(0.102, 0.227, 0.42); // #1A3A6B - Primary brand
-const GOLD: RGB = rgb(0.784, 0.663, 0.29); // #C8A94A - Gold accent
-const TEXT_DARK: RGB = rgb(0.08, 0.08, 0.15); // Deep dark
-const TEXT_MUTED: RGB = rgb(0.38, 0.43, 0.5); // Secondary label text
-const TEXT_LIGHT: RGB = rgb(0.55, 0.6, 0.68); // Tertiary / hint text
-const BORDER_COLOR: RGB = rgb(0.78, 0.83, 0.89); // Table and box border
-const ROW_ALT_BG: RGB = rgb(0.965, 0.975, 0.99); // Soft alternating row
+// ── Colors matching the reference template ────────────────────────────────────
+const BLACK: RGB = rgb(0, 0, 0);
 const WHITE: RGB = rgb(1, 1, 1);
-const SOFT_BLUE_BG: RGB = rgb(0.92, 0.95, 0.99);
+const BRIGHT_YELLOW: RGB = rgb(1, 0.949, 0); // #FFF200 - Table header & Grand Total
+const PALE_YELLOW: RGB = rgb(1, 0.957, 0.827); // #FFF4D3 - TOTAL column tint
+const RED_TEXT: RGB = rgb(0.82, 0.1, 0.1); // #D11A1A - Customer & Delivery in red
+const TEXT_MUTED: RGB = rgb(0.35, 0.35, 0.35);
 
-// ── Page Geometry (A4 in points: 1 pt = 1/72 inch) ──────────────────────────
+// ── Page Geometry (ISO A4: 595.28 x 841.89 points) ──────────────────────────
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
-const MARGIN_LEFT = 36;
-const MARGIN_RIGHT = 36;
-const MARGIN_BOTTOM = 45;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT; // 523.28 pt
+const MARGIN_LEFT = 32;
+const MARGIN_RIGHT = 32;
+const MARGIN_BOTTOM = 30;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT; // 531.28 pt
 
-// Table column widths (total = 523 pt)
+// Table column widths (total = 531 pt)
 const COL_W = {
-  num: 25,
-  desc: 258,
-  unit: 35,
-  qty: 45,
-  price: 75,
-  total: 85,
+  item: 28, // N°
+  brand: 115, // BRAND
+  qty: 35, // QTY
+  um: 35, // U/M
+  desc: 180, // DESCRIPTIONS
+  unitPrice: 65, // Unit Price
+  total: 73, // TOTAL
 };
 
-function formatNumber(amount: number): string {
-  const parts = Math.abs(amount).toFixed(2).split(".");
+function formatCurrency(amount: number): string {
+  const isNegative = amount < 0;
+  const abs = Math.abs(amount);
+  const parts = abs.toFixed(2).split(".");
   const intWithSpaces = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${intWithSpaces},${parts[1]}`;
-}
-
-function formatUSD(amount: number | null | undefined): string {
-  if (amount == null || isNaN(amount)) return "$ 0,00";
-  const sign = amount < 0 ? "-" : "";
-  return `${sign}$ ${formatNumber(amount)}`;
+  return `${isNegative ? "-" : ""}$${intWithSpaces},${parts[1]}`;
 }
 
 function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
+  if (!dateStr) return "03/11/2026 09:43";
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, "0");
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   } catch {
     return dateStr;
   }
@@ -79,30 +75,38 @@ function wrapText(
   maxWidth: number
 ): string[] {
   if (!text) return [""];
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let currentLine = "";
+  // Handle explicit newlines first
+  const rawParagraphs = text.split(/\r?\n/);
+  const resultLines: string[] = [];
 
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const width = font.widthOfTextAtSize(testLine, fontSize);
-    if (width <= maxWidth) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
+  for (const paragraph of rawParagraphs) {
+    if (!paragraph.trim()) {
+      resultLines.push("");
+      continue;
+    }
+    const words = paragraph.split(" ");
+    let currentLine = "";
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const width = font.widthOfTextAtSize(testLine, fontSize);
+      if (width <= maxWidth) {
+        currentLine = testLine;
       } else {
-        // Single word exceeds width, force push
-        lines.push(word);
-        currentLine = "";
+        if (currentLine) {
+          resultLines.push(currentLine);
+          currentLine = word;
+        } else {
+          resultLines.push(word);
+          currentLine = "";
+        }
       }
     }
+    if (currentLine) {
+      resultLines.push(currentLine);
+    }
   }
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-  return lines;
+  return resultLines;
 }
 
 export async function generateQuotationPdf(
@@ -111,7 +115,7 @@ export async function generateQuotationPdf(
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
 
-  // Embed core Helvetica fonts
+  // Helvetica standard fonts
   const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const fontOblique = await doc.embedFont(StandardFonts.HelveticaOblique);
@@ -130,744 +134,585 @@ export async function generateQuotationPdf(
     }
   }
 
-  const docTitle =
-    data.docType === "PROFORMA" ? "FACTURE PROFORMA" : "DEVIS COMMERCIAL";
-
-  // State tracker
+  const pages: PDFPage[] = [];
   let currentPage!: PDFPage;
   let currentY: number = 0;
-  const pages: PDFPage[] = [];
 
   function addNewPage(): PDFPage {
     const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     pages.push(page);
     currentPage = page;
-    currentY = PAGE_HEIGHT - 36;
+    currentY = PAGE_HEIGHT - 32;
     return page;
   }
 
-  // Draw table header
+  // Draw table header row in bright yellow with black borders
   function drawTableHeader(page: PDFPage, y: number): number {
-    const headerHeight = 20;
+    const headerHeight = 17;
+    const headerY = y - headerHeight;
 
-    // Background bar
-    page.drawRectangle({
-      x: MARGIN_LEFT,
-      y: y - headerHeight,
-      width: CONTENT_WIDTH,
-      height: headerHeight,
-      color: NAVY,
-    });
-
-    // Column titles
-    let colX = MARGIN_LEFT;
-    const titles = [
-      { text: "N°", width: COL_W.num, align: "center" },
-      { text: "DÉSIGNATION DE LA FOURNITURE", width: COL_W.desc, align: "left" },
-      { text: "UNITÉ", width: COL_W.unit, align: "center" },
-      { text: "QTÉ", width: COL_W.qty, align: "right" },
-      { text: "P.U. HT (USD)", width: COL_W.price, align: "right" },
-      { text: "TOTAL HT (USD)", width: COL_W.total, align: "right" },
+    const columns = [
+      { key: "item", title: "ITEM", width: COL_W.item, align: "center" },
+      { key: "brand", title: "BRAND", width: COL_W.brand, align: "center" },
+      { key: "qty", title: "QTY", width: COL_W.qty, align: "center" },
+      { key: "um", title: "U/M", width: COL_W.um, align: "center" },
+      { key: "desc", title: "DESCRIPTIONS", width: COL_W.desc, align: "left" },
+      { key: "unitPrice", title: "Unit Price", width: COL_W.unitPrice, align: "center" },
+      { key: "total", title: "TOTAL", width: COL_W.total, align: "center" },
     ];
 
-    for (const col of titles) {
-      const textWidth = fontBold.widthOfTextAtSize(col.text, 7.5);
-      let textX = colX + 4;
-      if (col.align === "center") {
-        textX = colX + (col.width - textWidth) / 2;
-      } else if (col.align === "right") {
-        textX = colX + col.width - textWidth - 4;
-      }
-
-      page.drawText(col.text, {
-        x: textX,
-        y: y - 13,
-        size: 7.5,
-        font: fontBold,
-        color: WHITE,
+    let x = MARGIN_LEFT;
+    for (const col of columns) {
+      // Cell background: Bright Yellow
+      page.drawRectangle({
+        x,
+        y: headerY,
+        width: col.width,
+        height: headerHeight,
+        color: BRIGHT_YELLOW,
+        borderColor: BLACK,
+        borderWidth: 0.75,
       });
 
-      colX += col.width;
+      // Text
+      const text = col.title;
+      const textW = fontBold.widthOfTextAtSize(text, 7.5);
+      let textX = x + 3;
+      if (col.align === "center") {
+        textX = x + (col.width - textW) / 2;
+      } else if (col.align === "right") {
+        textX = x + col.width - textW - 3;
+      }
+
+      page.drawText(text, {
+        x: textX,
+        y: headerY + 5,
+        size: 7.5,
+        font: fontBold,
+        color: BLACK,
+      });
+
+      x += col.width;
     }
 
-    return y - headerHeight;
+    return headerY;
   }
 
-  // Initial page
+  // Start Page 1
   addNewPage();
 
-  // ── HEADER SECTION ────────────────────────────────────────────────────────
+  // ── 1. HEADER SECTION (MATCHING RFQ-KICO-14319 OQ) ────────────────────────
   const headerTopY = currentY;
 
-  // 1. Logo
+  // Logo on Left
+  const logoW = 46;
+  const logoH = 46;
   if (logoImage) {
-    const scaled = logoImage.scale(0.35);
-    const logoW = Math.min(scaled.width, 100);
-    const logoH = (scaled.height / scaled.width) * logoW;
     currentPage.drawImage(logoImage, {
       x: MARGIN_LEFT,
-      y: headerTopY - logoH,
+      y: headerTopY - logoH + 4,
       width: logoW,
       height: logoH,
     });
-  } else {
-    currentPage.drawText(data.company.name, {
-      x: MARGIN_LEFT,
-      y: headerTopY - 14,
-      size: 11,
-      font: fontBold,
-      color: NAVY,
-    });
   }
 
-  // 2. Company Details below / next to logo
-  const companyInfoX = MARGIN_LEFT + (logoImage ? 110 : 0);
-  let compY = headerTopY - 10;
+  // Company Details Block
+  const textStartX = MARGIN_LEFT + (logoImage ? logoW + 8 : 0);
+  let cY = headerTopY;
 
   currentPage.drawText(data.company.name, {
-    x: companyInfoX,
-    y: compY,
-    size: 9,
-    font: fontBold,
-    color: NAVY,
-  });
-  compY -= 11;
-
-  const companyLines = [
-    data.company.address,
-    `${data.company.city} — ${data.company.country}`,
-    `Tél : ${data.company.phones.join(" / ")}`,
-    `Email : ${data.company.email}`,
-    `RCCM : ${data.company.rccm}`,
-  ];
-
-  for (const cl of companyLines) {
-    currentPage.drawText(cl, {
-      x: companyInfoX,
-      y: compY,
-      size: 7,
-      font: fontRegular,
-      color: TEXT_MUTED,
-    });
-    compY -= 9;
-  }
-
-  // 3. Document Title & Big Reference (Right side)
-  const titleBoxRight = MARGIN_LEFT + CONTENT_WIDTH;
-  const titleWidth = fontBold.widthOfTextAtSize(docTitle, 18);
-  currentPage.drawText(docTitle, {
-    x: titleBoxRight - titleWidth,
-    y: headerTopY - 16,
-    size: 18,
-    font: fontBold,
-    color: NAVY,
-  });
-
-  // Reference Badge
-  const refText = `RÉF : ${data.reference}`;
-  const refWidth = fontBold.widthOfTextAtSize(refText, 9.5);
-  const badgeW = refWidth + 16;
-  const badgeH = 18;
-  const badgeX = titleBoxRight - badgeW;
-  const badgeY = headerTopY - 42;
-
-  currentPage.drawRectangle({
-    x: badgeX,
-    y: badgeY,
-    width: badgeW,
-    height: badgeH,
-    color: NAVY,
-  });
-
-  currentPage.drawText(refText, {
-    x: badgeX + 8,
-    y: badgeY + 5,
+    x: textStartX,
+    y: cY,
     size: 9.5,
     font: fontBold,
-    color: WHITE,
+    color: BLACK,
   });
+  cY -= 10.5;
 
-  // Document status & currency
-  const metaText = `Statut : ${data.status}   |   Devise : ${data.currency}`;
-  const metaWidth = fontRegular.widthOfTextAtSize(metaText, 7.5);
-  currentPage.drawText(metaText, {
-    x: titleBoxRight - metaWidth,
-    y: badgeY - 11,
-    size: 7.5,
-    font: fontRegular,
-    color: TEXT_MUTED,
-  });
-
-  // Gold accent divider line
-  const dividerY = Math.min(compY - 4, badgeY - 18);
-  currentPage.drawLine({
-    start: { x: MARGIN_LEFT, y: dividerY },
-    end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: dividerY },
-    thickness: 1.5,
-    color: GOLD,
-  });
-
-  currentY = dividerY - 10;
-
-  // ── METADATA BOXES (Client & Document) ────────────────────────────────────
-  const boxWidth = (CONTENT_WIDTH - 12) / 2;
-  const boxHeight = 76;
-  const boxY = currentY - boxHeight;
-
-  // Box 1: Client Information
-  currentPage.drawRectangle({
-    x: MARGIN_LEFT,
-    y: boxY,
-    width: boxWidth,
-    height: boxHeight,
-    color: WHITE,
-    borderColor: BORDER_COLOR,
-    borderWidth: 0.75,
-  });
-
-  // Box 1 Header
-  currentPage.drawRectangle({
-    x: MARGIN_LEFT,
-    y: boxY + boxHeight - 16,
-    width: boxWidth,
-    height: 16,
-    color: SOFT_BLUE_BG,
-  });
-  currentPage.drawText("CLIENT DESTINATAIRE", {
-    x: MARGIN_LEFT + 8,
-    y: boxY + boxHeight - 11,
-    size: 7.5,
-    font: fontBold,
-    color: NAVY,
-  });
-
-  let clientY = boxY + boxHeight - 27;
-  const clientNameLines = wrapText(data.client.name, fontBold, 8, boxWidth - 16);
-  for (const line of clientNameLines) {
-    currentPage.drawText(line, {
-      x: MARGIN_LEFT + 8,
-      y: clientY,
-      size: 8,
-      font: fontBold,
-      color: TEXT_DARK,
-    });
-    clientY -= 10;
-  }
-
-  if (data.client.code) {
-    currentPage.drawText(`Code : ${data.client.code}`, {
-      x: MARGIN_LEFT + 8,
-      y: clientY,
-      size: 7,
-      font: fontRegular,
-      color: TEXT_MUTED,
-    });
-    clientY -= 9;
-  }
-
-  if (data.client.billingAddress) {
-    const addrLines = wrapText(
-      data.client.billingAddress,
-      fontRegular,
-      7,
-      boxWidth - 16
-    );
-    for (const al of addrLines.slice(0, 2)) {
-      currentPage.drawText(al, {
-        x: MARGIN_LEFT + 8,
-        y: clientY,
-        size: 7,
-        font: fontRegular,
-        color: TEXT_MUTED,
-      });
-      clientY -= 9;
-    }
-  }
-
-  // Box 2: Document Details
-  const box2X = MARGIN_LEFT + boxWidth + 12;
-  currentPage.drawRectangle({
-    x: box2X,
-    y: boxY,
-    width: boxWidth,
-    height: boxHeight,
-    color: WHITE,
-    borderColor: BORDER_COLOR,
-    borderWidth: 0.75,
-  });
-
-  currentPage.drawRectangle({
-    x: box2X,
-    y: boxY + boxHeight - 16,
-    width: boxWidth,
-    height: 16,
-    color: SOFT_BLUE_BG,
-  });
-  currentPage.drawText("DÉTAILS DU DEVIS", {
-    x: box2X + 8,
-    y: boxY + boxHeight - 11,
-    size: 7.5,
-    font: fontBold,
-    color: NAVY,
-  });
-
-  let docY = boxY + boxHeight - 27;
-  const docFields = [
-    { label: "Date d'émission :", val: formatDate(data.documentDate) },
-    { label: "Date de validité :", val: formatDate(data.validityDate) },
-    { label: "Réf. RFQ Client :", val: data.clientRfqNumber || "—" },
-    { label: "Modalité de paiement :", val: data.paymentTerms || "30 jours fin de mois" },
+  const companyLines = [
+    "Commune et Ville de Lubumbashi, République",
+    "Démocratique du Congo",
+    `Télephone : ${data.company.phones.join(" / ")}`,
+    `E-mail : ${data.company.email}`,
+    `RCCM : ${data.company.rccm}`,
+    `Impot N° : ${data.company.impotNumber || "A2609081A"}`,
   ];
 
-  for (const f of docFields) {
-    currentPage.drawText(f.label, {
-      x: box2X + 8,
-      y: docY,
-      size: 7,
-      font: fontBold,
-      color: TEXT_MUTED,
-    });
-    const labelW = fontBold.widthOfTextAtSize(f.label, 7);
-    currentPage.drawText(f.val, {
-      x: box2X + 10 + labelW,
-      y: docY,
-      size: 7,
+  for (const line of companyLines) {
+    currentPage.drawText(line, {
+      x: textStartX,
+      y: cY,
+      size: 7.5,
       font: fontRegular,
-      color: TEXT_DARK,
+      color: BLACK,
     });
-    docY -= 11;
+    cY -= 9.5;
   }
 
-  currentY = boxY - 14;
+  // Top Right: Date
+  const dateLabel = "Date";
+  const dateValue = formatDate(data.documentDate);
+  const rightEdge = MARGIN_LEFT + CONTENT_WIDTH;
 
-  // ── ITEMS TABLE ───────────────────────────────────────────────────────────
+  currentPage.drawText(dateLabel, {
+    x: rightEdge - 150,
+    y: headerTopY,
+    size: 8,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  currentPage.drawText(dateValue, {
+    x: rightEdge - 95,
+    y: headerTopY,
+    size: 8,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // Top Right: Big "QUOTATION" Title
+  const docTitle = data.docType === "PROFORMA" ? "PROFORMA" : "QUOTATION";
+  const titleSize = 14;
+  const titleW = fontBold.widthOfTextAtSize(docTitle, titleSize);
+  currentPage.drawText(docTitle, {
+    x: rightEdge - titleW,
+    y: headerTopY - 48,
+    size: titleSize,
+    font: fontBold,
+    color: BLACK,
+  });
+
+  // Solid Thick Black Horizontal Divider Line
+  const dividerY = cY - 2;
+  currentPage.drawLine({
+    start: { x: MARGIN_LEFT, y: dividerY },
+    end: { x: rightEdge, y: dividerY },
+    thickness: 2.0,
+    color: BLACK,
+  });
+
+  // ── 2. CUSTOMER & REFERENCE SECTION ───────────────────────────────────────
+  currentY = dividerY - 16;
+
+  // Left side: Customer
+  currentPage.drawText("Customer :", {
+    x: MARGIN_LEFT,
+    y: currentY,
+    size: 8.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // Split customer name if needed into red lines
+  const clientLines = data.client.name.split(/\r?\n| - | — /);
+  let custNameY = currentY;
+  for (const cl of clientLines) {
+    currentPage.drawText(cl.trim(), {
+      x: MARGIN_LEFT + 55,
+      y: custNameY,
+      size: 8.5,
+      font: fontBold,
+      color: RED_TEXT,
+    });
+    custNameY -= 11;
+  }
+
+  // Customer ID
+  const custIdY = Math.min(currentY - 24, custNameY - 2);
+  currentPage.drawText("Customer ID :", {
+    x: MARGIN_LEFT,
+    y: custIdY,
+    size: 8.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  if (data.client.code) {
+    currentPage.drawText(data.client.code, {
+      x: MARGIN_LEFT + 65,
+      y: custIdY,
+      size: 8.5,
+      font: fontRegular,
+      color: BLACK,
+    });
+  }
+
+  // Right side: REF N°
+  currentPage.drawText("REF N°", {
+    x: rightEdge - 150,
+    y: currentY,
+    size: 8.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  currentPage.drawText(data.reference, {
+    x: rightEdge - 95,
+    y: currentY,
+    size: 8.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // RFQ Client Number (right-aligned right above table)
+  if (data.clientRfqNumber) {
+    const rfqW = fontRegular.widthOfTextAtSize(data.clientRfqNumber, 8.5);
+    currentPage.drawText(data.clientRfqNumber, {
+      x: rightEdge - rfqW,
+      y: custIdY,
+      size: 8.5,
+      font: fontRegular,
+      color: BLACK,
+    });
+  }
+
+  currentY = custIdY - 12;
+
+  // ── 3. ITEMS TABLE ────────────────────────────────────────────────────────
   currentY = drawTableHeader(currentPage, currentY);
 
-  const minRowH = 18;
-  const bottomThreshold = MARGIN_BOTTOM + 120; // Space reserved for totals on last page
+  const bottomThreshold = MARGIN_BOTTOM + 115; // Space for totals and footer
 
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
-    const isAlt = i % 2 !== 0;
 
-    // Wrap item description
+    // Wrap description text
     const descLines = wrapText(
       line.description,
       fontRegular,
-      7.5,
-      COL_W.desc - 10
+      7,
+      COL_W.desc - 8
     );
-    const rowHeight = Math.max(minRowH, descLines.length * 10 + 8);
+
+    // Compute dynamic row height
+    const baseLineCount = Math.max(descLines.length, 1);
+    const rowHeight = Math.max(16, baseLineCount * 9 + 7);
 
     // Page break check
     if (currentY - rowHeight < bottomThreshold) {
       addNewPage();
-      currentY = PAGE_HEIGHT - 36;
       currentY = drawTableHeader(currentPage, currentY);
     }
 
     const rowY = currentY - rowHeight;
 
-    // Row background
-    if (isAlt) {
-      currentPage.drawRectangle({
-        x: MARGIN_LEFT,
-        y: rowY,
-        width: CONTENT_WIDTH,
-        height: rowHeight,
-        color: ROW_ALT_BG,
-      });
-    }
+    // Draw all cells with explicit black borders
+    let x = MARGIN_LEFT;
 
-    // Border line bottom
-    currentPage.drawLine({
-      start: { x: MARGIN_LEFT, y: rowY },
-      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: rowY },
-      thickness: 0.5,
-      color: BORDER_COLOR,
+    // 1. ITEM
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.item,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
     });
-
-    let cellX = MARGIN_LEFT;
-
-    // Col 1: N°
-    const numStr = String(line.lineNumber);
-    const numW = fontRegular.widthOfTextAtSize(numStr, 7.5);
-    currentPage.drawText(numStr, {
-      x: cellX + (COL_W.num - numW) / 2,
-      y: rowY + rowHeight - 12,
+    const itemStr = String(line.lineNumber);
+    const itemW = fontRegular.widthOfTextAtSize(itemStr, 7.5);
+    currentPage.drawText(itemStr, {
+      x: x + (COL_W.item - itemW) / 2,
+      y: rowY + (rowHeight - 7.5) / 2,
       size: 7.5,
       font: fontRegular,
-      color: TEXT_MUTED,
+      color: BLACK,
     });
-    cellX += COL_W.num;
+    x += COL_W.item;
 
-    // Col 2: Description
-    let descY = rowY + rowHeight - 12;
-    for (const dl of descLines) {
-      currentPage.drawText(dl, {
-        x: cellX + 4,
-        y: descY,
-        size: 7.5,
-        font: fontRegular,
-        color: TEXT_DARK,
-      });
-      descY -= 10;
-    }
-
-    if (line.discountPercent > 0) {
-      currentPage.drawText(`(Remise accordée : ${line.discountPercent}%)`, {
-        x: cellX + 4,
-        y: descY,
-        size: 6.5,
-        font: fontOblique,
-        color: GOLD,
-      });
-    }
-    cellX += COL_W.desc;
-
-    // Col 3: Unité
-    const unitStr = line.unit || "Pce";
-    const unitW = fontRegular.widthOfTextAtSize(unitStr, 7.5);
-    currentPage.drawText(unitStr, {
-      x: cellX + (COL_W.unit - unitW) / 2,
-      y: rowY + rowHeight - 12,
-      size: 7.5,
-      font: fontRegular,
-      color: TEXT_DARK,
+    // 2. BRAND
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.brand,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
     });
-    cellX += COL_W.unit;
+    if (line.brand) {
+      const brandLines = wrapText(line.brand, fontRegular, 7, COL_W.brand - 6);
+      let bY = rowY + rowHeight - 9;
+      for (const bl of brandLines) {
+        currentPage.drawText(bl, {
+          x: x + 4,
+          y: bY,
+          size: 7,
+          font: fontRegular,
+          color: BLACK,
+        });
+        bY -= 8.5;
+      }
+    }
+    x += COL_W.brand;
 
-    // Col 4: Quantité
+    // 3. QTY
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.qty,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
+    });
     const qtyStr = Number.isInteger(line.quantity)
       ? String(line.quantity)
       : line.quantity.toFixed(2).replace(".", ",");
     const qtyW = fontRegular.widthOfTextAtSize(qtyStr, 7.5);
     currentPage.drawText(qtyStr, {
-      x: cellX + COL_W.qty - qtyW - 4,
-      y: rowY + rowHeight - 12,
-      size: 7.5,
-      font: fontBold,
-      color: TEXT_DARK,
-    });
-    cellX += COL_W.qty;
-
-    // Col 5: Prix Unitaire (Client price snapshot)
-    const priceStr = formatUSD(line.unitPrice);
-    const priceW = fontRegular.widthOfTextAtSize(priceStr, 7.5);
-    currentPage.drawText(priceStr, {
-      x: cellX + COL_W.price - priceW - 4,
-      y: rowY + rowHeight - 12,
+      x: x + (COL_W.qty - qtyW) / 2,
+      y: rowY + (rowHeight - 7.5) / 2,
       size: 7.5,
       font: fontRegular,
-      color: TEXT_DARK,
+      color: BLACK,
     });
-    cellX += COL_W.price;
+    x += COL_W.qty;
 
-    // Col 6: Total Ligne HT
-    const lineTotalStr = formatUSD(line.lineSubtotal);
-    const totalW = fontBold.widthOfTextAtSize(lineTotalStr, 7.5);
-    currentPage.drawText(lineTotalStr, {
-      x: cellX + COL_W.total - totalW - 4,
-      y: rowY + rowHeight - 12,
+    // 4. U/M
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.um,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
+    });
+    const umStr = line.unit || "EA";
+    const umW = fontRegular.widthOfTextAtSize(umStr, 7.5);
+    currentPage.drawText(umStr, {
+      x: x + (COL_W.um - umW) / 2,
+      y: rowY + (rowHeight - 7.5) / 2,
       size: 7.5,
-      font: fontBold,
-      color: NAVY,
+      font: fontRegular,
+      color: BLACK,
+    });
+    x += COL_W.um;
+
+    // 5. DESCRIPTIONS
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.desc,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
+    });
+    let dY = rowY + rowHeight - 9;
+    for (const dl of descLines) {
+      currentPage.drawText(dl, {
+        x: x + 4,
+        y: dY,
+        size: 7,
+        font: fontRegular,
+        color: BLACK,
+      });
+      dY -= 8.5;
+    }
+    x += COL_W.desc;
+
+    // 6. Unit Price
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.unitPrice,
+      height: rowHeight,
+      color: WHITE,
+      borderColor: BLACK,
+      borderWidth: 0.75,
+    });
+    const upStr = formatCurrency(line.unitPrice);
+    const upW = fontRegular.widthOfTextAtSize(upStr, 7.5);
+    currentPage.drawText(upStr, {
+      x: x + COL_W.unitPrice - upW - 4,
+      y: rowY + (rowHeight - 7.5) / 2,
+      size: 7.5,
+      font: fontRegular,
+      color: BLACK,
+    });
+    x += COL_W.unitPrice;
+
+    // 7. TOTAL (PALE YELLOW BACKGROUND TINT)
+    currentPage.drawRectangle({
+      x,
+      y: rowY,
+      width: COL_W.total,
+      height: rowHeight,
+      color: PALE_YELLOW,
+      borderColor: BLACK,
+      borderWidth: 0.75,
+    });
+    const totStr = formatCurrency(line.lineSubtotal);
+    const totW = fontRegular.widthOfTextAtSize(totStr, 7.5);
+    currentPage.drawText(totStr, {
+      x: x + COL_W.total - totW - 4,
+      y: rowY + (rowHeight - 7.5) / 2,
+      size: 7.5,
+      font: fontRegular,
+      color: BLACK,
     });
 
     currentY = rowY;
   }
 
-  // ── FINANCIAL SUMMARY (TOTALS) ────────────────────────────────────────────
-  // Check if enough space remains on page for totals, notes & signatures
-  const summaryHeight = 160;
-  if (currentY - summaryHeight < MARGIN_BOTTOM + 20) {
+  // ── 4. TOTALS SECTION (UNDER UNIT PRICE & TOTAL COLUMNS) ───────────────────
+  const totalsBoxX = MARGIN_LEFT + COL_W.item + COL_W.brand + COL_W.qty + COL_W.um + COL_W.desc; // 425 pt
+  const totalsLabelW = COL_W.unitPrice; // 65 pt
+  const totalsValW = COL_W.total; // 73 pt
+  const totRowH = 14;
+
+  // Check if we need a new page for totals & footers
+  if (currentY - 80 < MARGIN_BOTTOM + 20) {
     addNewPage();
-    currentY = PAGE_HEIGHT - 36;
+    currentY = PAGE_HEIGHT - 32;
   }
 
-  currentY -= 12;
-
-  const totalsBoxW = 210;
-  const totalsBoxX = MARGIN_LEFT + CONTENT_WIDTH - totalsBoxW;
-  const rowH = 17;
-
-  // 1. Sous-total HT
+  // 1. Sub Total Row
+  let tY = currentY - totRowH;
   currentPage.drawRectangle({
     x: totalsBoxX,
-    y: currentY - rowH,
-    width: totalsBoxW,
-    height: rowH,
+    y: tY,
+    width: totalsLabelW,
+    height: totRowH,
     color: WHITE,
-    borderColor: BORDER_COLOR,
-    borderWidth: 0.5,
+    borderColor: BLACK,
+    borderWidth: 0.75,
   });
-  currentPage.drawText("SOUS-TOTAL BRUT HT :", {
-    x: totalsBoxX + 8,
-    y: currentY - 12,
+  const subLabel = "Sub Total";
+  const subLabelW = fontRegular.widthOfTextAtSize(subLabel, 7.5);
+  currentPage.drawText(subLabel, {
+    x: totalsBoxX + totalsLabelW - subLabelW - 4,
+    y: tY + 4,
     size: 7.5,
-    font: fontBold,
-    color: TEXT_MUTED,
+    font: fontRegular,
+    color: BLACK,
   });
-  const subtotalStr = formatUSD(data.subtotal);
-  const subtotalW = fontBold.widthOfTextAtSize(subtotalStr, 7.5);
-  currentPage.drawText(subtotalStr, {
-    x: totalsBoxX + totalsBoxW - subtotalW - 8,
-    y: currentY - 12,
-    size: 7.5,
-    font: fontBold,
-    color: TEXT_DARK,
-  });
-  currentY -= rowH;
 
-  // 2. TVA
+  currentPage.drawRectangle({
+    x: totalsBoxX + totalsLabelW,
+    y: tY,
+    width: totalsValW,
+    height: totRowH,
+    color: PALE_YELLOW,
+    borderColor: BLACK,
+    borderWidth: 0.75,
+  });
+  const subValStr = formatCurrency(data.subtotal);
+  const subValW = fontRegular.widthOfTextAtSize(subValStr, 7.5);
+  currentPage.drawText(subValStr, {
+    x: totalsBoxX + totalsLabelW + totalsValW - subValW - 4,
+    y: tY + 4,
+    size: 7.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // 2. TVA Row
+  tY -= totRowH;
   currentPage.drawRectangle({
     x: totalsBoxX,
-    y: currentY - rowH,
-    width: totalsBoxW,
-    height: rowH,
+    y: tY,
+    width: totalsLabelW,
+    height: totRowH,
     color: WHITE,
-    borderColor: BORDER_COLOR,
-    borderWidth: 0.5,
+    borderColor: BLACK,
+    borderWidth: 0.75,
   });
-  const vatLabel = `TVA COLLECTÉE (${data.vatRate}%) :`;
+  const vatLabel = `TVA ${data.vatRate}%`;
+  const vatLabelW = fontRegular.widthOfTextAtSize(vatLabel, 7.5);
   currentPage.drawText(vatLabel, {
-    x: totalsBoxX + 8,
-    y: currentY - 12,
+    x: totalsBoxX + totalsLabelW - vatLabelW - 4,
+    y: tY + 4,
     size: 7.5,
-    font: fontBold,
-    color: TEXT_MUTED,
+    font: fontRegular,
+    color: BLACK,
   });
-  const vatStr = formatUSD(data.vatAmount);
-  const vatW = fontBold.widthOfTextAtSize(vatStr, 7.5);
-  currentPage.drawText(vatStr, {
-    x: totalsBoxX + totalsBoxW - vatW - 8,
-    y: currentY - 12,
-    size: 7.5,
-    font: fontBold,
-    color: TEXT_DARK,
-  });
-  currentY -= rowH;
 
-  // 3. TOTAL GÉNÉRAL TTC (Navy Highlight)
-  const grandH = 22;
+  currentPage.drawRectangle({
+    x: totalsBoxX + totalsLabelW,
+    y: tY,
+    width: totalsValW,
+    height: totRowH,
+    color: PALE_YELLOW,
+    borderColor: BLACK,
+    borderWidth: 0.75,
+  });
+  const vatValStr = formatCurrency(data.vatAmount);
+  const vatValW = fontRegular.widthOfTextAtSize(vatValStr, 7.5);
+  currentPage.drawText(vatValStr, {
+    x: totalsBoxX + totalsLabelW + totalsValW - vatValW - 4,
+    y: tY + 4,
+    size: 7.5,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // 3. GRAND TOTAL Row (BRIGHT YELLOW BOTH CELLS)
+  tY -= totRowH;
   currentPage.drawRectangle({
     x: totalsBoxX,
-    y: currentY - grandH,
-    width: totalsBoxW,
-    height: grandH,
-    color: NAVY,
+    y: tY,
+    width: totalsLabelW,
+    height: totRowH,
+    color: BRIGHT_YELLOW,
+    borderColor: BLACK,
+    borderWidth: 0.75,
   });
-  currentPage.drawText("TOTAL GÉNÉRAL TTC (USD) :", {
-    x: totalsBoxX + 8,
-    y: currentY - 15,
+  const grandLabel = "GRAND TOTAL";
+  const grandLabelW = fontBold.widthOfTextAtSize(grandLabel, 7.5);
+  currentPage.drawText(grandLabel, {
+    x: totalsBoxX + totalsLabelW - grandLabelW - 4,
+    y: tY + 4,
+    size: 7.5,
+    font: fontBold,
+    color: BLACK,
+  });
+
+  currentPage.drawRectangle({
+    x: totalsBoxX + totalsLabelW,
+    y: tY,
+    width: totalsValW,
+    height: totRowH,
+    color: BRIGHT_YELLOW,
+    borderColor: BLACK,
+    borderWidth: 0.75,
+  });
+  const grandValStr = formatCurrency(data.total);
+  const grandValW = fontBold.widthOfTextAtSize(grandValStr, 7.5);
+  currentPage.drawText(grandValStr, {
+    x: totalsBoxX + totalsLabelW + totalsValW - grandValW - 4,
+    y: tY + 4,
+    size: 7.5,
+    font: fontBold,
+    color: BLACK,
+  });
+
+  // ── 5. DELIVERY TERMS (CENTERED RED TEXT) ──────────────────────────────────
+  const leadTimeText = `Délais de livraison : ${data.deliveryLeadTime || "EX-STOCK"}`;
+  const leadTimeW = fontBold.widthOfTextAtSize(leadTimeText, 8.5);
+  const leadTimeY = tY - 32;
+
+  currentPage.drawText(leadTimeText, {
+    x: (PAGE_WIDTH - leadTimeW) / 2,
+    y: leadTimeY,
     size: 8.5,
     font: fontBold,
-    color: WHITE,
+    color: RED_TEXT,
   });
-  const grandStr = formatUSD(data.total);
-  const grandW = fontBold.widthOfTextAtSize(grandStr, 9.5);
-  currentPage.drawText(grandStr, {
-    x: totalsBoxX + totalsBoxW - grandW - 8,
-    y: currentY - 15,
-    size: 9.5,
-    font: fontBold,
-    color: GOLD,
-  });
-  currentY -= grandH;
 
-  // ── COMMERCIAL TERMS & OBSERVATIONS ───────────────────────────────────────
-  currentY -= 14;
+  // ── 6. BANKING FOOTER AT BOTTOM OF ALL PAGES ──────────────────────────────
+  const bankText = data.company.bankInfo;
+  const bankW = fontRegular.widthOfTextAtSize(bankText, 6.5);
 
-  // Notes if present
-  if (data.notes && data.notes.trim()) {
-    const notesW = CONTENT_WIDTH;
-    const noteLines = wrapText(data.notes, fontRegular, 7, notesW - 16);
-    const notesBoxH = noteLines.length * 9 + 16;
-
-    currentPage.drawRectangle({
-      x: MARGIN_LEFT,
-      y: currentY - notesBoxH,
-      width: notesW,
-      height: notesBoxH,
-      color: SOFT_BLUE_BG,
-      borderColor: BORDER_COLOR,
-      borderWidth: 0.5,
-    });
-
-    currentPage.drawText("OBSERVATIONS & CONDITIONS PARTICULIÈRES :", {
-      x: MARGIN_LEFT + 8,
-      y: currentY - 10,
-      size: 7,
-      font: fontBold,
-      color: NAVY,
-    });
-
-    let nY = currentY - 20;
-    for (const nl of noteLines) {
-      currentPage.drawText(nl, {
-        x: MARGIN_LEFT + 8,
-        y: nY,
-        size: 7,
-        font: fontRegular,
-        color: TEXT_DARK,
-      });
-      nY -= 9;
-    }
-
-    currentY -= notesBoxH + 10;
-  }
-
-  // Terms Section (Paiement, Délai, Validité)
-  const termsBoxW = (CONTENT_WIDTH - 16) / 3;
-  const termsBoxH = 40;
-  const termsY = currentY - termsBoxH;
-
-  const termsBlocks = [
-    {
-      title: "CONDITIONS DE RÈGLEMENT",
-      text: data.paymentTerms || "30 jours date de facture",
-    },
-    {
-      title: "DÉLAI DE LIVRAISON",
-      text: data.deliveryLeadTime || "Ex-stock / 2-3 semaines",
-    },
-    {
-      title: "VALIDITÉ DE L'OFFRE",
-      text: `Valable jusqu'au ${formatDate(data.validityDate)}`,
-    },
-  ];
-
-  for (let t = 0; t < termsBlocks.length; t++) {
-    const tb = termsBlocks[t];
-    const tbX = MARGIN_LEFT + t * (termsBoxW + 8);
-
-    currentPage.drawRectangle({
-      x: tbX,
-      y: termsY,
-      width: termsBoxW,
-      height: termsBoxH,
-      color: WHITE,
-      borderColor: BORDER_COLOR,
-      borderWidth: 0.5,
-    });
-
-    currentPage.drawText(tb.title, {
-      x: tbX + 6,
-      y: termsY + termsBoxH - 11,
-      size: 6.5,
-      font: fontBold,
-      color: NAVY,
-    });
-
-    const lines = wrapText(tb.text, fontRegular, 6.5, termsBoxW - 12);
-    let lY = termsY + termsBoxH - 21;
-    for (const l of lines.slice(0, 2)) {
-      currentPage.drawText(l, {
-        x: tbX + 6,
-        y: lY,
-        size: 6.5,
-        font: fontRegular,
-        color: TEXT_DARK,
-      });
-      lY -= 8.5;
-    }
-  }
-
-  currentY = termsY - 14;
-
-  // ── SIGNATURE & APPROVAL BLOCKS ───────────────────────────────────────────
-  const sigBoxW = (CONTENT_WIDTH - 16) / 3;
-  const sigBoxH = 50;
-  const sigY = currentY - sigBoxH;
-
-  const sigBlocks = [
-    {
-      header: "ÉTABLI PAR",
-      detail: data.createdByName ? `Agent : ${data.createdByName}` : "MIS SARL Commercial",
-    },
-    {
-      header: "CACHET & SIGNATURE MIS SARL",
-      detail: "Direction Commerciale & Technique",
-    },
-    {
-      header: "BON POUR ACCORD DU CLIENT",
-      detail: "Date, signature & cachet de l'acheteur",
-    },
-  ];
-
-  for (let s = 0; s < sigBlocks.length; s++) {
-    const sb = sigBlocks[s];
-    const sbX = MARGIN_LEFT + s * (sigBoxW + 8);
-
-    currentPage.drawRectangle({
-      x: sbX,
-      y: sigY,
-      width: sigBoxW,
-      height: sigBoxH,
-      color: WHITE,
-      borderColor: BORDER_COLOR,
-      borderWidth: 0.5,
-    });
-
-    currentPage.drawText(sb.header, {
-      x: sbX + 6,
-      y: sigY + sigBoxH - 11,
-      size: 6.5,
-      font: fontBold,
-      color: NAVY,
-    });
-
-    currentPage.drawText(sb.detail, {
-      x: sbX + 6,
-      y: sigY + 8,
-      size: 6,
-      font: fontOblique,
-      color: TEXT_LIGHT,
-    });
-  }
-
-  // ── RUNNING FOOTER ON ALL PAGES ───────────────────────────────────────────
-  const totalPages = pages.length;
-  for (let p = 0; p < totalPages; p++) {
-    const page = pages[p];
-    const footerY = 22;
-
-    page.drawLine({
-      start: { x: MARGIN_LEFT, y: footerY + 12 },
-      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: footerY + 12 },
-      thickness: 0.5,
-      color: BORDER_COLOR,
-    });
-
-    // Left: Company & RCCM
-    page.drawText(`${data.company.name}  •  RCCM : ${data.company.rccm}`, {
-      x: MARGIN_LEFT,
-      y: footerY + 2,
+  for (const page of pages) {
+    page.drawText(bankText, {
+      x: (PAGE_WIDTH - bankW) / 2,
+      y: 18,
       size: 6.5,
       font: fontRegular,
-      color: TEXT_LIGHT,
-    });
-
-    // Center: Page X / Y
-    const pageStr = `Page ${p + 1} / ${totalPages}`;
-    const pageW = fontRegular.widthOfTextAtSize(pageStr, 6.5);
-    page.drawText(pageStr, {
-      x: (PAGE_WIDTH - pageW) / 2,
-      y: footerY + 2,
-      size: 6.5,
-      font: fontRegular,
-      color: TEXT_LIGHT,
-    });
-
-    // Right: Document reference
-    const docRefStr = `Réf : ${data.reference}`;
-    const docRefW = fontBold.widthOfTextAtSize(docRefStr, 6.5);
-    page.drawText(docRefStr, {
-      x: MARGIN_LEFT + CONTENT_WIDTH - docRefW,
-      y: footerY + 2,
-      size: 6.5,
-      font: fontBold,
-      color: NAVY,
+      color: BLACK,
     });
   }
 

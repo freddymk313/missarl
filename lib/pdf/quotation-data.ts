@@ -10,11 +10,13 @@ import { siteConfig } from "@/app/config/site";
 export interface CompanyInfo {
   name: string;
   rccm: string;
+  impotNumber: string;
   address: string;
   city: string;
   country: string;
   phones: string[];
   email: string;
+  bankInfo: string;
   logoPath: string;
 }
 
@@ -29,6 +31,7 @@ export interface ClientInfo {
 
 export interface QuotationLineForPdf {
   lineNumber: number;
+  brand?: string | null;
   description: string;
   unit: string;
   quantity: number;
@@ -68,15 +71,20 @@ export async function getQuotationPdfData(
   const record: QuotationRecord | null = await getQuotationById(quotationId);
   if (!record) return null;
 
-  // Company info from site config (single source of truth)
+  // Company info matching MIS SARL reference template (RFQ-KICO-14319 OQ)
   const company: CompanyInfo = {
-    name: siteConfig.name,
-    rccm: siteConfig.legal.rccm,
-    address: siteConfig.address.line,
+    name: "MARC INGINEERING SERVICE SARL",
+    rccm: siteConfig.legal.rccm || "CD/LSH/RCCM/26.B-00277",
+    impotNumber: "A2609081A",
+    address: `${siteConfig.address.line}, ${siteConfig.address.country}`,
     city: `${siteConfig.address.city}, ${siteConfig.address.region}`,
     country: siteConfig.address.country,
-    phones: [...siteConfig.phones],
-    email: siteConfig.email,
+    phones: siteConfig.phones && siteConfig.phones.length > 0
+      ? [...siteConfig.phones]
+      : ["+243 992224458", "+243 900041696"],
+    email: siteConfig.email || "messarl2023@gmail.com",
+    bankInfo:
+      "BANK name : FIRST BANK RDC SA | SWIFT code : BICDCDKI | RIB: 00014 - 25000 – 2032105587015 | Branch : LUBUMBASHI/R.D.Congo",
     logoPath: "/images/logo.png",
   };
 
@@ -88,17 +96,18 @@ export async function getQuotationPdfData(
     phone: (record as QuotationRecord & { clientPhone?: string }).clientPhone ?? null,
     billingAddress:
       (record as QuotationRecord & { clientBillingAddress?: string }).clientBillingAddress ?? null,
-    taxId: null, // Not available in QuotationRecord — OK per business rules
+    taxId: null,
   };
 
-  // Map line items — use ONLY snapshot values, never supplier data
+  // Map line items — snapshot values only, never supplier data
   const lines: QuotationLineForPdf[] = (record.items ?? []).map(
     (item: QuotationLineItem): QuotationLineForPdf => ({
       lineNumber: item.lineNumber,
+      brand: item.brand ?? null,
       description: item.description,
       unit: item.unit,
       quantity: item.quantity,
-      unitPrice: item.unitPrice, // unit_price_snapshot — the client-facing price
+      unitPrice: item.unitPrice, // unit_price_snapshot
       discountPercent: item.discountPercent ?? 0,
       lineSubtotal: item.lineSubtotal,
     })
@@ -118,7 +127,7 @@ export async function getQuotationPdfData(
     notes: record.notes,
     status: record.status,
     lines,
-    // Use persisted totals — never recalculate
+    // Persisted totals
     subtotal: record.subtotal,
     vatRate: record.vatRate,
     vatAmount: record.vatAmount,
@@ -126,4 +135,3 @@ export async function getQuotationPdfData(
     createdByName: record.createdByName ?? null,
   };
 }
-

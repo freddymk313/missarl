@@ -43,6 +43,24 @@ export async function searchItemsAction(
 }
 
 // ---------------------------------------------------------------------------
+// Get Single Item with Full Detail
+// ---------------------------------------------------------------------------
+
+export async function getItemAction(id: string) {
+  await requireSession(["SUPER_ADMIN", "ADMIN", "PRICE_COLLECTOR"]);
+  try {
+    const item = await getItemById(id);
+    if (!item) return { success: false, error: "Item not found." };
+    return { success: true, item };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to load item detail.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Create Item
 // ---------------------------------------------------------------------------
 
@@ -77,7 +95,7 @@ export async function createItemAction(data: {
   // Optional client codes
   clientCodes?: Array<{ clientId: string; value: string }>;
 }) {
-  const session = await requireSession(["SUPER_ADMIN"]);
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
   if (!data.designation?.trim()) {
     return { success: false, error: "Short designation is required." };
@@ -193,7 +211,7 @@ export async function updateItemAction(
     isActive?: boolean;
   }
 ) {
-  const session = await requireSession(["SUPER_ADMIN"]);
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
   try {
     let brandId: string | null | undefined = undefined;
@@ -245,7 +263,7 @@ export async function updateItemAction(
 // ---------------------------------------------------------------------------
 
 export async function deleteItemAction(itemId: string) {
-  const session = await requireSession(["SUPER_ADMIN"]);
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
   try {
     const result = await deleteItem(itemId);
@@ -277,7 +295,7 @@ export async function addSupplierOfferAction(
   data: {
     supplierId: string;
     supplierItemCode?: string;
-    currencyCode: string;
+    currencyCode?: string;
     currency?: string;
     unitPrice?: number;
     supplyPrice?: number;
@@ -291,15 +309,12 @@ export async function addSupplierOfferAction(
     notes?: string;
   }
 ) {
-  const session = await requireSession(["SUPER_ADMIN"]);
+  const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
   if (!data.supplierId) {
     return { success: false, error: "Supplier is required." };
   }
-  const curr = data.currencyCode || data.currency;
-  if (!curr) {
-    return { success: false, error: "Currency is required." };
-  }
+  const curr = data.currencyCode || data.currency || "USD";
   const price = data.supplyPrice ?? data.unitPrice ?? 0;
   if (price < 0) {
     return { success: false, error: "Price must be ≥ 0." };
@@ -320,11 +335,12 @@ export async function addSupplierOfferAction(
       action: "SUPPLIER_OFFER_ADDED",
       entityType: "ITEM",
       entityId: itemId,
-      details: { supplierId: data.supplierId, unitPrice: data.unitPrice },
+      details: { supplierId: data.supplierId, unitPrice: price },
     });
 
     revalidatePath("/dashboard/items");
-    return { success: true, offer };
+    const fullItem = await getItemById(itemId);
+    return { success: true, offer, item: fullItem };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to add supplier offer.";
@@ -342,7 +358,7 @@ export async function addItemIdentifierAction(data: {
   clientId?: string;
   value: string;
 }) {
-  await requireSession(["SUPER_ADMIN"]);
+  await requireSession(["SUPER_ADMIN", "ADMIN"]);
   try {
     const identifier = await addItemIdentifier(data);
     revalidatePath("/dashboard/items");
@@ -355,7 +371,7 @@ export async function addItemIdentifierAction(data: {
 }
 
 export async function deleteItemIdentifierAction(identifierId: string) {
-  await requireSession(["SUPER_ADMIN"]);
+  await requireSession(["SUPER_ADMIN", "ADMIN"]);
   try {
     await deleteItemIdentifier(identifierId);
     revalidatePath("/dashboard/items");

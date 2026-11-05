@@ -946,18 +946,20 @@ export async function addSupplierOffer(data: {
   const currCode = data.currencyCode || data.currency || "USD";
   const dateVal = data.offerDate || data.quotedOn || null;
 
-  // Use a single CTE to atomically archive the old offer and insert the new one.
-  // This avoids sql.transaction() entirely and works reliably with the Neon HTTP driver.
+  // 1. Archive previous active offer for this (item_id, supplier_id) so the partial
+  // unique index uq_supplier_offers_current (WHERE is_current = TRUE) is not violated.
+  await sql`
+    UPDATE supplier_offers
+    SET is_current = FALSE
+    WHERE item_id = ${data.itemId}::uuid
+      AND supplier_id = ${data.supplierId}::uuid
+      AND is_current = TRUE
+  `;
+
+  // 2. Insert the new active offer
   let insertedRows: SupplierOfferRecord[];
   try {
     const res = await sql`
-      WITH archive AS (
-        UPDATE supplier_offers
-        SET is_current = FALSE
-        WHERE item_id = ${data.itemId}::uuid
-          AND supplier_id = ${data.supplierId}::uuid
-          AND is_current = TRUE
-      )
       INSERT INTO supplier_offers (
         item_id, supplier_id, supplier_item_code, supplier_item_code_normalized,
         currency_code, unit_price, lead_time_days, min_order_qty,
@@ -972,11 +974,11 @@ export async function addSupplierOffer(data: {
         ${price},
         ${data.leadTimeDays ?? null},
         ${data.minOrderQty ?? null},
-        ${dateVal !== null ? (dateVal as string) : null}::date,
+        COALESCE(${dateVal !== null ? (dateVal as string) : null}::date, CURRENT_DATE),
         ${data.validUntil ?? null}::date,
         TRUE,
         ${data.notes?.trim() ?? null},
-        ${data.userId}::uuid
+        ${data.userId ? data.userId : null}::uuid
       )
       RETURNING
         id,
@@ -993,6 +995,13 @@ export async function addSupplierOffer(data: {
         created_at as "createdAt"
     `;
     insertedRows = res as unknown as SupplierOfferRecord[];
+
+    // 3. Keep item's supply_price updated with this latest offer if null or updated
+    await sql`
+      UPDATE items
+      SET supply_price = COALESCE(${price}::numeric, supply_price)
+      WHERE id = ${data.itemId}::uuid
+    `;
   } catch (err) {
     throw err;
   }
