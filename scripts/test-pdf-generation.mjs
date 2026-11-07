@@ -1,5 +1,5 @@
 // ============================================================================
-// Test Suite: Quotation PDF Generation matching RFQ-KICO-14319 OQ template
+// Test Suite: Quotation PDF Generation matching RFQ-KICO-14425 OQ template
 // ============================================================================
 
 import assert from "node:assert";
@@ -7,10 +7,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { generateQuotationPdf } from "../lib/pdf/quotation-pdf.ts";
 
-async function runTests() {
-  console.log("=== Testing Quotation PDF Design (RFQ-KICO-14319 OQ) ===\n");
+const scratchDir = path.join(
+  process.env.USERPROFILE || "C:\\Users\\Mr Marc",
+  ".gemini",
+  "antigravity",
+  "brain",
+  "3a53865a-c008-491c-a115-d3c173fef2b3",
+  "scratch"
+);
 
-  const mockData = {
+async function runTests() {
+  console.log("=== Testing Quotation PDF Design (RFQ-KICO-14425 OQ) ===\n");
+
+  const fullReferenceData = {
     company: {
       name: "MARC INGINEERING SERVICE SARL",
       rccm: "CD/LSH/RCCM/26.B-00277",
@@ -24,89 +33,219 @@ async function runTests() {
       logoPath: "/images/logo.png",
     },
     client: {
-      name: "KICO\nCopper SA",
+      name: "KICO Copper SA",
       code: "",
-      email: "procurement@kico.cd",
-      phone: "+243 810 000 000",
-      billingAddress: "Kolwezi, RDC",
+      email: null,
+      phone: null,
+      billingAddress: null,
       taxId: null,
     },
-    reference: "0086/026/MIS",
-    clientRfqNumber: "RFQ-KICO-14319 OQ",
+    reference: "0088/026/MIS",
+    clientRfqNumber: "RFQ-KICO-14425 OQ",
     docType: "QUOTATION",
-    documentDate: "2026-11-03T09:43:00",
-    validityDate: "2026-12-03",
+    documentDate: "2026-11-07T12:00:00",
+    validityDate: "2026-12-07",
     currency: "USD",
-    paymentTerms: "30 jours fin de mois",
+    paymentTerms: null,
     deliveryLeadTime: "EX-STOCK",
-    notes: "",
+    notes: null,
     status: "VALIDATED",
     lines: [
       {
+        lineNumber: 1,
+        brand: null,
+        description: "AS-Interface flat cable seal Part No:\nE70413 Order code: E70413-AS-i cable\nend seal 10pcs",
+        unit: "EA",
+        quantity: 5,
+        unitPrice: 61.25,
+        discountPercent: 0,
+        lineSubtotal: 306.25,
+      },
+      {
+        lineNumber: 2,
+        brand: null,
+        description: "ASI flat cable insulation displacement\nconnector Part No: E70582 Order code:\nE70582 - FC Splitter AS-i / AUX 1 m M12\nUL",
+        unit: "EA",
+        quantity: 5,
+        unitPrice: 87.50,
+        discountPercent: 0,
+        lineSubtotal: 437.50,
+      },
+      {
+        lineNumber: 3,
+        brand: null,
+        description: "ASI POWER DISTRIBUTOR Part No:\nE70588 Order code: E70588 - QUAD M12\nAS-i/24V 4A",
+        unit: "EA",
+        quantity: 5,
+        unitPrice: 92.75,
+        discountPercent: 0,
+        lineSubtotal: 463.75,
+      },
+      {
         lineNumber: 4,
         brand: null,
-        description: "Key Fortress Code 303 Switchbox SS/Dust\nSeal Drawing No: CR-0213 Deebar\nCL303",
+        description: "ASI PASSIVE BUS TERMINATION Part\nNo: E70580 Order code: E70580-AS-I\nBUS TERMINATION",
         unit: "EA",
-        quantity: 4,
-        unitPrice: 523.29,
+        quantity: 5,
+        unitPrice: 227.50,
         discountPercent: 0,
-        lineSubtotal: 2093.15, // 4 * 523.29 = 2093.16 (2093.15 in sample)
+        lineSubtotal: 1137.50,
       },
       {
         lineNumber: 5,
         brand: null,
-        description: "Key Fortress Code 304 Switchbox SS/Dust\nSeal Drawing No: CR-0213 Deebar\nCL304",
+        description: "ASI BUS TERMINATION Part No:\nAC1147 Order code: AC1147-AS-I BUS\nTERMINATION",
         unit: "EA",
-        quantity: 4,
-        unitPrice: 523.29,
+        quantity: 5,
+        unitPrice: 210.00,
         discountPercent: 0,
-        lineSubtotal: 2093.15,
+        lineSubtotal: 1050.00,
+      },
+      {
+        lineNumber: 6,
+        brand: null,
+        description: "ASI 4 DI MODULE Part No: AC5215 Order\ncode: AC5215 Classic Line 4DI-Y IP67",
+        unit: "EA",
+        quantity: 2,
+        unitPrice: 262.50,
+        discountPercent: 0,
+        lineSubtotal: 525.00,
+      },
+      {
+        lineNumber: 7,
+        brand: null,
+        description: "ASI 2 DO MODULE Part No: AC5214\nOrder code: AC5214 ClassicL 2DO-Y 2DI-\nY IP67",
+        unit: "EA",
+        quantity: 2,
+        unitPrice: 280.00,
+        discountPercent: 0,
+        lineSubtotal: 560.00,
+      },
+      {
+        lineNumber: 8,
+        brand: null,
+        description: "ASI 2 AI INPUT MODULE (2 AND 3\nWIRES CONNECTIONS) Part No:\nAC5222 Order code: AC5222 ClassicLine\n2AI C IP67",
+        unit: "EA",
+        quantity: 2,
+        unitPrice: 402.50,
+        discountPercent: 0,
+        lineSubtotal: 805.00,
+      },
+      {
+        lineNumber: 9,
+        brand: null,
+        description: "ASI 2 DI 2 DO INPUT MODULE Part No:\nAC5224 Order code: AC5224 ClassicL\n2DO-Y 2DI-Y IP67",
+        unit: "EA",
+        quantity: 2,
+        unitPrice: 262.50,
+        discountPercent: 0,
+        lineSubtotal: 525.00,
       },
       {
         lineNumber: 10,
         brand: null,
-        description: "Light Indicating 32V D-Lite Double Aspect\nRobot Deebar 913801",
+        description: "ASI GATEWAY Part No: AC1422 Order\ncode: AC1422-AS-i Gateway 2Master EIP",
         unit: "EA",
-        quantity: 4,
-        unitPrice: 563.67,
+        quantity: 1,
+        unitPrice: 2362.50,
         discountPercent: 0,
-        lineSubtotal: 2254.69,
+        lineSubtotal: 2362.50,
       },
       {
         lineNumber: 11,
         brand: null,
-        description: "Light Indicating 32VAC Green Mini Beacon\nIP68 Deebar 10509",
+        description: "ASI POWER SUPPLY MODULE Part No:\nDN4012 Order code: DN4012 - PSU-\n1AC/24VDC-5A",
+        unit: "EA",
+        quantity: 3,
+        unitPrice: 428.75,
+        discountPercent: 0,
+        lineSubtotal: 1286.25,
+      },
+      {
+        lineNumber: 12,
+        brand: null,
+        description: "ASI POWER SUPPLY MODULE Part No:\nAC1254 Order code: AC1254 - PSU-\n1AC/ASi-4A",
+        unit: "EA",
+        quantity: 3,
+        unitPrice: 638.75,
+        discountPercent: 0,
+        lineSubtotal: 1916.25,
+      },
+      {
+        lineNumber: 13,
+        brand: null,
+        description: "ALL BRO 5 BOX Part No: Allbrox 5 Order\ncode: Allbrox 5",
+        unit: "EA",
+        quantity: 25,
+        unitPrice: 212.19,
+        discountPercent: 0,
+        lineSubtotal: 5304.69,
+      },
+      {
+        lineNumber: 14,
+        brand: null,
+        description: "AS-i safety pcb 2-SI/1-DO Part No:\nE7015S Order code: E7015S - AS-i safety\npcb 2-SI/1-DO",
         unit: "EA",
         quantity: 4,
-        unitPrice: 76.60,
+        unitPrice: 218.75,
         discountPercent: 0,
-        lineSubtotal: 306.39,
+        lineSubtotal: 875.00,
       },
       {
-        lineNumber: 41,
+        lineNumber: 15,
         brand: null,
-        description: "Capteur de débit 100Bar 18-30VDC IFM Flow\nSensor SA 500",
-        unit: "EA",
-        quantity: 1,
-        unitPrice: 787.50,
+        description: "AS-Interface flat cable Part No: E74220\n100 meter TPE red Order code: E74220 -\nFlat cable",
+        unit: "MT",
+        quantity: 400,
+        unitPrice: 12.60,
         discountPercent: 0,
-        lineSubtotal: 787.50,
+        lineSubtotal: 5040.00,
       },
       {
-        lineNumber: 47,
+        lineNumber: 16,
         brand: null,
-        description: "Démarreur progressif (Soft Starter) 171A 525V\nWEG KWS-START171",
+        description: "Safe AS-Interface ClassicLine module\nPart No: AC508S Order code: AC508S\nClassicL 2SI AUX 2DOT 2LO OSSD",
+        unit: "EA",
+        quantity: 2,
+        unitPrice: 376.25,
+        discountPercent: 0,
+        lineSubtotal: 752.50,
+      },
+      {
+        lineNumber: 17,
+        brand: null,
+        description: "Connection cable Part No: EVC134 Order\ncode: EVC134 -\nVDOAH040MSS0020H04STGH040MSS",
+        unit: "EA",
+        quantity: 6,
+        unitPrice: 113.75,
+        discountPercent: 0,
+        lineSubtotal: 682.50,
+      },
+      {
+        lineNumber: 18,
+        brand: null,
+        description: "AS-Interface addressing cable Part No:\nE70213 Order code: E70213 - Addressing\ncable",
         unit: "EA",
         quantity: 1,
-        unitPrice: 7525.00,
+        unitPrice: 78.75,
         discountPercent: 0,
-        lineSubtotal: 7525.00,
+        lineSubtotal: 78.75,
+      },
+      {
+        lineNumber: 19,
+        brand: null,
+        description: "AS-Interface addressing unit Part No:\nAC1154 Order code: AC1154-Addressing\nunit AS-i 3.0",
+        unit: "EA",
+        quantity: 1,
+        unitPrice: 962.50,
+        discountPercent: 0,
+        lineSubtotal: 962.50,
       },
     ],
-    subtotal: 46528.55,
+    subtotal: 25070.94,
     vatRate: 16.0,
-    vatAmount: 7444.57,
-    total: 53973.12,
+    vatAmount: 4011.35,
+    total: 29082.29,
     createdByName: "Marc K.",
   };
 
@@ -116,19 +255,33 @@ async function runTests() {
     logoBuffer = fs.readFileSync(logoPath);
   }
 
-  console.log("Generating PDF matching RFQ-KICO-14319 OQ template...");
-  const pdfBytes = await generateQuotationPdf(mockData, logoBuffer);
+  console.log("Generating 2-page quotation matching reference RFQ-KICO-14425 OQ...");
+  const pdfBytes = await generateQuotationPdf(fullReferenceData, logoBuffer);
 
   assert.ok(pdfBytes && pdfBytes.length > 0, "PDF bytes must be non-empty");
   const header = Buffer.from(pdfBytes.subarray(0, 5)).toString("ascii");
   assert.strictEqual(header, "%PDF-");
   console.log(`✔ Generated valid PDF matching exact template (${pdfBytes.length} bytes)`);
 
-  // Save sample to disk for visual verification if needed
-  fs.writeFileSync(path.join(process.cwd(), "scripts", "output-rfq-kico-sample.pdf"), pdfBytes);
-  console.log("✔ Sample output saved to scripts/output-rfq-kico-sample.pdf");
+  if (fs.existsSync(scratchDir)) {
+    fs.writeFileSync(path.join(scratchDir, "test-rfq-kico-14425.pdf"), pdfBytes);
+    console.log(`✔ Saved test PDF to ${path.join(scratchDir, "test-rfq-kico-14425.pdf")}`);
+  }
 
-  console.log("\nAll Tests PASSED!");
+  // Also test single-page quotation (5 items)
+  console.log("Testing single-page quotation with 5 items...");
+  const singlePageData = {
+    ...fullReferenceData,
+    lines: fullReferenceData.lines.slice(0, 5),
+    subtotal: 3395.0,
+    vatAmount: 543.2,
+    total: 3938.2,
+  };
+  const singlePagePdf = await generateQuotationPdf(singlePageData, logoBuffer);
+  assert.ok(singlePagePdf && singlePagePdf.length > 0, "Single-page PDF must be non-empty");
+  console.log(`✔ Generated valid single-page PDF (${singlePagePdf.length} bytes)`);
+
+  console.log("\nAll PDF Generation Tests PASSED!");
 }
 
 runTests().catch((err) => {

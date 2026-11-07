@@ -297,9 +297,7 @@ export function QuotationWizard({
   const [vatRate, setVatRate] = useState(16);
   const [globalCommission, setGlobalCommission] = useState(75);
   const [paymentTerms, setPaymentTerms] = useState("30 jours fin de mois");
-  const [deliveryLeadTime, setDeliveryLeadTime] = useState(
-    "Ex-stock Lubumbashi / 2-3 semaines",
-  );
+  const [deliveryLeadTime, setDeliveryLeadTime] = useState("EX-STOCK");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -541,16 +539,6 @@ export function QuotationWizard({
         >
           <ArrowLeft className="size-3.5" /> Retour à la liste des devis
         </Link>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-        >
-          <CheckCircle2 className="size-4" />
-          {isSubmitting
-            ? "Génération en cours..."
-            : "Valider et Enregistrer le Devis"}
-        </button>
       </div>
 
       {error && (
@@ -560,7 +548,7 @@ export function QuotationWizard({
       )}
 
       {/* Main Grid: Left parameters & lines, Right sticky financial recap */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
         {/* Left Column (8 cols): Parameters & Lines */}
         <div className="lg:col-span-8 space-y-6">
           {/* Step 1: Parameters */}
@@ -674,6 +662,7 @@ export function QuotationWizard({
 
             {/* Row 2: Terms & Lead times */}
             <div className="grid gap-4 sm:grid-cols-4">
+              {/* 1. Validité (1 colonne) */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
                   Validité (jours)
@@ -687,6 +676,8 @@ export function QuotationWizard({
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
+
+              {/* 2. Taux TVA (1 colonne) */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
                   Taux TVA (%)
@@ -699,7 +690,9 @@ export function QuotationWizard({
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
-              <div>
+
+              {/* 3. Commission globale (2 colonnes sur desktop grâce à sm:col-span-2) */}
+              <div className="sm:col-span-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
                     Commission globale (%)
@@ -721,6 +714,9 @@ export function QuotationWizard({
                   className="h-9 w-full rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
+            </div>
+
+            <div>
               <div>
                 <label className="block text-xs font-bold text-foreground">
                   Délai livraison
@@ -732,19 +728,6 @@ export function QuotationWizard({
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-foreground">
-                Observations / Spécifications
-              </label>
-              <input
-                type="text"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Mentions spéciales ou consignes de livraison pour le client..."
-                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-              />
             </div>
           </div>
 
@@ -838,7 +821,8 @@ export function QuotationWizard({
                     </div>
 
                     {/* Row: Unité | Quantité | Coût Achat | Commission % | Prix Vente | Total */}
-                    <div className="grid gap-3 sm:grid-cols-6">
+                    {/* Ligne : Unité | Quantité | Coût Achat | Commission % | Prix Vente | Total (répartis en 3 et 3) */}
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <div>
                         <label className="block text-[11px] font-bold text-foreground">
                           Unité *
@@ -890,7 +874,6 @@ export function QuotationWizard({
                           value={line.supplyPrice}
                           onChange={(e) => {
                             const newBuy = parseFloat(e.target.value) || 0;
-                            // Auto-compute sell price from commission when buy price changes
                             const newSell =
                               newBuy > 0
                                 ? newBuy * (1 + effectiveComm / 100)
@@ -902,7 +885,8 @@ export function QuotationWizard({
                                   : {
                                       ...l,
                                       supplyPrice: newBuy,
-                                      unitPrice: newBuy > 0 ? newSell : l.unitPrice,
+                                      unitPrice:
+                                        newBuy > 0 ? newSell : l.unitPrice,
                                     },
                               ),
                             );
@@ -912,7 +896,7 @@ export function QuotationWizard({
                         />
                       </div>
 
-                      {/* Per-line commission % override */}
+                      {/* Deuxième ligne (les 3 éléments suivants) */}
                       <div>
                         <div className="flex items-center justify-between">
                           <label className="block text-[11px] font-bold text-foreground">
@@ -922,7 +906,6 @@ export function QuotationWizard({
                             <button
                               type="button"
                               onClick={() => {
-                                // Reset to global, recompute sell price
                                 const buy = line.supplyPrice;
                                 const newSell =
                                   buy > 0
@@ -935,7 +918,8 @@ export function QuotationWizard({
                                       : {
                                           ...l,
                                           commissionPercent: null,
-                                          unitPrice: buy > 0 ? newSell : l.unitPrice,
+                                          unitPrice:
+                                            buy > 0 ? newSell : l.unitPrice,
                                         },
                                   ),
                                 );
@@ -965,13 +949,12 @@ export function QuotationWizard({
                           placeholder={String(globalCommission)}
                           onChange={(e) => {
                             const raw = e.target.value;
-                            const val = raw === "" ? null : parseFloat(raw) || 0;
+                            const val =
+                              raw === "" ? null : parseFloat(raw) || 0;
                             const buy = line.supplyPrice;
                             const comm = val !== null ? val : globalCommission;
                             const newSell =
-                              buy > 0
-                                ? buy * (1 + comm / 100)
-                                : line.unitPrice;
+                              buy > 0 ? buy * (1 + comm / 100) : line.unitPrice;
                             setLines((prev) =>
                               prev.map((l, i) =>
                                 i !== index
@@ -979,7 +962,8 @@ export function QuotationWizard({
                                   : {
                                       ...l,
                                       commissionPercent: val,
-                                      unitPrice: buy > 0 ? newSell : l.unitPrice,
+                                      unitPrice:
+                                        buy > 0 ? newSell : l.unitPrice,
                                     },
                               ),
                             );
@@ -1123,12 +1107,12 @@ export function QuotationWizard({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-success text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
                 <CheckCircle2 className="size-4" />
                 {isSubmitting
                   ? "Génération en cours..."
-                  : "Valider et Générer le Devis"}
+                  : "Valider et Générer"}
               </button>
             </div>
           </div>
