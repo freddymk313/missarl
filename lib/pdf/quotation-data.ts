@@ -45,6 +45,7 @@ export interface QuotationPdfData {
   client: ClientInfo;
   reference: string;
   clientRfqNumber: string | null;
+  rfqNumber?: string | null;
   docType: "QUOTATION" | "PROFORMA";
   documentDate: string;
   validityDate: string;
@@ -113,11 +114,21 @@ export async function getQuotationPdfData(
     })
   );
 
+  const rec = record as unknown as Record<string, unknown>;
+  const rawRfq =
+    record.clientRfqNumber ??
+    rec.client_rfq_number ??
+    rec.rfqNumber ??
+    rec.rfq ??
+    null;
+  const clientRfqNumber = typeof rawRfq === "string" ? rawRfq.trim() : null;
+
   return {
     company,
     client,
     reference: record.internalReference,
-    clientRfqNumber: record.clientRfqNumber,
+    clientRfqNumber,
+    rfqNumber: clientRfqNumber,
     docType: record.docType,
     documentDate: record.documentDate,
     validityDate: record.validityDate,

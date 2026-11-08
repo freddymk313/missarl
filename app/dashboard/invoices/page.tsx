@@ -16,7 +16,7 @@ export default async function FacturesPage() {
           <div>
             
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Factures de Vente
+              Factures de Vente & Bon de livraison
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               Suivi des factures émises, calculs de TVA 16%, gestion des échéances et états de paiement.

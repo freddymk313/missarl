@@ -339,14 +339,24 @@ export async function generateQuotationPdf(
     });
   }
 
-  if (data.clientRfqNumber) {
-    const rfqText = data.clientRfqNumber.trim();
+  // RFQ Client Number (right-aligned on Row 2, immediately below Customer / REF N° row)
+  const d = data as unknown as Record<string, unknown>;
+  const rfqRaw =
+    data.clientRfqNumber ||
+    data.rfqNumber ||
+    d.client_rfq_number ||
+    d.rfq;
+  const rfqText =
+    typeof rfqRaw === "string" && rfqRaw.trim() ? rfqRaw.trim() : null;
+
+  if (rfqText) {
     const rfqW = fontRegular.widthOfTextAtSize(rfqText, 8.04);
-    // Align with RFQ number position from reference or right-align
-    const rfqX = Math.max(460.3, RIGHT_EDGE - rfqW - 4);
+    // Right-align with the reference number (matching x=460.30 in reference PDF)
+    const rightMarginX = 538.56;
+    const rfqX = rightMarginX - rfqW;
     page1.drawText(rfqText, {
       x: rfqX,
-      y: 674.62,
+      y: 676.3,
       size: 8.04,
       font: fontRegular,
       color: BLACK,
