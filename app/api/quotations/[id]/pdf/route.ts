@@ -113,7 +113,7 @@ export async function GET(
       : "inline";
 
   // 10. Return PDF response
-  return new NextResponse(pdfBytes as any, {
+  return new NextResponse(Buffer.from(pdfBytes), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

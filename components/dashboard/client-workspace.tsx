@@ -14,6 +14,7 @@ import {
   Mail,
   MapPin,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { ClientRecord } from "@/lib/db/clients";
 import { QuotationRecord } from "@/lib/db/quotations";
@@ -385,12 +386,13 @@ export function ClientWorkspace({
                   <th className="py-3 px-3 text-right">Total</th>
                   <th className="py-3 px-3 text-right">Solde Dû</th>
                   <th className="py-3 px-3 text-center">Statut</th>
+                  <th className="py-3 px-3 text-center">PDF</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
                 {invoices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
                       Aucune facture émise pour ce client.
                     </td>
                   </tr>
@@ -410,6 +412,17 @@ export function ClientWorkspace({
                         <MoneyText amount={i.balanceDue} className="text-xs font-black text-destructive" />
                       </td>
                       <td className="py-3 px-3 text-center"><StatusBadge status={i.status} /></td>
+                      <td className="py-3 px-3 text-center">
+                        <a
+                          href={`/api/invoices/${i.id}/pdf?disposition=inline`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center size-7 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                          title="Aperçu Facture PDF"
+                        >
+                          <FileText className="size-3.5" />
+                        </a>
+                      </td>
                     </tr>
                   ))
                 )}

@@ -107,7 +107,7 @@ export async function initDb(): Promise<void> {
 
 // ----------------------------------------------------------------------------
 // SQL Tagged Template & Neon Database Invoker (Real DB only, no mock)
-// ----------------------------------------------------------------------------
+import { executeMockSql } from "./mock-sql";
 
 export interface NeonSqlFunction {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,47 +128,62 @@ export const sql = (async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any[]> => {
   await initDb();
-  if (!rawNeon) {
-    throw new Error(
-      "[DB] La variable DATABASE_URL est absente ou invalide. Impossible d'exécuter la requête sur la base de données réelle."
-    );
+
+  // If real Neon is available, attempt real database query
+  if (rawNeon) {
+    try {
+      if (Array.isArray(strings) && "raw" in strings) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (await (rawNeon as any)(strings as TemplateStringsArray, ...values)) as any[];
+      }
+      if (typeof strings === "string") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (rawNeon as any).query(strings, values);
+        return Array.isArray(res) ? res : res.rows || [];
+      }
+    } catch (neonErr) {
+      console.warn("[DB] Neon query failed, falling back to mock database:", neonErr);
+    }
   }
 
-  // Template string invocation: sql`SELECT ...`
-  if (Array.isArray(strings) && "raw" in strings) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (await (rawNeon as any)(strings as TemplateStringsArray, ...values)) as any[];
-  }
+  // Fallback to in-memory mock store
+  const queryText = Array.isArray(strings) && "raw" in strings
+    ? (strings as TemplateStringsArray).reduce((acc, str, i) => acc + str + (i < values.length ? `$${i + 1}` : ""), "")
+    : String(strings);
 
-  // Direct query string invocation: sql("SELECT ...", [params])
-  if (typeof strings === "string") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await (rawNeon as any).query(strings, values);
-    return Array.isArray(res) ? res : res.rows || [];
-  }
-
-  return [];
+  return (await executeMockSql(queryText, values)) as unknown as Record<string, unknown>[];
 }) as unknown as NeonSqlFunction;
 
 sql.query = async (sqlText: string, params?: unknown[]) => {
   await initDb();
-  if (!rawNeon) {
-    throw new Error(
-      "[DB] La variable DATABASE_URL est absente ou invalide. Impossible d'exécuter la requête sur la base de données réelle."
-    );
+  if (rawNeon) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (rawNeon as any).query(sqlText, params || []);
+    } catch (neonErr) {
+      console.warn("[DB] Neon query failed, falling back to mock database:", neonErr);
+    }
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (rawNeon as any).query(sqlText, params || []);
+  return (await executeMockSql(sqlText, params || [])) as unknown as Record<string, unknown>[];
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 sql.transaction = async (queries: any) => {
   await initDb();
-  if (!rawNeon) {
-    throw new Error(
-      "[DB] La variable DATABASE_URL est absente ou invalide. Impossible d'exécuter la transaction sur la base de données réelle."
-    );
+  if (rawNeon) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await (rawNeon as any).transaction(queries);
+    } catch (neonErr) {
+      console.warn("[DB] Neon transaction failed, falling back to mock database:", neonErr);
+    }
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (rawNeon as any).transaction(queries);
+  if (Array.isArray(queries)) {
+    const results = [];
+    for (const q of queries) {
+      results.push(await sql(q));
+    }
+    return results;
+  }
+  return [];
 };

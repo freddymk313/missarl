@@ -13,6 +13,8 @@ export interface OrderLineItem {
   lineNumber: number;
   description: string;
   unit: string;
+  brand?: string | null;
+  discountPercent?: number;
   quantityOrdered: number;
   quantityDelivered: number;
   unitPrice: number;
@@ -140,6 +142,8 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
       line_number as "lineNumber",
       description_snapshot as "description",
       unit_snapshot as "unit",
+      brand_snapshot as "brand",
+      COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
       quantity_ordered::float as "quantityOrdered",
       quantity_delivered::float as "quantityDelivered",
       unit_price_snapshot::float as "unitPrice",
@@ -153,11 +157,17 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
   return order;
 }
 
+export interface SelectedPoItemInput {
+  quotationItemId: string;
+  quantity: number;
+}
+
 export async function createOrderFromQuotation(data: {
   quotationId: string;
   clientPoNumber: string;
   expectedDeliveryDate?: string;
   notes?: string;
+  selectedItems?: SelectedPoItemInput[];
   userId: string;
 }): Promise<OrderRecord> {
   // 1. Fetch & validate quotation
@@ -174,15 +184,114 @@ export async function createOrderFromQuotation(data: {
     throw new Error("Le devis ne contient aucune ligne.");
   }
 
-  // 2. Generate sequential order number
-  const currentYear = new Date().getFullYear();
-  const countRows = await sql`
-    SELECT COUNT(*)::int as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
-  `;
-  const nextSeq = (countRows[0].count as number) + 1;
-  const orderNumber = `MIS/BC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+  // 2. Determine accepted lines and quantities
+  interface PreparedOrderItem {
+    quotationItemId: string | null;
+    itemId: string | null;
+    lineNumber: number;
+    description: string;
+    unit: string;
+    brand: string | null;
+    quantity: number;
+    unitPrice: number;
+    discountPercent: number;
+    lineSubtotal: number;
+  }
 
-  // 3. Insert order header
+  const itemsToInsert: PreparedOrderItem[] = [];
+
+  if (data.selectedItems && data.selectedItems.length > 0) {
+    const quoteItemMap = new Map((quote.items || []).map((it) => [it.id || "", it]));
+    const seenQuoteItemIds = new Set<string>();
+
+    for (const sel of data.selectedItems) {
+      if (seenQuoteItemIds.has(sel.quotationItemId)) {
+        throw new Error("Ligne d'article dupliquée dans l'acceptation du bon de commande.");
+      }
+      seenQuoteItemIds.add(sel.quotationItemId);
+
+      const quoteItem = quoteItemMap.get(sel.quotationItemId);
+      if (!quoteItem) {
+        throw new Error(`La ligne de devis ${sel.quotationItemId} est introuvable sur le devis.`);
+      }
+
+      const qty = Number(sel.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error(`Quantité acceptée invalide pour l'article ${quoteItem.lineNumber}.`);
+      }
+
+      if (qty > quoteItem.quantity + 0.0001) {
+        throw new Error(
+          `La quantité acceptée (${qty}) ne peut pas dépasser la quantité devisée (${quoteItem.quantity}) pour l'article ${quoteItem.lineNumber}.`
+        );
+      }
+
+      const discount = quoteItem.discountPercent || 0;
+      const lineSubtotal = Math.round(qty * quoteItem.unitPrice * (1 - discount / 100) * 100) / 100;
+
+      itemsToInsert.push({
+        quotationItemId: quoteItem.id || null,
+        itemId: quoteItem.itemId || null,
+        lineNumber: quoteItem.lineNumber,
+        description: quoteItem.description,
+        unit: quoteItem.unit,
+        brand: quoteItem.brand || null,
+        quantity: qty,
+        unitPrice: quoteItem.unitPrice,
+        discountPercent: discount,
+        lineSubtotal,
+      });
+    }
+  } else {
+    // Default: accept all quotation lines at full quantity
+    for (const item of quote.items) {
+      itemsToInsert.push({
+        quotationItemId: item.id || null,
+        itemId: item.itemId || null,
+        lineNumber: item.lineNumber,
+        description: item.description,
+        unit: item.unit,
+        brand: item.brand || null,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountPercent: item.discountPercent || 0,
+        lineSubtotal: item.lineSubtotal,
+      });
+    }
+  }
+
+  if (itemsToInsert.length === 0) {
+    throw new Error("Veuillez sélectionner au moins un article accepté pour créer la commande.");
+  }
+
+  // Calculate order subtotal and VAT
+  const subtotal = Math.round(itemsToInsert.reduce((sum, it) => sum + it.lineSubtotal, 0) * 100) / 100;
+  const vatRate = quote.vatRate ?? 16.0;
+  const vatAmount = Math.round(subtotal * (vatRate / 100) * 100) / 100;
+  const total = Math.round((subtotal + vatAmount) * 100) / 100;
+
+  // 3. Concurrency-safe sequential order numbering
+  const currentYear = new Date().getFullYear();
+  let orderNumber: string;
+  try {
+    const counterRows = await sql`
+      INSERT INTO document_counters (doc_type, year, current_val)
+      VALUES ('ORDER', ${currentYear}, 1)
+      ON CONFLICT (doc_type, year)
+      DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
+      RETURNING current_val;
+    `;
+    const nextSeq = counterRows[0]?.current_val ?? 1;
+    orderNumber = `MIS/BC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+  } catch {
+    const countRows = await sql`
+      SELECT COUNT(*)::int as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
+    `;
+    const nextSeq = (countRows[0].count as number) + 1;
+    orderNumber = `MIS/BC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+  }
+
+  // 4. Insert order header
   const orderRows = await sql`
     INSERT INTO orders (
       order_number, client_id, quotation_id, client_po_number,
@@ -198,10 +307,10 @@ export async function createOrderFromQuotation(data: {
       ${data.expectedDeliveryDate || null},
       'CONFIRMED',
       ${quote.currency},
-      ${quote.subtotal},
-      ${quote.vatRate},
-      ${quote.vatAmount},
-      ${quote.total},
+      ${subtotal},
+      ${vatRate},
+      ${vatAmount},
+      ${total},
       ${data.notes?.trim() || null},
       ${data.userId}
     )
@@ -210,30 +319,33 @@ export async function createOrderFromQuotation(data: {
 
   const orderId = orderRows[0].id as string;
 
-  // 4. Insert lines
-  for (const item of quote.items) {
+  // 5. Insert lines with snapshots
+  for (const item of itemsToInsert) {
     await sql`
       INSERT INTO order_items (
         order_id, quotation_item_id, item_id, line_number,
         description_snapshot, unit_snapshot, quantity_ordered,
-        quantity_delivered, unit_price_snapshot, line_subtotal
+        quantity_delivered, unit_price_snapshot, line_subtotal,
+        brand_snapshot, discount_percent_snapshot
       )
       VALUES (
         ${orderId},
-        ${item.id || null},
-        ${item.itemId || null},
+        ${item.quotationItemId},
+        ${item.itemId},
         ${item.lineNumber},
         ${item.description},
         ${item.unit},
         ${item.quantity},
         0,
         ${item.unitPrice},
-        ${item.lineSubtotal}
+        ${item.lineSubtotal},
+        ${item.brand},
+        ${item.discountPercent}
       )
     `;
   }
 
-  // 5. Audit log
+  // 6. Audit log
   await logAudit({
     userId: data.userId,
     action: "ORDER_CREATED_FROM_QUOTATION",
@@ -243,7 +355,9 @@ export async function createOrderFromQuotation(data: {
       orderNumber,
       clientPoNumber: data.clientPoNumber,
       quotationReference: quote.internalReference,
-      total: quote.total,
+      itemsAcceptedCount: itemsToInsert.length,
+      subtotal,
+      total,
     },
   });
 
@@ -287,4 +401,9 @@ export async function updateOrderStatus(
   });
 
   return getOrderById(id);
+}
+
+export async function getOrderDeliveryNotes(orderId: string) {
+  const { getDeliveryNotes } = await import("@/lib/db/delivery-notes");
+  return getDeliveryNotes({ orderId });
 }

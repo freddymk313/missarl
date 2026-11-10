@@ -9,6 +9,9 @@ import {
   XCircle,
   Eye,
   Building2,
+  FileText,
+  Download,
+  Truck,
 } from "lucide-react";
 import { InvoiceRecord } from "@/lib/db/invoices";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -146,14 +149,14 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
               <tr>
                 <th className="py-3.5 px-4">N° Facture</th>
                 <th className="py-3.5 px-4">Client</th>
-                <th className="py-3.5 px-4">Commande (BC)</th>
+                <th className="py-3.5 px-4">Commande & BL</th>
                 <th className="py-3.5 px-4">Émise le</th>
                 <th className="py-3.5 px-4">Échéance</th>
                 <th className="py-3.5 px-4 text-right">Total TTC</th>
                 <th className="py-3.5 px-4 text-right">Payé</th>
                 <th className="py-3.5 px-4 text-right">Solde Dû</th>
                 <th className="py-3.5 px-4 text-center">Statut</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
+                <th className="py-3.5 px-4 text-center">Actions & PDF</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -163,7 +166,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                     <Receipt className="mx-auto size-8 text-muted-foreground/40 mb-2" />
                     <p className="font-bold text-foreground">Aucune facture trouvée</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Les factures sont émises à partir des bons de commande confirmés.
+                      Les factures sont émises automatiquement lors de chaque lot de livraison.
                     </p>
                   </td>
                 </tr>
@@ -178,7 +181,18 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                       <RefChip value={inv.invoiceNumber} />
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-foreground">{inv.clientName}</td>
-                    <td className="py-3.5 px-4 font-mono text-muted-foreground">{inv.orderNumber || "—"}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="space-y-0.5">
+                        <span className="font-mono text-xs text-muted-foreground block">
+                          {inv.orderNumber || "Directe"}
+                        </span>
+                        {inv.deliveryNoteNumber && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary">
+                            <Truck className="size-2.5" /> {inv.deliveryNoteNumber}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3.5 px-4 text-muted-foreground">{inv.issueDate}</td>
                     <td className="py-3.5 px-4 text-muted-foreground">{inv.dueDate}</td>
                     <td className="py-3.5 px-4 text-right">
@@ -203,10 +217,26 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                         >
                           <Eye className="size-3.5" />
                         </button>
+                        <a
+                          href={`/api/invoices/${inv.id}/pdf?disposition=inline`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                          title="Aperçu Facture PDF"
+                        >
+                          <FileText className="size-3.5" />
+                        </a>
+                        <a
+                          href={`/api/invoices/${inv.id}/pdf?disposition=attachment`}
+                          className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          title="Télécharger Facture PDF"
+                        >
+                          <Download className="size-3.5" />
+                        </a>
                         {inv.balanceDue > 0 && inv.status !== "CANCELLED" && (
                           <Link
                             href={`/dashboard/payments?client=${inv.clientId}&invoice=${inv.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2 py-1 text-[10px] font-bold text-success hover:bg-success/25 transition-colors border border-success/30"
+                            className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2 py-1 text-[10px] font-bold text-success hover:bg-success/25 transition-colors border border-success/30 ml-0.5"
                             title="Encaisser un paiement"
                           >
                             <CreditCard className="size-3" /> Payer
@@ -253,7 +283,45 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
               <KeyValueTile label="Date d'émission" value={selectedInvoice.issueDate} />
               <KeyValueTile label="Date d'échéance" value={selectedInvoice.dueDate} />
               <KeyValueTile label="Commande liée" value={selectedInvoice.orderNumber || "Directe"} />
+              <KeyValueTile label="PO N° Client" value={selectedInvoice.clientPoNumber || "—"} />
+              <KeyValueTile label="BL associé" value={selectedInvoice.deliveryNoteNumber || "—"} />
               <KeyValueTile label="Taux TVA" value={`${selectedInvoice.vatRate}%`} />
+            </div>
+
+            {/* PDF Generation Quick Strip */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+              <span className="text-[11px] font-bold text-primary block">Document Officiel Facture (PDF)</span>
+              <div className="flex gap-2">
+                <a
+                  href={`/api/invoices/${selectedInvoice.id}/pdf?disposition=inline`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-2xs"
+                >
+                  <FileText className="size-3.5" /> Aperçu Facture PDF
+                </a>
+                <a
+                  href={`/api/invoices/${selectedInvoice.id}/pdf?disposition=attachment`}
+                  className="inline-flex items-center justify-center size-9 rounded-lg border border-primary/30 bg-card hover:bg-primary/10 text-primary transition-colors"
+                  title="Télécharger PDF"
+                >
+                  <Download className="size-4" />
+                </a>
+              </div>
+
+              {selectedInvoice.deliveryNoteId && (
+                <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Bon de Livraison lié :</span>
+                  <a
+                    href={`/api/delivery-notes/${selectedInvoice.deliveryNoteId}/pdf?disposition=inline`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
+                  >
+                    <Truck className="size-3" /> Voir BL {selectedInvoice.deliveryNoteNumber}
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Financial Balance Card */}

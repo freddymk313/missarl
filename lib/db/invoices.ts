@@ -13,6 +13,8 @@ export interface InvoiceLineItem {
   lineNumber: number;
   description: string;
   unit: string;
+  brand?: string | null;
+  discountPercent?: number;
   quantity: number;
   unitPrice: number;
   lineSubtotal: number;
@@ -26,8 +28,12 @@ export interface InvoiceRecord {
   clientName?: string;
   orderId: string | null;
   orderNumber?: string | null;
+  clientPoNumber?: string | null;
+  deliveryNoteId?: string | null;
+  deliveryNoteNumber?: string | null;
   quotationId: string | null;
   quotationReference?: string | null;
+  clientRfqNumber?: string | null;
   issueDate: string;
   dueDate: string;
   status: "DRAFT" | "ISSUED" | "PARTIALLY_PAID" | "PAID" | "OVERDUE" | "CANCELLED";
@@ -66,8 +72,12 @@ export async function getInvoices(options?: {
       c.name as "clientName",
       i.order_id as "orderId",
       o.order_number as "orderNumber",
+      o.client_po_number as "clientPoNumber",
+      dn.id as "deliveryNoteId",
+      dn.bl_number as "deliveryNoteNumber",
       i.quotation_id as "quotationId",
       q.internal_reference as "quotationReference",
+      q.client_rfq_number as "clientRfqNumber",
       i.issue_date::text as "issueDate",
       i.due_date::text as "dueDate",
       i.status,
@@ -89,13 +99,16 @@ export async function getInvoices(options?: {
     JOIN clients c ON i.client_id = c.id
     LEFT JOIN orders o ON i.order_id = o.id
     LEFT JOIN quotations q ON i.quotation_id = q.id
+    LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
     LEFT JOIN users u ON i.created_by = u.id
     WHERE (${clientId}::uuid IS NULL OR i.client_id = ${clientId}::uuid)
       AND (${status}::text IS NULL OR i.status = ${status})
       AND (${searchTerm}::text IS NULL OR 
            LOWER(i.invoice_number) LIKE ${searchTerm} OR 
            LOWER(c.name) LIKE ${searchTerm} OR
-           LOWER(COALESCE(o.order_number, '')) LIKE ${searchTerm})
+           LOWER(COALESCE(o.order_number, '')) LIKE ${searchTerm} OR
+           LOWER(COALESCE(o.client_po_number, '')) LIKE ${searchTerm} OR
+           LOWER(COALESCE(dn.bl_number, '')) LIKE ${searchTerm})
     ORDER BY i.created_at DESC
   `;
 
@@ -117,8 +130,11 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
       i.order_id as "orderId",
       o.order_number as "orderNumber",
       o.client_po_number as "clientPoNumber",
+      dn.id as "deliveryNoteId",
+      dn.bl_number as "deliveryNoteNumber",
       i.quotation_id as "quotationId",
       q.internal_reference as "quotationReference",
+      q.client_rfq_number as "clientRfqNumber",
       i.issue_date::text as "issueDate",
       i.due_date::text as "dueDate",
       i.status,
@@ -140,6 +156,7 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
     JOIN clients c ON i.client_id = c.id
     LEFT JOIN orders o ON i.order_id = o.id
     LEFT JOIN quotations q ON i.quotation_id = q.id
+    LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
     LEFT JOIN users u ON i.created_by = u.id
     WHERE i.id = ${id}
     LIMIT 1
@@ -156,9 +173,11 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
       line_number as "lineNumber",
       description_snapshot as "description",
       unit_snapshot as "unit",
+      brand_snapshot as "brand",
+      COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
       quantity::float as "quantity",
       unit_price_snapshot::float as "unitPrice",
-      line_subtotal::float as "lineSubtotal"
+      line_subtotal::float as "lineTotal"
     FROM invoice_items
     WHERE invoice_id = ${id}
     ORDER BY line_number ASC

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
-import { createQuotation, updateQuotationStatus } from "@/lib/db/quotations";
+import { createQuotation, updateQuotationStatus, getQuotationById } from "@/lib/db/quotations";
 
 export async function createQuotationAction(payload: {
   clientId: string;
@@ -78,6 +78,20 @@ export async function updateQuotationStatusAction(
     return { success: true, quotation: updated };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur de changement de statut.";
+    return { success: false, error: message };
+  }
+}
+
+export async function getQuotationItemsAction(quotationId: string) {
+  await requireSession(["SUPER_ADMIN", "ADMIN"]);
+  try {
+    const quotation = await getQuotationById(quotationId);
+    if (!quotation) {
+      return { success: false, error: "Devis introuvable." };
+    }
+    return { success: true, items: quotation.items || [], quotation };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur de chargement des articles du devis.";
     return { success: false, error: message };
   }
 }

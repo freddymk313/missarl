@@ -1,0 +1,786 @@
+# MIS SARL — Partial Customer PO Acceptance, Partial Deliveries, Invoices & Delivery Notes
+
+Act as a senior full-stack engineer and software architect. You are working on the existing MIS SARL business management application.
+
+Your task is to implement a reliable, simple and professional workflow for:
+
+1. Partial acceptance of quotation items through a customer's Purchase Order (PO).
+2. Partial deliveries against the same PO over multiple delivery batches.
+3. Automatic creation of one invoice and one delivery note for each delivery batch.
+4. Professional PDF generation for both documents, reusing the existing MIS SARL quotation PDF template.
+
+This is an enhancement of the existing application, NOT a complete rewrite.
+
+---
+
+# PART 1 — UNDERSTAND THE EXISTING CODEBASE FIRST
+
+Before writing or modifying any code, inspect the current branch and understand the existing implementation.
+
+Important existing files:
+
+**Quotation and PDF generation**
+
+- `lib/pdf/quotation-pdf.ts`
+- `lib/pdf/quotation-data.ts`
+- `app/api/quotations/[id]/pdf/route.ts`
+- `components/dashboard/quotation-pdf-actions.tsx`
+- `components/dashboard/quotation-wizard.tsx`
+
+**Purchase Orders**
+
+- `lib/db/orders.ts`
+- `actions/orders.ts`
+- `components/dashboard/orders-manager.tsx`
+- `app/dashboard/orders/page.tsx`
+
+**Invoices**
+
+- `lib/db/invoices.ts`
+- `actions/invoices.ts`
+- `components/dashboard/invoices-manager.tsx`
+- `app/dashboard/invoices/page.tsx`
+
+**Database and permissions**
+
+- `database/migrations/001_initial_schema.sql`
+- `database/migrations/004_supplier_pricing_and_quotation_snapshots.sql`
+- `lib/db.ts`
+- `lib/permissions.ts`
+- `lib/auth.ts`
+
+**Existing PDF assets**
+
+- `public/images/logo.png`
+- `public/signature/sceau.png`
+- `public/signature/signature.png`
+
+Important findings from the current implementation:
+
+- `createOrderFromQuotation()` currently copies ALL quotation lines into the customer order.
+- `createInvoiceFromOrder()` currently copies ALL order lines and uses the FULL order totals.
+- `orders` and `order_items` already exist.
+- `invoices` and `invoice_items` already exist.
+- `delivery_notes` and `delivery_note_items` already exist in the initial database schema.
+- `delivery_notes.invoice_id` already provides a relationship between a delivery note and its associated invoice.
+- `order_items.quantity_delivered` already exists.
+- The application already has the `PARTIALLY_DELIVERED` order status.
+- The existing permission policy already allows `SUPER_ADMIN` and `ADMIN` to manage orders, invoices and delivery notes.
+- `lib/db.ts` exposes a transaction-related API. Inspect how it works before using it, and ensure all related document operations are genuinely atomic.
+- The project already uses `pdf-lib`. Reuse it. Do not install another PDF generation library.
+
+Do not recreate existing tables or introduce duplicate order, invoice or delivery-note systems.
+
+---
+
+# PART 2 — CUSTOMER PO ACCEPTANCE MUST BE PARTIAL
+
+## Business scenario
+
+A quotation contains 26 different items.
+
+The customer sends a Purchase Order, for example:
+
+`PO 45652 OX`
+
+However, the customer's PO only accepts 12 of the 26 quotation items.
+
+MIS SARL must be able to register this PO with only those 12 accepted items.
+
+## Required UI behavior
+
+Modify the existing PO creation workflow in:
+
+`components/dashboard/orders-manager.tsx`
+
+When an administrator selects a validated quotation:
+
+1. Fetch and display all quotation lines from the database.
+2. Display each line with:
+   - Original quotation line number.
+   - Description.
+   - Brand, when available.
+   - Unit.
+   - Original quotation quantity.
+   - Quoted unit price.
+   - Selection checkbox.
+   - Accepted quantity input.
+3. Allow the administrator to select only the items accepted by the customer.
+4. Allow an accepted quantity lower than the quoted quantity.
+5. Never allow an accepted quantity greater than the original quotation quantity.
+6. Require at least one selected item.
+7. Display a live summary of selected lines and accepted quantities.
+
+The form must remain simple and intuitive.
+
+The administrator must then enter the customer's PO number, PO date and any existing delivery information.
+
+## Database behavior
+
+Modify `createOrderFromQuotation()` in:
+
+`lib/db/orders.ts`
+
+It must accept the selected quotation item IDs and their accepted quantities.
+
+On the server, validate that:
+
+- The quotation exists.
+- The quotation is VALIDATED.
+- Every selected quotation item belongs to that quotation.
+- No quotation item ID is duplicated.
+- Every selected quantity is positive.
+- No selected quantity exceeds the original quotation quantity.
+- At least one line is selected.
+
+Only selected quotation lines must be inserted into `order_items`.
+
+Do not insert the remaining unaccepted quotation lines into the PO.
+
+Preserve the original quotation line numbers. For example, if quotation lines 1, 4, 7 and 10 are accepted, retain these original line numbers instead of renumbering them.
+
+Preserve the customer's actual quoted price and discount information. Do not retrieve a new supplier price or recalculate the quotation's commercial cost.
+
+Calculate the PO subtotal, VAT and total from accepted quantities only.
+
+The order header must represent the TOTAL accepted PO, not the original quotation total.
+
+The unaccepted quotation items must remain part of the original quotation but must not appear on the PO or any of its future delivery documents.
+
+---
+
+# PART 3 — MULTIPLE PARTIAL DELIVERIES AGAINST THE SAME PO
+
+This is the most important part of the business workflow.
+
+After a PO has been registered, the administrator must be able to prepare one or more deliveries over time.
+
+For example:
+
+- Customer PO contains 12 accepted quotation lines.
+- First delivery: select the items currently available.
+- Second delivery: return to the SAME PO and select additional available items.
+- Third delivery: deliver the remaining items when they become available.
+
+Every delivery must remain linked to the same customer PO.
+
+## Delivery preparation UI
+
+Implement this workflow within the existing order detail interface.
+
+When an administrator opens an order, provide a clear action:
+
+`Prepare a New Delivery`
+
+Open a professional modal or panel showing the accepted PO lines.
+
+For every order line, display:
+
+- Original item number.
+- Description.
+- Unit.
+- Ordered quantity.
+- Already delivered quantity.
+- Quantity reserved in other active delivery notes.
+- Quantity still available for a new delivery.
+- Selection checkbox.
+- Quantity to deliver input.
+
+The administrator must only be able to select items that still have an available quantity.
+
+The administrator may deliver:
+
+- A complete remaining item quantity.
+- A partial quantity of an item.
+- Multiple items together.
+- Any subset of the accepted PO lines.
+
+Validation rules:
+
+- Delivery quantity must be greater than zero.
+- Delivery quantity must not exceed the remaining available quantity.
+- At least one item must be selected.
+- Never allow a quantity to be delivered twice.
+- Never allow total delivery quantity to exceed the accepted PO quantity.
+
+## IMPORTANT: Prevent duplicate allocation
+
+Use the existing delivery tables.
+
+A line can already be allocated to another delivery note that is PREPARED or IN_TRANSIT, even if it has not physically been delivered yet.
+
+Therefore:
+
+`Available quantity = Ordered quantity - Quantity allocated to all non-cancelled delivery notes`
+
+Also display physical delivery progress separately:
+
+`Delivered quantity = Sum of quantities belonging to delivery notes with status DELIVERED`
+
+A cancelled delivery note must release its allocated quantities.
+
+This distinction is essential to prevent two administrators from assigning the same stock quantity to two different deliveries.
+
+The server/database must enforce these rules. Do not rely only on frontend validation.
+
+Use atomic database operations and appropriate concurrency protection so that two users preparing deliveries simultaneously cannot over-allocate the same order line.
+
+---
+
+# PART 4 — CREATE AN INVOICE AND DELIVERY NOTE AS ONE DELIVERY BATCH
+
+Every time an administrator confirms a delivery batch, the application must create:
+
+1. One new delivery note.
+2. One new invoice associated with that delivery note.
+
+Both documents must contain EXACTLY the selected order lines and delivery quantities.
+
+Use the existing tables:
+
+- `delivery_notes`
+- `delivery_note_items`
+- `invoices`
+- `invoice_items`
+
+Use the existing `delivery_notes.invoice_id` relationship to associate the generated invoice with its delivery note.
+
+One delivery note must have at most one associated invoice.
+
+If necessary, add a safe partial unique index on `delivery_notes.invoice_id` for non-null values.
+
+## Critical financial rules
+
+The invoice must represent ONLY the current delivery batch.
+
+Do not use the complete order subtotal or total when generating a partial invoice.
+
+For every selected delivery line:
+
+- Use the customer unit price snapshot stored on the corresponding `order_items` record.
+- Use the accepted PO quantity and the current batch delivery quantity.
+- Preserve the original customer discount.
+- Calculate the line subtotal for the quantity being invoiced.
+- Calculate the invoice subtotal from the current batch only.
+- Apply the existing MIS SARL sales VAT rate of 16% exactly once.
+- Calculate the invoice grand total from this batch only.
+
+The supplier price, supplier currency, supplier VAT, exchange rate and commission must NEVER appear on customer-facing invoices or delivery notes.
+
+Never recalculate historical customer prices using current supplier offers or current exchange rates.
+
+### Discounts and rounding
+
+Inspect how the existing quotation calculation handles `discount_percent`.
+
+Partial invoicing must preserve the original quotation discount.
+
+If the current `order_items` schema does not preserve the discount percentage and brand, introduce the smallest additive migration necessary:
+
+- `brand_snapshot`
+- `discount_percent_snapshot`
+
+Add corresponding snapshots to `invoice_items` where needed for reproducible invoice generation.
+
+Backfill values from existing related records only when they can be derived safely. Do not invent historical values.
+
+Use PostgreSQL NUMERIC arithmetic or an appropriate decimal-safe calculation strategy.
+
+Handle rounding cumulatively so that the sum of successive partial invoices for a fully delivered order line does not differ from the original accepted PO line subtotal because of repeated rounding.
+
+For the final remaining quantity of a line, use the remaining unbilled line subtotal where appropriate.
+
+## Atomic creation
+
+The following operations must succeed or fail together:
+
+- Reserve selected order quantities.
+- Generate the invoice number.
+- Generate the delivery note number.
+- Insert invoice header.
+- Insert invoice lines.
+- Insert delivery note header.
+- Insert delivery note lines.
+- Associate invoice with delivery note.
+- Update related audit records.
+
+Do not implement this as a sequence of independent database writes that can leave an invoice without a delivery note or a delivery note without its invoice.
+
+Inspect `lib/db.ts` and implement a correct transaction strategy compatible with the existing Neon serverless connection.
+
+If a safe transaction helper is required, add it without breaking the existing DNS/IP resolution and TLS behavior.
+
+## Document numbering
+
+Preserve the existing invoice numbering convention:
+
+`MIS/FAC/YYYY/NNN`
+
+Use a consistent delivery note format:
+
+`MIS/BL/YYYY/NNN`
+
+Use concurrency-safe database numbering. Do not rely on `COUNT(*) + 1` for invoice and delivery note generation because simultaneous requests can create duplicate numbers.
+
+---
+
+# PART 5 — DELIVERY STATUS AND ORDER PROGRESS
+
+Use the existing delivery note statuses:
+
+- PREPARED
+- IN_TRANSIT
+- DELIVERED
+- CANCELLED
+
+Implement the necessary status update actions and UI controls.
+
+When a delivery note becomes DELIVERED:
+
+- Update the corresponding `order_items.quantity_delivered` values consistently.
+- Recompute delivery progress without incrementing quantities twice.
+- Update the parent order status.
+
+Order status should follow the actual physical delivery progress:
+
+- CONFIRMED: nothing physically delivered yet.
+- PARTIALLY_DELIVERED: at least one quantity has been delivered, but the complete accepted PO has not been delivered.
+- COMPLETED: all accepted PO quantities have been delivered.
+- CANCELLED: only when the order is properly cancelled.
+
+A PREPARED or IN_TRANSIT delivery note must reserve quantities but must not count as physically delivered.
+
+Prevent invalid status transitions.
+
+A delivered delivery note must not be cancelled as if the physical delivery had never happened.
+
+If a prepared or in-transit delivery note is cancelled, safely release its reserved quantities.
+
+If the associated invoice has already received a payment, do not silently cancel it. Respect the existing payment allocation and invoice cancellation rules.
+
+When an unpaid invoice is cancelled together with a non-delivered delivery note, make sure both document states remain consistent.
+
+Keep all status changes auditable.
+
+---
+
+# PART 6 — REUSE THE EXISTING MIS SARL PDF TEMPLATE
+
+The application already has a working quotation PDF generator:
+
+`lib/pdf/quotation-pdf.ts`
+
+It uses `pdf-lib`, A4 page dimensions, Helvetica/HelveticaBold, established colors, coordinates, table borders, currency formatting, logo placement and footer positioning.
+
+The existing quotation PDF is already approved as the visual reference.
+
+**Do not redesign it. Do not replace its visual identity.**
+
+The new invoice and delivery note generators must look like they belong to exactly the same company document family.
+
+## Recommended shared architecture
+
+Create a shared layout module, for example:
+
+`lib/pdf/mis-document-layout.ts`
+
+It should contain reusable drawing utilities for:
+
+- A4 page geometry.
+- Company logo placement.
+- Company name and legal details.
+- Date and document title.
+- Horizontal separator.
+- Customer name.
+- Customer ID.
+- Internal document reference.
+- Customer PO number.
+- Customer RFQ reference.
+- Banking footer.
+- Signature section.
+- Reusable fonts, colors and text formatting helpers.
+
+Refactor the existing quotation generator to reuse these shared helpers where appropriate.
+
+However, this refactor must not change the existing quotation PDF's appearance.
+
+Preserve the existing coordinates, colors, font sizes, spacing and alignment as closely as possible. Verify that the quotation PDF remains visually unchanged after the refactor.
+
+Do not create three independent header implementations that gradually become visually different.
+
+## Company header and typography
+
+Use the current approved quotation PDF as the canonical source for:
+
+- Company information.
+- Logo size and position.
+- Header positioning.
+- Font family and font sizes.
+- Page margins.
+- Divider position.
+- Customer identification section.
+- Banking footer.
+
+Use the actual company information from the existing application data sources. Do not invent company details.
+
+Use the current PDF's document typography, including its established small text sizes. Do not arbitrarily enlarge or shrink labels, titles, table text or footer information.
+
+Do not use fixed sample dates. Always use the actual persisted document date, with a safe current-date fallback only when necessary.
+
+## Invoice PDF
+
+Create:
+
+`lib/pdf/invoice-pdf.ts`
+
+and:
+
+`lib/pdf/invoice-data.ts`
+
+The invoice must visually follow the supplied MIS SARL invoice reference.
+
+Document title:
+
+`FACTURE`
+
+Use the same company header, customer block and PO/RFQ reference arrangement as the quotation PDF.
+
+The invoice table should follow the supplied reference structure:
+
+- ITEM
+- BRAND
+- QTY
+- U/M
+- DESCRIPTIONS
+- Unit Price
+- TOTAL
+
+Preserve the existing yellow header background, table borders and highlighted TOTAL column.
+
+The invoice totals section must contain:
+
+- Sub Total
+- TVA 16%
+- GRAND TOTAL
+
+Keep the existing visual treatment of subtotal, VAT and grand total cells.
+
+The invoice must show only the items and quantities belonging to its associated delivery batch.
+
+## Delivery Note PDF
+
+Create:
+
+`lib/pdf/delivery-note-pdf.ts`
+
+and:
+
+`lib/pdf/delivery-note-data.ts`
+
+The document title must be:
+
+`BON DE LIVRAISON`
+
+Use the same MIS SARL company header, customer information block and banking footer.
+
+The table must follow the supplied delivery note reference:
+
+- ITEM
+- QTY
+- U/M
+- DESCRIPTIONS
+- OBSERVATION
+
+Do not show unit prices, line totals, supplier prices, commissions, VAT calculations or invoice financial totals on the delivery note.
+
+Only display the items and quantities belonging to that specific delivery batch.
+
+Keep the OBSERVATION column available, matching the supplied reference.
+
+## Signature and stamp assets
+
+The repository already contains:
+
+- `public/signature/sceau.png`
+- `public/signature/signature.png`
+
+Inspect and reuse these existing corporate assets in the invoice and delivery note signature area to match the supplied company reference.
+
+Do not generate fake signatures, create a new stamp, or replace these assets with AI-generated artwork.
+
+If an asset cannot be loaded, keep the signature area clean and blank rather than inserting an invented image.
+
+Use the established signature labels:
+
+`SIGNATURE POUR LA RECEPTION`
+
+`SIGNATURE POUR LA LIVRAISON`
+
+## PDF quality requirements
+
+- A4 portrait format.
+- Correct margins and alignment.
+- No overlapping text.
+- No clipped descriptions.
+- Correct wrapping for long item descriptions.
+- Consistent table borders.
+- Repeat the relevant table header when a document spans multiple pages.
+- Keep the banking footer consistent.
+- Correct currency formatting and decimal precision.
+- Preserve accents and French text.
+- Use the same logo and typography as the existing quotation PDF.
+
+---
+
+# PART 7 — SERVER-SIDE PDF ENDPOINTS
+
+Implement secure server-side PDF generation endpoints:
+
+`GET /api/invoices/[id]/pdf`
+
+`GET /api/delivery-notes/[id]/pdf`
+
+Support:
+
+- `?disposition=inline` for preview.
+- `?disposition=attachment` for download.
+
+Follow the existing implementation pattern in:
+
+`app/api/quotations/[id]/pdf/route.ts`
+
+Requirements:
+
+- Verify the authenticated session.
+- Verify the user's permissions.
+- Return 401 when not authenticated.
+- Return 403 when the role is not authorized.
+- Return 404 when the document does not exist.
+- Return appropriate errors when the document has no lines.
+- Retrieve PDF data from Neon.
+- Generate the PDF on the server.
+- Do not generate customer PDFs from untrusted frontend state.
+- Never expose internal supplier cost information.
+
+Use `permissions.canManageInvoices()` and `permissions.canManageDeliveryNotes()` or the equivalent established authorization policy.
+
+Only `SUPER_ADMIN` and `ADMIN` may create or view these documents.
+
+`PRICE_COLLECTOR` must not have access.
+
+---
+
+# PART 8 — DASHBOARD UI
+
+Keep the existing MIS SARL design system, components, colors and layout.
+
+Do not introduce a second design language.
+
+## Orders page
+
+In `components/dashboard/orders-manager.tsx`:
+
+- Implement the partial PO acceptance interface.
+- Add the delivery preparation action.
+- Show accepted order lines and delivery progress.
+- Show delivered, reserved and available quantities.
+- Display the history of delivery batches for each order.
+- Show the related invoice and delivery note references.
+- Add preview and download actions for delivery notes.
+
+Keep the interface understandable for an administrative/commercial user.
+
+## Invoices page
+
+In `components/dashboard/invoices-manager.tsx`:
+
+- Add PDF preview.
+- Add PDF download.
+- Add print access.
+- Display the associated PO reference.
+- Display the associated delivery note reference when available.
+- Keep existing invoice payment tracking and cancellation behavior intact.
+
+Use a reusable PDF action component if that helps avoid duplicating the PDF action UI.
+
+Avoid creating an unnecessary separate delivery management subsystem. The delivery history should remain accessible from its parent PO, while invoices remain accessible from the existing invoices page.
+
+---
+
+# PART 9 — DATABASE MIGRATION SAFETY
+
+If schema adjustments are required, create a new migration:
+
+`database/migrations/005_partial_po_acceptance_and_delivery_batches.sql`
+
+Before writing it, inspect the actual current schema and migration history.
+
+Keep all changes additive and backward-compatible.
+
+Possible changes include:
+
+- `order_items.brand_snapshot`
+- `order_items.discount_percent_snapshot`
+- `invoice_items.brand_snapshot`
+- `invoice_items.discount_percent_snapshot`
+- A unique constraint/index ensuring one invoice is associated with at most one delivery note.
+- A small document counter table if required for safe yearly numbering.
+
+Backfill existing records only when the source data is reliable and unambiguous.
+
+Do not:
+
+- Drop existing tables.
+- Reset the database.
+- Delete existing quotations, orders, invoices or delivery notes.
+- Change historical customer prices.
+- Rewrite existing supplier offer history.
+- Invent missing historical values.
+- Run a destructive migration.
+
+Do not automatically apply a production database migration. Present the migration and explain its effects before asking for it to be executed.
+
+---
+
+# PART 10 — TESTING AND ACCEPTANCE CRITERIA
+
+Test the complete workflow.
+
+### Test 1: Partial PO acceptance
+
+- Create or use a validated quotation containing 26 items.
+- Register customer PO `45652 OX`.
+- Select only 12 quotation lines.
+- Save the PO.
+- Confirm that only those 12 lines exist in `order_items`.
+- Confirm that the other 14 lines do not appear on the PO.
+
+### Test 2: Multiple partial deliveries
+
+From the same PO:
+
+- Prepare the first delivery using a selected subset of available lines.
+- Generate its invoice and delivery note.
+- Return to the same PO.
+- Prepare a second delivery using other available quantities.
+- Generate another invoice and delivery note.
+- Repeat until all accepted PO quantities have been delivered.
+
+Verify that all delivery notes and invoices retain the same parent PO reference.
+
+### Test 3: Partial quantity of the same item
+
+For an order line with an accepted quantity of 10:
+
+- First delivery: 4.
+- Second delivery: 3.
+- Final delivery: 3.
+
+Verify that:
+
+- Total delivered quantity = 10.
+- No batch duplicates previously allocated quantities.
+- The final invoice amount reconciles with the original accepted line subtotal.
+
+### Test 4: Availability and concurrency
+
+Verify that:
+
+- PREPARED delivery notes reserve their quantities.
+- IN_TRANSIT delivery notes continue to reserve their quantities.
+- DELIVERED delivery notes count as physically delivered.
+- CANCELLED delivery notes release their allocated quantities.
+- Two administrators cannot simultaneously allocate more than the accepted PO quantity.
+
+### Test 5: Financial accuracy
+
+Verify that:
+
+- Each invoice includes only its own delivery batch.
+- Partial invoices do not use the full PO total.
+- Discounts are respected.
+- VAT 16% is applied exactly once to each invoice subtotal.
+- Cumulative invoice values reconcile with the accepted PO totals.
+- Payment allocations remain associated with the correct invoice.
+
+### Test 6: PDF appearance
+
+Generate:
+
+- A quotation PDF.
+- An invoice PDF.
+- A delivery note PDF.
+
+Compare their visual appearance.
+
+Verify the shared header, logo, text positions, font sizes, document titles, customer references, colors, signature areas and banking footer.
+
+Test multiple pages, long descriptions, missing optional fields and French characters.
+
+### Test 7: Security
+
+Verify:
+
+- ADMIN can manage orders, invoices and delivery notes.
+- SUPER_ADMIN can manage all these documents.
+- PRICE_COLLECTOR cannot access these operations or protected PDF endpoints.
+
+### Test 8: Existing functionality
+
+Confirm that existing:
+
+- Quotation creation.
+- Quotation validation.
+- Supplier offers.
+- Payments.
+- Invoice payments.
+- Client records.
+- Dashboard permissions.
+
+continue working correctly.
+
+---
+
+# PART 11 — QUALITY GATES
+
+Before finishing:
+
+1. Run `npx tsc --noEmit`.
+2. Run `npm run build`.
+3. Fix all TypeScript and build errors introduced by your changes.
+4. Review the SQL migration for destructive operations.
+5. Verify all document totals against the persisted database records.
+6. Verify the original quotation PDF still matches its existing appearance.
+7. Check that no supplier cost or commission data leaks into customer PDFs.
+
+Do not claim tests passed unless you actually ran them.
+
+Do not remove existing application functionality to simplify implementation.
+
+Do not introduce unnecessary abstractions, new frameworks, extra database tables or unrelated refactors.
+
+---
+
+# FINAL EXPECTED RESULT
+
+The MIS SARL application must support this complete commercial workflow:
+
+`Validated Quotation → Partial Customer PO Acceptance → Confirmed PO → Delivery Batch 1 → Invoice 1 + Delivery Note 1 → Delivery Batch 2 → Invoice 2 + Delivery Note 2 → Further Deliveries → PO Completed`
+
+The same PO can receive multiple deliveries over time.
+
+Each delivery batch generates its own invoice and delivery note containing only the items and quantities selected for that batch.
+
+All documents must use a coherent MIS SARL visual identity by reusing the existing quotation PDF layout and the supplied company document references.
+
+The implementation must remain compatible with the existing Next.js, TypeScript, Neon PostgreSQL, direct SQL and pdf-lib architecture.
+
+At the end, provide a clear implementation report listing:
+
+- Files created.
+- Files modified.
+- Database migration changes.
+- New user workflow.
+- PDF endpoints.
+- Tests actually executed and their results.
+- Any remaining limitations or manual migration steps.
