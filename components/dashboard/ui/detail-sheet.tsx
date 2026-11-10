@@ -22,6 +22,8 @@ export interface DetailSheetProps {
   footer?: React.ReactNode;
   className?: string;
   size?: "default" | "lg" | "xl";
+  /** Pass true when a child dialog/modal is open to prevent the Sheet from closing on outside clicks */
+  hasChildDialog?: boolean;
 }
 
 export function DetailSheet({
@@ -37,6 +39,7 @@ export function DetailSheet({
   footer,
   className,
   size = "lg",
+  hasChildDialog = false,
 }: DetailSheetProps) {
   const isSheetOpen = open ?? isOpen ?? false;
 
@@ -47,6 +50,8 @@ export function DetailSheet({
   };
 
   const handleOpenChange = (newVal: boolean) => {
+    // Block closing the sheet while a child dialog is open
+    if (!newVal && hasChildDialog) return;
     if (onOpenChange) {
       onOpenChange(newVal);
     }

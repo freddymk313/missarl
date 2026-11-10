@@ -41,6 +41,12 @@ import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { formatUSD } from "@/lib/formatters";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface OrdersManagerProps {
   initialOrders: OrderRecord[];
@@ -569,8 +575,10 @@ export function OrdersManager({
           setSelectedOrder(null);
           setDetailedOrder(null);
         }}
+        size="xl"
         title={selectedOrder?.orderNumber || "Détail du Bon de Commande"}
         statusBadge={selectedOrder ? <StatusBadge status={selectedOrder.status} /> : undefined}
+        hasChildDialog={isDeliveryModalOpen}
       >
         {selectedOrder && (
           <div className="space-y-6">
@@ -1112,15 +1120,18 @@ export function OrdersManager({
       )}
 
       {/* ── Modal Prepare Partial Delivery Batch (BL + Linked Invoice) ─────── */}
-      {isDeliveryModalOpen && detailedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
+      <Dialog open={isDeliveryModalOpen} onOpenChange={(open) => { if (!open) setIsDeliveryModalOpen(false); }}>
+        <DialogContent
+          showCloseButton={false}
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+        >
+          <DialogHeader className="pb-3 border-b border-border">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-extrabold text-primary flex items-center gap-2">
+                <DialogTitle className="text-base font-extrabold text-primary flex items-center gap-2">
                   <PackageCheck className="size-5" /> Préparer un Bon de Livraison (BL)
-                </h3>
-                <p className="text-xs text-muted-foreground">
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Génère automatiquement 1 Bon de Livraison et 1 Facture associée pour ce lot
                 </p>
               </div>
@@ -1132,220 +1143,224 @@ export function OrdersManager({
                 <X className="size-5" />
               </button>
             </div>
+          </DialogHeader>
 
-            {batchError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {batchError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateDeliveryBatch} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">
-                    Date de livraison *
-                  </label>
-                  <input
-                    required
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
+          {detailedOrder && (
+            <>
+              {batchError && (
+                <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+                  {batchError}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">
-                    Échéance facture associée
-                  </label>
-                  <select
-                    value={dueDays}
-                    onChange={(e) => setDueDays(Number(e.target.value))}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value={15}>15 jours</option>
-                    <option value={30}>30 jours (Standard)</option>
-                    <option value={45}>45 jours</option>
-                    <option value={60}>60 jours</option>
-                  </select>
-                </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <form onSubmit={handleCreateDeliveryBatch} className="mt-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Date de livraison *
+                    </label>
+                    <input
+                      required
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Échéance facture associée
+                    </label>
+                    <select
+                      value={dueDays}
+                      onChange={(e) => setDueDays(Number(e.target.value))}
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    >
+                      <option value={15}>15 jours</option>
+                      <option value={30}>30 jours (Standard)</option>
+                      <option value={45}>45 jours</option>
+                      <option value={60}>60 jours</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Transporteur
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="MIS SARL / Externe"
+                      value={carrierName}
+                      onChange={(e) => setCarrierName(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Nom Chauffeur
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Jean Mukendi"
+                      value={driverName}
+                      onChange={(e) => setDriverName(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Plaque véhicule
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="1234AB/05"
+                      value={vehiclePlate}
+                      onChange={(e) => setVehiclePlate(e.target.value)}
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-foreground">
-                    Transporteur
+                    Nom du réceptionnaire client (optionnel)
                   </label>
                   <input
                     type="text"
-                    placeholder="MIS SARL / Externe"
-                    value={carrierName}
-                    onChange={(e) => setCarrierName(e.target.value)}
+                    placeholder="Responsable magasin / réception client..."
+                    value={receiverName}
+                    onChange={(e) => setReceiverName(e.target.value)}
                     className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">
-                    Nom Chauffeur
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Jean Mukendi"
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">
-                    Plaque véhicule
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="1234AB/05"
-                    value={vehiclePlate}
-                    onChange={(e) => setVehiclePlate(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-foreground">
-                  Nom du réceptionnaire client (optionnel)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Responsable magasin / réception client..."
-                  value={receiverName}
-                  onChange={(e) => setReceiverName(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
+                {/* Items Allocation Table */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <span className="text-xs font-black uppercase tracking-wider text-muted-foreground block">
+                    Articles et quantités à livrer dans ce lot
+                  </span>
 
-              {/* Items Allocation Table */}
-              <div className="space-y-2 pt-2 border-t border-border">
-                <span className="text-xs font-black uppercase tracking-wider text-muted-foreground block">
-                  Articles et quantités à livrer dans ce lot
-                </span>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
+                        <tr>
+                          <th className="p-2.5 w-8 text-center">✓</th>
+                          <th className="p-2.5">Description</th>
+                          <th className="p-2.5 text-center">Disponible</th>
+                          <th className="p-2.5 text-center w-28">Qté à Livrer</th>
+                          <th className="p-2.5">Observation sur le BL</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {detailedOrder.items?.map((it) => {
+                          const avail = allocations[it.id]?.available ?? 0;
+                          const isChecked = !!batchSelectedIds[it.id] && avail > 0;
+                          const qty = batchQuantities[it.id] ?? avail;
+                          const obs = batchObservations[it.id] ?? "";
 
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
-                      <tr>
-                        <th className="p-2.5 w-8 text-center">✓</th>
-                        <th className="p-2.5">Description</th>
-                        <th className="p-2.5 text-center">Disponible</th>
-                        <th className="p-2.5 text-center w-28">Qté à Livrer</th>
-                        <th className="p-2.5">Observation sur le BL</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {detailedOrder.items?.map((it) => {
-                        const avail = allocations[it.id]?.available ?? 0;
-                        const isChecked = !!batchSelectedIds[it.id] && avail > 0;
-                        const qty = batchQuantities[it.id] ?? avail;
-                        const obs = batchObservations[it.id] ?? "";
-
-                        return (
-                          <tr
-                            key={it.id}
-                            className={avail === 0 ? "bg-secondary/20 opacity-50" : "bg-card"}
-                          >
-                            <td className="p-2.5 text-center">
-                              <input
-                                type="checkbox"
-                                disabled={avail <= 0}
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setBatchSelectedIds((prev) => ({ ...prev, [it.id]: checked }));
-                                  if (checked && !batchQuantities[it.id]) {
-                                    setBatchQuantities((prev) => ({ ...prev, [it.id]: avail }));
+                          return (
+                            <tr
+                              key={it.id}
+                              className={avail === 0 ? "bg-secondary/20 opacity-50" : "bg-card"}
+                            >
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  disabled={avail <= 0}
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setBatchSelectedIds((prev) => ({ ...prev, [it.id]: checked }));
+                                    if (checked && !batchQuantities[it.id]) {
+                                      setBatchQuantities((prev) => ({ ...prev, [it.id]: avail }));
+                                    }
+                                  }}
+                                  className="rounded size-4 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                              </td>
+                              <td className="p-2.5">
+                                <p className="font-bold text-foreground">{it.description}</p>
+                                {it.brand && (
+                                  <p className="text-[10px] text-muted-foreground">Marque : {it.brand}</p>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-center font-bold text-foreground">
+                                {avail} {it.unit}
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  max={avail}
+                                  step="any"
+                                  disabled={!isChecked}
+                                  value={qty}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    setBatchQuantities((prev) => ({
+                                      ...prev,
+                                      [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
+                                    }));
+                                  }}
+                                  className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                />
+                              </td>
+                              <td className="p-2.5">
+                                <input
+                                  type="text"
+                                  placeholder="ex: Colis 1/2, Bon état..."
+                                  disabled={!isChecked}
+                                  value={obs}
+                                  onChange={(e) =>
+                                    setBatchObservations((prev) => ({ ...prev, [it.id]: e.target.value }))
                                   }
-                                }}
-                                className="rounded size-4 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <p className="font-bold text-foreground">{it.description}</p>
-                              {it.brand && (
-                                <p className="text-[10px] text-muted-foreground">Marque : {it.brand}</p>
-                              )}
-                            </td>
-                            <td className="p-2.5 text-center font-bold text-foreground">
-                              {avail} {it.unit}
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <input
-                                type="number"
-                                min="0.01"
-                                max={avail}
-                                step="any"
-                                disabled={!isChecked}
-                                value={qty}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
-                                  setBatchQuantities((prev) => ({
-                                    ...prev,
-                                    [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
-                                  }));
-                                }}
-                                className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <input
-                                type="text"
-                                placeholder="ex: Colis 1/2, Bon état..."
-                                disabled={!isChecked}
-                                value={obs}
-                                onChange={(e) =>
-                                  setBatchObservations((prev) => ({ ...prev, [it.id]: e.target.value }))
-                                }
-                                className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                  className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-foreground">
-                  Notes / Instructions spécifiques pour ce lot
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Instructions de déchargement, références transport..."
-                  value={deliveryNotesText}
-                  onChange={(e) => setDeliveryNotesText(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Notes / Instructions spécifiques pour ce lot
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Instructions de déchargement, références transport..."
+                    value={deliveryNotesText}
+                    onChange={(e) => setDeliveryNotesText(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsDeliveryModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingBatch}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmittingBatch ? "Génération du lot..." : "Valider l'expédition & Générer BL + Facture"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="flex justify-end gap-3 pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setIsDeliveryModalOpen(false)}
+                    className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingBatch}
+                    className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingBatch ? "Génération du lot..." : "Valider l'expédition & Générer BL + Facture"}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

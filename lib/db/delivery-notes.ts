@@ -164,24 +164,54 @@ export async function getDeliveryNoteById(
   if (!rows || rows.length === 0) return null;
   const bl = rows[0] as unknown as DeliveryNoteRecord;
 
-  const itemRows = await sql`
-    SELECT 
-      dni.id,
-      dni.delivery_note_id as "deliveryNoteId",
-      dni.order_item_id as "orderItemId",
-      dni.item_id as "itemId",
-      dni.line_number as "lineNumber",
-      dni.description_snapshot as "description",
-      dni.unit_snapshot as "unit",
-      COALESCE(oi.brand_snapshot, it.brand) as "brand",
-      dni.quantity_delivered::float as "quantityDelivered",
-      COALESCE(dni.observation_snapshot, '') as "observation"
-    FROM delivery_note_items dni
-    JOIN order_items oi ON dni.order_item_id = oi.id
-    LEFT JOIN items it ON dni.item_id = it.id
-    WHERE dni.delivery_note_id = ${id}
-    ORDER BY dni.line_number ASC
-  `;
+  let itemRows: unknown[] = [];
+  try {
+    itemRows = await sql`
+      SELECT 
+        dni.id,
+        dni.delivery_note_id as "deliveryNoteId",
+        dni.order_item_id as "orderItemId",
+        dni.item_id as "itemId",
+        dni.line_number as "lineNumber",
+        dni.description_snapshot as "description",
+        dni.unit_snapshot as "unit",
+        COALESCE(
+          (SELECT brand_snapshot FROM order_items WHERE id = dni.order_item_id LIMIT 1),
+          (SELECT brand FROM items WHERE id = dni.item_id LIMIT 1)
+        ) as "brand",
+        dni.quantity_delivered::float as "quantityDelivered",
+        COALESCE(
+          (SELECT observation_snapshot FROM delivery_note_items WHERE id = dni.id LIMIT 1),
+          ''
+        ) as "observation"
+      FROM delivery_note_items dni
+      WHERE dni.delivery_note_id = ${id}
+      ORDER BY dni.line_number ASC
+    `;
+  } catch (err) {
+    console.error("[DB] getDeliveryNoteById items query failed:", err);
+    // Fallback: simpler query without optional columns from migration 005
+    try {
+      itemRows = await sql`
+        SELECT 
+          dni.id,
+          dni.delivery_note_id as "deliveryNoteId",
+          dni.order_item_id as "orderItemId",
+          dni.item_id as "itemId",
+          dni.line_number as "lineNumber",
+          dni.description_snapshot as "description",
+          dni.unit_snapshot as "unit",
+          NULL as "brand",
+          dni.quantity_delivered::float as "quantityDelivered",
+          '' as "observation"
+        FROM delivery_note_items dni
+        WHERE dni.delivery_note_id = ${id}
+        ORDER BY dni.line_number ASC
+      `;
+    } catch (fallbackErr) {
+      console.error("[DB] getDeliveryNoteById fallback items query also failed:", fallbackErr);
+    }
+  }
 
   bl.items = itemRows as unknown as DeliveryNoteLineItem[];
   return bl;

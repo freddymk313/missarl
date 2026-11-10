@@ -165,23 +165,50 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
   if (!rows || rows.length === 0) return null;
   const invoice = rows[0] as unknown as InvoiceRecord;
 
-  const itemRows = await sql`
-    SELECT 
-      id,
-      order_item_id as "orderItemId",
-      item_id as "itemId",
-      line_number as "lineNumber",
-      description_snapshot as "description",
-      unit_snapshot as "unit",
-      brand_snapshot as "brand",
-      COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
-      quantity::float as "quantity",
-      unit_price_snapshot::float as "unitPrice",
-      line_subtotal::float as "lineTotal"
-    FROM invoice_items
-    WHERE invoice_id = ${id}
-    ORDER BY line_number ASC
-  `;
+  let itemRows: unknown[] = [];
+  try {
+    itemRows = await sql`
+      SELECT 
+        id,
+        order_item_id as "orderItemId",
+        item_id as "itemId",
+        line_number as "lineNumber",
+        description_snapshot as "description",
+        unit_snapshot as "unit",
+        brand_snapshot as "brand",
+        COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
+        quantity::float as "quantity",
+        unit_price_snapshot::float as "unitPrice",
+        line_subtotal::float as "lineTotal"
+      FROM invoice_items
+      WHERE invoice_id = ${id}
+      ORDER BY line_number ASC
+    `;
+  } catch (err) {
+    console.error("[DB] getInvoiceById items query failed:", err);
+    // Fallback: simpler query without columns added in migration 005
+    try {
+      itemRows = await sql`
+        SELECT 
+          id,
+          order_item_id as "orderItemId",
+          item_id as "itemId",
+          line_number as "lineNumber",
+          description_snapshot as "description",
+          unit_snapshot as "unit",
+          NULL as "brand",
+          0::float as "discountPercent",
+          quantity::float as "quantity",
+          unit_price_snapshot::float as "unitPrice",
+          line_subtotal::float as "lineTotal"
+        FROM invoice_items
+        WHERE invoice_id = ${id}
+        ORDER BY line_number ASC
+      `;
+    } catch (fallbackErr) {
+      console.error("[DB] getInvoiceById fallback items query also failed:", fallbackErr);
+    }
+  }
 
   invoice.items = itemRows as unknown as InvoiceLineItem[];
   return invoice;
