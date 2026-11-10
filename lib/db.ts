@@ -129,24 +129,21 @@ export const sql = (async (
 ): Promise<any[]> => {
   await initDb();
 
-  // If real Neon is available, attempt real database query
+  // If real Neon is available, execute real database query directly.
+  // Never silently swallow errors and fall back to mock when DATABASE_URL is configured.
   if (rawNeon) {
-    try {
-      if (Array.isArray(strings) && "raw" in strings) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (await (rawNeon as any)(strings as TemplateStringsArray, ...values)) as any[];
-      }
-      if (typeof strings === "string") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res = await (rawNeon as any).query(strings, values);
-        return Array.isArray(res) ? res : res.rows || [];
-      }
-    } catch (neonErr) {
-      console.warn("[DB] Neon query failed, falling back to mock database:", neonErr);
+    if (Array.isArray(strings) && "raw" in strings) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (await (rawNeon as any)(strings as TemplateStringsArray, ...values)) as any[];
+    }
+    if (typeof strings === "string") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (rawNeon as any).query(strings, values);
+      return Array.isArray(res) ? res : res.rows || [];
     }
   }
 
-  // Fallback to in-memory mock store
+  // Fallback to in-memory mock store only when rawNeon is NOT configured
   const queryText = Array.isArray(strings) && "raw" in strings
     ? (strings as TemplateStringsArray).reduce((acc, str, i) => acc + str + (i < values.length ? `$${i + 1}` : ""), "")
     : String(strings);
@@ -157,12 +154,8 @@ export const sql = (async (
 sql.query = async (sqlText: string, params?: unknown[]) => {
   await initDb();
   if (rawNeon) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (rawNeon as any).query(sqlText, params || []);
-    } catch (neonErr) {
-      console.warn("[DB] Neon query failed, falling back to mock database:", neonErr);
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (rawNeon as any).query(sqlText, params || []);
   }
   return (await executeMockSql(sqlText, params || [])) as unknown as Record<string, unknown>[];
 };
@@ -171,12 +164,8 @@ sql.query = async (sqlText: string, params?: unknown[]) => {
 sql.transaction = async (queries: any) => {
   await initDb();
   if (rawNeon) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return await (rawNeon as any).transaction(queries);
-    } catch (neonErr) {
-      console.warn("[DB] Neon transaction failed, falling back to mock database:", neonErr);
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return await (rawNeon as any).transaction(queries);
   }
   if (Array.isArray(queries)) {
     const results = [];

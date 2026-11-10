@@ -317,7 +317,7 @@ export async function generateInvoicePdf(
     });
 
     // Line Total
-    const totStr = formatCurrency(line.lineTotal);
+    const totStr = formatCurrency(line.lineSubtotal);
     const totW = fontRegular.widthOfTextAtSize(totStr, 8.04);
     currentPage.drawText(totStr, {
       x: COL_X.total + COL_W.total - totW - 3,

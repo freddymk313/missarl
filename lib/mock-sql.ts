@@ -706,7 +706,7 @@ export async function executeMockSql(
     return [];
   }
 
-  if (lowerQ.includes("from order_items") && lowerQ.includes("where order_id =")) {
+  if (lowerQ.includes("from order_items") && (lowerQ.includes("order_id =") || lowerQ.includes("oi.order_id ="))) {
     const oId = values[0] as string;
     const items = mockDb.orderItems.filter((oi) => oi.order_id === oId);
     return items.map((oi) => ({
@@ -822,7 +822,11 @@ export async function executeMockSql(
   }
 
   // 11. Delivery Notes (Bons de Livraison)
-  if (lowerQ.includes("from delivery_note_items") && lowerQ.includes("where delivery_note_id =")) {
+  if (
+    lowerQ.includes("from delivery_note_items") &&
+    (lowerQ.includes("delivery_note_id =") || lowerQ.includes("dni.delivery_note_id =")) &&
+    !lowerQ.includes("group by")
+  ) {
     const blId = values[0] as string;
     return mockDb.deliveryNoteItems.filter((i) => i.delivery_note_id === blId).map((i) => ({
       id: i.id,
@@ -832,12 +836,13 @@ export async function executeMockSql(
       lineNumber: i.line_number,
       description: i.description_snapshot,
       unit: i.unit_snapshot,
+      brand: (i as unknown as Record<string, unknown>).brand_snapshot as string || null,
       quantityDelivered: i.quantity_delivered,
-      observation: i.observation_snapshot,
+      observation: i.observation_snapshot || null,
     }));
   }
 
-  if (lowerQ.includes("from delivery_note_items") && (lowerQ.includes("dn.order_id =") || lowerQ.includes("where o.id =") || lowerQ.includes("order_id"))) {
+  if (lowerQ.includes("from delivery_note_items") && (lowerQ.includes("dn.order_id =") || lowerQ.includes("group by"))) {
     const orderId = values[0] as string;
     const blsForOrder = mockDb.deliveryNotes.filter((bl) => bl.order_id === orderId);
     const blMap = new Map(blsForOrder.map((bl) => [bl.id, bl]));
@@ -1010,7 +1015,7 @@ export async function executeMockSql(
     return [{ id: newInv.id }];
   }
 
-  if (lowerQ.includes("from invoice_items") && lowerQ.includes("where invoice_id =")) {
+  if (lowerQ.includes("from invoice_items") && (lowerQ.includes("invoice_id =") || lowerQ.includes("ii.invoice_id ="))) {
     const invId = values[0] as string;
     return mockDb.invoiceItems.filter((i) => i.invoice_id === invId).map((i) => ({
       id: i.id,

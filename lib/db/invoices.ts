@@ -18,6 +18,7 @@ export interface InvoiceLineItem {
   quantity: number;
   unitPrice: number;
   lineSubtotal: number;
+  lineTotal?: number;
 }
 
 export interface InvoiceRecord {
@@ -179,14 +180,13 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
         COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
         quantity::float as "quantity",
         unit_price_snapshot::float as "unitPrice",
+        line_subtotal::float as "lineSubtotal",
         line_subtotal::float as "lineTotal"
       FROM invoice_items
       WHERE invoice_id = ${id}
       ORDER BY line_number ASC
     `;
-  } catch (err) {
-    console.error("[DB] getInvoiceById items query failed:", err);
-    // Fallback: simpler query without columns added in migration 005
+  } catch {
     try {
       itemRows = await sql`
         SELECT 
@@ -200,13 +200,15 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
           0::float as "discountPercent",
           quantity::float as "quantity",
           unit_price_snapshot::float as "unitPrice",
+          line_subtotal::float as "lineSubtotal",
           line_subtotal::float as "lineTotal"
         FROM invoice_items
         WHERE invoice_id = ${id}
         ORDER BY line_number ASC
       `;
     } catch (fallbackErr) {
-      console.error("[DB] getInvoiceById fallback items query also failed:", fallbackErr);
+      console.error("[DB] getInvoiceById fallback items query failed:", fallbackErr);
+      throw fallbackErr;
     }
   }
 

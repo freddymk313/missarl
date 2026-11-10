@@ -15,7 +15,8 @@ export interface InvoiceLineForPdf {
   quantity: number;
   unitPrice: number;
   discountPercent: number;
-  lineTotal: number;
+  lineSubtotal: number;
+  lineTotal?: number;
 }
 
 export interface InvoicePdfData {
@@ -73,7 +74,8 @@ export async function getInvoicePdfData(invoiceId: string): Promise<InvoicePdfDa
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     discountPercent: item.discountPercent ?? 0,
-    lineTotal: item.lineSubtotal ?? (item as unknown as { lineTotal?: number }).lineTotal ?? (item.quantity * item.unitPrice),
+    lineSubtotal: item.lineSubtotal,
+    lineTotal: item.lineSubtotal,
   }));
 
   return {

@@ -87,6 +87,7 @@ export function OrdersManager({
   >({});
   const [deliveryNotes, setDeliveryNotes] = useState<DeliveryNoteRecord[]>([]);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
+  const [orderDetailError, setOrderDetailError] = useState<string | null>(null);
 
   // ── Delivery Batch Creation Modal State ────────────────────────────────────
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
@@ -149,6 +150,7 @@ export function OrdersManager({
   // Load detailed order, allocations, and delivery notes when an order is opened
   const loadOrderFullDetails = async (orderId: string) => {
     setIsLoadingOrderDetails(true);
+    setOrderDetailError(null);
     try {
       const [orderRes, allocRes, blRes] = await Promise.all([
         getOrderDetailAction(orderId),
@@ -159,6 +161,8 @@ export function OrdersManager({
       if (orderRes.success && orderRes.order) {
         setDetailedOrder(orderRes.order);
         setSelectedOrder(orderRes.order);
+      } else if (!orderRes.success) {
+        setOrderDetailError(orderRes.error || "Impossible de récupérer les articles de cette commande.");
       }
       if (allocRes.success && allocRes.allocations) {
         setAllocations(allocRes.allocations);
@@ -166,6 +170,8 @@ export function OrdersManager({
       if (blRes.success && blRes.deliveryNotes) {
         setDeliveryNotes(blRes.deliveryNotes);
       }
+    } catch (err: unknown) {
+      setOrderDetailError(err instanceof Error ? err.message : "Erreur inattendue lors du chargement des détails.");
     } finally {
       setIsLoadingOrderDetails(false);
     }
@@ -174,6 +180,7 @@ export function OrdersManager({
   const handleSelectOrder = (order: OrderRecord) => {
     setSelectedOrder(order);
     setDetailedOrder(order);
+    setOrderDetailError(null);
     loadOrderFullDetails(order.id);
   };
 
@@ -651,8 +658,16 @@ export function OrdersManager({
               </h3>
               {isLoadingOrderDetails ? (
                 <p className="text-xs text-muted-foreground py-4 text-center">Chargement des disponibilités...</p>
+              ) : orderDetailError ? (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Erreur de chargement des articles</p>
+                    <p className="text-[11px] mt-0.5 opacity-90">{orderDetailError}</p>
+                  </div>
+                </div>
               ) : !detailedOrder?.items || detailedOrder.items.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">Aucun article enregistré.</p>
+                <p className="text-xs text-muted-foreground py-2">Aucun article enregistré sur cette commande.</p>
               ) : (
                 <div className="space-y-2">
                   {detailedOrder.items.map((item: OrderLineItem) => {

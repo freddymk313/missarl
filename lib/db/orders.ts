@@ -134,24 +134,52 @@ export async function getOrderById(id: string): Promise<OrderRecord | null> {
   if (!rows || rows.length === 0) return null;
   const order = rows[0] as unknown as OrderRecord;
 
-  const itemRows = await sql`
-    SELECT 
-      id,
-      quotation_item_id as "quotationItemId",
-      item_id as "itemId",
-      line_number as "lineNumber",
-      description_snapshot as "description",
-      unit_snapshot as "unit",
-      brand_snapshot as "brand",
-      COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
-      quantity_ordered::float as "quantityOrdered",
-      quantity_delivered::float as "quantityDelivered",
-      unit_price_snapshot::float as "unitPrice",
-      line_subtotal::float as "lineTotal"
-    FROM order_items
-    WHERE order_id = ${id}
-    ORDER BY line_number ASC
-  `;
+  let itemRows: unknown[] = [];
+  try {
+    itemRows = await sql`
+      SELECT 
+        id,
+        quotation_item_id as "quotationItemId",
+        item_id as "itemId",
+        line_number as "lineNumber",
+        description_snapshot as "description",
+        unit_snapshot as "unit",
+        brand_snapshot as "brand",
+        COALESCE(discount_percent_snapshot, 0)::float as "discountPercent",
+        quantity_ordered::float as "quantityOrdered",
+        quantity_delivered::float as "quantityDelivered",
+        unit_price_snapshot::float as "unitPrice",
+        line_subtotal::float as "lineTotal"
+      FROM order_items
+      WHERE order_id = ${id}
+      ORDER BY line_number ASC
+    `;
+  } catch {
+    try {
+      itemRows = await sql`
+        SELECT 
+          oi.id,
+          oi.quotation_item_id as "quotationItemId",
+          oi.item_id as "itemId",
+          oi.line_number as "lineNumber",
+          oi.description_snapshot as "description",
+          oi.unit_snapshot as "unit",
+          it.brand as "brand",
+          0::float as "discountPercent",
+          oi.quantity_ordered::float as "quantityOrdered",
+          oi.quantity_delivered::float as "quantityDelivered",
+          oi.unit_price_snapshot::float as "unitPrice",
+          oi.line_subtotal::float as "lineTotal"
+        FROM order_items oi
+        LEFT JOIN items it ON oi.item_id = it.id
+        WHERE oi.order_id = ${id}
+        ORDER BY oi.line_number ASC
+      `;
+    } catch (fallbackErr) {
+      console.error("[DB] getOrderById fallback query failed:", fallbackErr);
+      throw fallbackErr;
+    }
+  }
 
   order.items = itemRows as unknown as OrderLineItem[];
   return order;
@@ -319,30 +347,53 @@ export async function createOrderFromQuotation(data: {
 
   const orderId = orderRows[0].id as string;
 
-  // 5. Insert lines with snapshots
+  // 5. Insert lines with snapshots (with compatibility fallback if migration 005 is not yet applied)
   for (const item of itemsToInsert) {
-    await sql`
-      INSERT INTO order_items (
-        order_id, quotation_item_id, item_id, line_number,
-        description_snapshot, unit_snapshot, quantity_ordered,
-        quantity_delivered, unit_price_snapshot, line_subtotal,
-        brand_snapshot, discount_percent_snapshot
-      )
-      VALUES (
-        ${orderId},
-        ${item.quotationItemId},
-        ${item.itemId},
-        ${item.lineNumber},
-        ${item.description},
-        ${item.unit},
-        ${item.quantity},
-        0,
-        ${item.unitPrice},
-        ${item.lineSubtotal},
-        ${item.brand},
-        ${item.discountPercent}
-      )
-    `;
+    try {
+      await sql`
+        INSERT INTO order_items (
+          order_id, quotation_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity_ordered,
+          quantity_delivered, unit_price_snapshot, line_subtotal,
+          brand_snapshot, discount_percent_snapshot
+        )
+        VALUES (
+          ${orderId},
+          ${item.quotationItemId},
+          ${item.itemId},
+          ${item.lineNumber},
+          ${item.description},
+          ${item.unit},
+          ${item.quantity},
+          0,
+          ${item.unitPrice},
+          ${item.lineSubtotal},
+          ${item.brand},
+          ${item.discountPercent}
+        )
+      `;
+    } catch (insertErr) {
+      console.warn("[DB] order_items insert with brand/discount snapshot failed. Retrying with pre-005 schema:", insertErr);
+      await sql`
+        INSERT INTO order_items (
+          order_id, quotation_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity_ordered,
+          quantity_delivered, unit_price_snapshot, line_subtotal
+        )
+        VALUES (
+          ${orderId},
+          ${item.quotationItemId},
+          ${item.itemId},
+          ${item.lineNumber},
+          ${item.description},
+          ${item.unit},
+          ${item.quantity},
+          0,
+          ${item.unitPrice},
+          ${item.lineSubtotal}
+        )
+      `;
+    }
   }
 
   // 6. Audit log

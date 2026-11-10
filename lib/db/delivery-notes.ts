@@ -175,22 +175,16 @@ export async function getDeliveryNoteById(
         dni.line_number as "lineNumber",
         dni.description_snapshot as "description",
         dni.unit_snapshot as "unit",
-        COALESCE(
-          (SELECT brand_snapshot FROM order_items WHERE id = dni.order_item_id LIMIT 1),
-          (SELECT brand FROM items WHERE id = dni.item_id LIMIT 1)
-        ) as "brand",
+        COALESCE(oi.brand_snapshot, it.brand) as "brand",
         dni.quantity_delivered::float as "quantityDelivered",
-        COALESCE(
-          (SELECT observation_snapshot FROM delivery_note_items WHERE id = dni.id LIMIT 1),
-          ''
-        ) as "observation"
+        COALESCE(dni.observation_snapshot, '') as "observation"
       FROM delivery_note_items dni
+      JOIN order_items oi ON dni.order_item_id = oi.id
+      LEFT JOIN items it ON dni.item_id = it.id
       WHERE dni.delivery_note_id = ${id}
       ORDER BY dni.line_number ASC
     `;
-  } catch (err) {
-    console.error("[DB] getDeliveryNoteById items query failed:", err);
-    // Fallback: simpler query without optional columns from migration 005
+  } catch {
     try {
       itemRows = await sql`
         SELECT 
@@ -201,15 +195,17 @@ export async function getDeliveryNoteById(
           dni.line_number as "lineNumber",
           dni.description_snapshot as "description",
           dni.unit_snapshot as "unit",
-          NULL as "brand",
+          it.brand as "brand",
           dni.quantity_delivered::float as "quantityDelivered",
           '' as "observation"
         FROM delivery_note_items dni
+        LEFT JOIN items it ON dni.item_id = it.id
         WHERE dni.delivery_note_id = ${id}
         ORDER BY dni.line_number ASC
       `;
     } catch (fallbackErr) {
-      console.error("[DB] getDeliveryNoteById fallback items query also failed:", fallbackErr);
+      console.error("[DB] getDeliveryNoteById fallback items query failed:", fallbackErr);
+      throw fallbackErr;
     }
   }
 
@@ -392,25 +388,43 @@ export async function createDeliveryBatch(data: {
   const currentYear = new Date().getFullYear();
 
   // 4. Concurrency-safe sequential numbering
-  const blCounterRows = await sql`
-    INSERT INTO document_counters (doc_type, year, current_val)
-    VALUES ('DELIVERY_NOTE', ${currentYear}, 1)
-    ON CONFLICT (doc_type, year)
-    DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
-    RETURNING current_val;
-  `;
-  const nextSeqBL = blCounterRows[0]?.current_val ?? 1;
-  const blNumber = `MIS/BL/${currentYear}/${String(nextSeqBL).padStart(3, "0")}`;
+  let blNumber: string;
+  try {
+    const blCounterRows = await sql`
+      INSERT INTO document_counters (doc_type, year, current_val)
+      VALUES ('DELIVERY_NOTE', ${currentYear}, 1)
+      ON CONFLICT (doc_type, year)
+      DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
+      RETURNING current_val;
+    `;
+    const nextSeqBL = blCounterRows[0]?.current_val ?? 1;
+    blNumber = `MIS/BL/${currentYear}/${String(nextSeqBL).padStart(3, "0")}`;
+  } catch {
+    const countRows = await sql`
+      SELECT COUNT(*)::int as count FROM delivery_notes WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
+    `;
+    const nextSeqBL = (Number(countRows[0]?.count) || 0) + 1;
+    blNumber = `MIS/BL/${currentYear}/${String(nextSeqBL).padStart(3, "0")}`;
+  }
 
-  const invCounterRows = await sql`
-    INSERT INTO document_counters (doc_type, year, current_val)
-    VALUES ('INVOICE', ${currentYear}, 1)
-    ON CONFLICT (doc_type, year)
-    DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
-    RETURNING current_val;
-  `;
-  const nextSeqFAC = invCounterRows[0]?.current_val ?? 1;
-  const invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeqFAC).padStart(3, "0")}`;
+  let invoiceNumber: string;
+  try {
+    const invCounterRows = await sql`
+      INSERT INTO document_counters (doc_type, year, current_val)
+      VALUES ('INVOICE', ${currentYear}, 1)
+      ON CONFLICT (doc_type, year)
+      DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
+      RETURNING current_val;
+    `;
+    const nextSeqFAC = invCounterRows[0]?.current_val ?? 1;
+    invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeqFAC).padStart(3, "0")}`;
+  } catch {
+    const countRows = await sql`
+      SELECT COUNT(*)::int as count FROM invoices WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
+    `;
+    const nextSeqFAC = (Number(countRows[0]?.count) || 0) + 1;
+    invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeqFAC).padStart(3, "0")}`;
+  }
 
   // 5. Compute Due Date
   const dueDays = data.dueDays ?? 30;
@@ -448,29 +462,51 @@ export async function createDeliveryBatch(data: {
   `;
   const invoiceId = invoiceRows[0].id as string;
 
-  // 7. Create Invoice Items
+  // 7. Create Invoice Items (with compatibility fallback if migration 005 columns not yet present)
   for (const vi of validatedItems) {
-    await sql`
-      INSERT INTO invoice_items (
-        invoice_id, order_item_id, item_id, line_number,
-        description_snapshot, unit_snapshot, quantity,
-        unit_price_snapshot, line_subtotal,
-        brand_snapshot, discount_percent_snapshot
-      )
-      VALUES (
-        ${invoiceId},
-        ${vi.orderItem.id},
-        ${vi.orderItem.itemId || null},
-        ${vi.orderItem.lineNumber},
-        ${vi.orderItem.description},
-        ${vi.orderItem.unit},
-        ${vi.quantityToDeliver},
-        ${vi.orderItem.unitPrice},
-        ${vi.lineSubtotal},
-        ${vi.orderItem.brand || null},
-        ${vi.orderItem.discountPercent || 0.00}
-      )
-    `;
+    try {
+      await sql`
+        INSERT INTO invoice_items (
+          invoice_id, order_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity,
+          unit_price_snapshot, line_subtotal,
+          brand_snapshot, discount_percent_snapshot
+        )
+        VALUES (
+          ${invoiceId},
+          ${vi.orderItem.id},
+          ${vi.orderItem.itemId || null},
+          ${vi.orderItem.lineNumber},
+          ${vi.orderItem.description},
+          ${vi.orderItem.unit},
+          ${vi.quantityToDeliver},
+          ${vi.orderItem.unitPrice},
+          ${vi.lineSubtotal},
+          ${vi.orderItem.brand || null},
+          ${vi.orderItem.discountPercent || 0.00}
+        )
+      `;
+    } catch (iiErr) {
+      console.warn("[DB] invoice_items insert with brand/discount snapshot failed. Retrying with pre-005 schema:", iiErr);
+      await sql`
+        INSERT INTO invoice_items (
+          invoice_id, order_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity,
+          unit_price_snapshot, line_subtotal
+        )
+        VALUES (
+          ${invoiceId},
+          ${vi.orderItem.id},
+          ${vi.orderItem.itemId || null},
+          ${vi.orderItem.lineNumber},
+          ${vi.orderItem.description},
+          ${vi.orderItem.unit},
+          ${vi.quantityToDeliver},
+          ${vi.orderItem.unitPrice},
+          ${vi.lineSubtotal}
+        )
+      `;
+    }
   }
 
   // 8. Create Delivery Note Header
@@ -498,25 +534,44 @@ export async function createDeliveryBatch(data: {
   `;
   const blId = blRows[0].id as string;
 
-  // 9. Create Delivery Note Items
+  // 9. Create Delivery Note Items (with compatibility fallback if migration 005 columns not yet present)
   for (const vi of validatedItems) {
-    await sql`
-      INSERT INTO delivery_note_items (
-        delivery_note_id, order_item_id, item_id, line_number,
-        description_snapshot, unit_snapshot, quantity_delivered,
-        observation_snapshot
-      )
-      VALUES (
-        ${blId},
-        ${vi.orderItem.id},
-        ${vi.orderItem.itemId || null},
-        ${vi.orderItem.lineNumber},
-        ${vi.orderItem.description},
-        ${vi.orderItem.unit},
-        ${vi.quantityToDeliver},
-        ${vi.observation || null}
-      )
-    `;
+    try {
+      await sql`
+        INSERT INTO delivery_note_items (
+          delivery_note_id, order_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity_delivered,
+          observation_snapshot
+        )
+        VALUES (
+          ${blId},
+          ${vi.orderItem.id},
+          ${vi.orderItem.itemId || null},
+          ${vi.orderItem.lineNumber},
+          ${vi.orderItem.description},
+          ${vi.orderItem.unit},
+          ${vi.quantityToDeliver},
+          ${vi.observation || null}
+        )
+      `;
+    } catch (dniErr) {
+      console.warn("[DB] delivery_note_items insert with observation_snapshot failed. Retrying with pre-005 schema:", dniErr);
+      await sql`
+        INSERT INTO delivery_note_items (
+          delivery_note_id, order_item_id, item_id, line_number,
+          description_snapshot, unit_snapshot, quantity_delivered
+        )
+        VALUES (
+          ${blId},
+          ${vi.orderItem.id},
+          ${vi.orderItem.itemId || null},
+          ${vi.orderItem.lineNumber},
+          ${vi.orderItem.description},
+          ${vi.orderItem.unit},
+          ${vi.quantityToDeliver}
+        )
+      `;
+    }
   }
 
   // 10. Audit log
