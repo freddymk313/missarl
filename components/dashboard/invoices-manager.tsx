@@ -266,6 +266,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
       <DetailSheet
         isOpen={!!selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
+        size="xl"
         title={selectedInvoice?.invoiceNumber || "Détail de la Facture"}
         statusBadge={selectedInvoice ? <StatusBadge status={selectedInvoice.status} /> : undefined}
       >
