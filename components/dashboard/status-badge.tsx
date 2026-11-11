@@ -10,32 +10,32 @@ export interface StatusConfig {
 export const STATUS_MAP: Record<string, StatusConfig> = {
   // Quotations
   DRAFT: {
-    label: "Brouillon",
+    label: "Draft",
     pillClasses: "bg-muted text-muted-foreground border-border",
     dotClasses: "bg-muted-foreground",
   },
   SUBMITTED: {
-    label: "Soumis",
+    label: "Submitted",
     pillClasses: "bg-primary/10 text-primary border-primary/20",
     dotClasses: "bg-primary",
   },
   VALIDATED: {
-    label: "Validé",
+    label: "Validated",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
   EXPIRED: {
-    label: "Expiré",
+    label: "Expired",
     pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
     dotClasses: "bg-bronze",
   },
   REJECTED: {
-    label: "Rejeté",
+    label: "Rejected",
     pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
     dotClasses: "bg-destructive",
   },
   CANCELLED: {
-    label: "Annulé",
+    label: "Cancelled",
     pillClasses: "bg-muted text-muted-foreground border-border opacity-70",
     dotClasses: "bg-muted-foreground",
     struck: true,
@@ -43,90 +43,90 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
 
   // Orders
   PENDING: {
-    label: "En attente",
+    label: "Pending",
     pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
     dotClasses: "bg-bronze",
   },
   CONFIRMED: {
-    label: "Confirmée",
+    label: "Confirmed",
     pillClasses: "bg-primary/10 text-primary border-primary/20",
     dotClasses: "bg-primary",
   },
   PARTIALLY_DELIVERED: {
-    label: "Livrée partiellement",
+    label: "Partially Delivered",
     pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
     dotClasses: "bg-bronze",
   },
   COMPLETED: {
-    label: "Terminée",
+    label: "Completed",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
 
   // Invoices
   ISSUED: {
-    label: "Émise",
+    label: "Issued",
     pillClasses: "bg-primary/10 text-primary border-primary/20",
     dotClasses: "bg-primary",
   },
   PARTIALLY_PAID: {
-    label: "Partiellement payée",
+    label: "Partially Paid",
     pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
     dotClasses: "bg-bronze",
   },
   PAID: {
-    label: "Payée",
+    label: "Paid",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
   OVERDUE: {
-    label: "En retard",
+    label: "Overdue",
     pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
     dotClasses: "bg-destructive",
   },
 
   // Delivery notes
   PREPARED: {
-    label: "Préparé",
+    label: "Prepared",
     pillClasses: "bg-muted text-muted-foreground border-border",
     dotClasses: "bg-muted-foreground",
   },
   IN_TRANSIT: {
-    label: "En transit",
+    label: "In Transit",
     pillClasses: "bg-primary/10 text-primary border-primary/20",
     dotClasses: "bg-primary",
   },
   DELIVERED: {
-    label: "Livré",
+    label: "Delivered",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
 
   // Payments
   RECORDED: {
-    label: "Enregistré",
+    label: "Recorded",
     pillClasses: "bg-muted text-muted-foreground border-border",
     dotClasses: "bg-muted-foreground",
   },
   RECONCILED: {
-    label: "Rapproché",
+    label: "Reconciled",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
 
   // Document exports
   GENERATED: {
-    label: "Généré",
+    label: "Generated",
     pillClasses: "bg-success/15 text-success border-success/30",
     dotClasses: "bg-success",
   },
   FAILED: {
-    label: "Échec",
+    label: "Failed",
     pillClasses: "bg-destructive/15 text-destructive border-destructive/30",
     dotClasses: "bg-destructive",
   },
   MODIFIED: {
-    label: "Modifié",
+    label: "Modified",
     pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
     dotClasses: "bg-bronze",
   },

@@ -14,11 +14,10 @@ export default async function FacturesPage() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Factures de Vente & Bon de livraison
+              Sales Invoices & Delivery Notes
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Suivi des factures émises, calculs de TVA 16%, gestion des
-              échéances et états de paiement.
+              Track issued invoices, 16% VAT calculations, due dates, and payment statuses.
             </p>
           </div>
         </div>

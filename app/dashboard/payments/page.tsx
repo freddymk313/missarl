@@ -32,10 +32,10 @@ export default async function PaymentsPage({
           <div>
             
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Règlements & Paiements Reçus
+              Settlements &amp; Payments Received
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Enregistrement des versements bancaires, justification par bordereau et affectation multi-factures.
+              Record bank transfers, justify with payment slips, and allocate across multiple invoices.
             </p>
           </div>
         </div>

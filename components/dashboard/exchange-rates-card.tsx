@@ -90,8 +90,8 @@ export function ExchangeRatesCard({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-border pb-3">
+    <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-border pb-3">
         <h3 className="text-sm font-black text-primary flex items-center gap-2">
           <DollarSign className="size-4 text-primary" /> Taux de Change & Devises
         </h3>

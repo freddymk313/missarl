@@ -52,15 +52,15 @@ type NavEntry = NavLeaf | NavGroup;
 const navigationStructure: NavEntry[] = [
   {
     href: "/dashboard",
-    label: "Tableau de bord",
+    label: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
   },
   {
-    groupTitle: "Catalogue",
+    groupTitle: "Catalog",
     items: [
-      { href: "/dashboard/items", label: "Articles", icon: Package },
-      { href: "/dashboard/suppliers", label: "Fournisseurs", icon: Truck },
+      { href: "/dashboard/items", label: "Items & Pricing", icon: Package },
+      { href: "/dashboard/suppliers", label: "Suppliers", icon: Truck },
     ],
   },
   {
@@ -69,21 +69,21 @@ const navigationStructure: NavEntry[] = [
     icon: Building2,
   },
   {
-    groupTitle: "Ventes",
+    groupTitle: "Sales",
     collapsible: true,
     items: [
-      { href: "/dashboard/quotes", label: "Devis", icon: FileSpreadsheet },
-      { href: "/dashboard/orders", label: "Commandes (PO)", icon: ShoppingCart },
-      { href: "/dashboard/invoices", label: "Factures", icon: Receipt },
-      { href: "/dashboard/payments", label: "Paiements", icon: CreditCard },
-      { href: "/dashboard/statements", label: "Relevés de compte", icon: FileText },
+      { href: "/dashboard/quotes", label: "Quotations (RFQ)", icon: FileSpreadsheet },
+      { href: "/dashboard/orders", label: "Customer Orders (PO)", icon: ShoppingCart },
+      { href: "/dashboard/invoices", label: "Invoices & Notes", icon: Receipt },
+      { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
+      { href: "/dashboard/statements", label: "Account Statements", icon: FileText },
     ],
   },
   {
     groupTitle: "Administration",
     items: [
-      { href: "/dashboard/users", label: "Utilisateurs", icon: Users },
-      { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
+      { href: "/dashboard/users", label: "Users", icon: Users },
+      { href: "/dashboard/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -117,7 +117,9 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex w-[264px] flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0 h-screen overflow-hidden",
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0 h-[100dvh] overflow-hidden",
+          // Mobile: 85vw up to 320px; Desktop: fixed 264px
+          "w-[min(85vw,320px)] lg:w-[264px]",
           mobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
         )}
       >
@@ -191,7 +193,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                         className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
                       >
                         <UserIcon className="size-3.5 text-muted-foreground" />
-                        <span>Mon compte</span>
+                        <span>My Account</span>
                       </Link>
                     )}
 
@@ -201,7 +203,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                         className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <LogOut className="size-3.5" />
-                        <span>Se déconnecter</span>
+                        <span>Sign out</span>
                       </button>
                     </form>
                   </div>
@@ -218,7 +220,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Rechercher..."
+                placeholder="Search..."
                 className="h-9 w-full rounded-xl border border-border bg-secondary/50 pl-8 pr-8 text-xs placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring transition-colors"
               />
               <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-card px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/70">
@@ -330,7 +332,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                           className={cn(
                             "group relative flex h-10 items-center justify-between rounded-[10px] px-3 text-xs font-semibold transition-all",
                             isActive
-                              ? "bg-secondary text-primary font-bold shadow-2xs"
+                              ? "bg-secondary text-primary *font-bold shadow-2xs"
                               : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                           )}
                         >
@@ -367,9 +369,9 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
         <div className="shrink-0 p-3 border-t border-border bg-card">
           {user.role === "PRICE_COLLECTOR" ? (
             <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
-              <p className="text-xs font-bold leading-tight">Rechercher un article</p>
+              <p className="text-xs font-bold leading-tight">Find an item</p>
               <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
-                Consultez les fiches techniques et prix catalogue en temps réel.
+                Browse technical datasheets and live catalog prices.
               </p>
               <Link
                 href="/dashboard/items"
@@ -377,14 +379,14 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                 className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition-colors shadow-2xs"
               >
                 <Search className="size-3.5" />
-                <span>Ouvrir catalogue</span>
+                <span>Open catalog</span>
               </Link>
             </div>
           ) : (
             <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
-              <p className="text-xs font-bold leading-tight">Nouveau devis</p>
+              <p className="text-xs font-bold leading-tight">New Quotation</p>
               <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
-                Répondez à une demande de prix (RFQ) en quelques minutes.
+                Respond to a request for quotation (RFQ) in minutes.
               </p>
               <Link
                 href="/dashboard/quotes/new"
@@ -392,7 +394,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                 className="mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition-colors shadow-2xs"
               >
                 <Plus className="size-3.5" />
-                <span>Créer un devis</span>
+                <span>Create Quotation</span>
               </Link>
             </div>
           )}

@@ -21,6 +21,7 @@ import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { formatUSD } from "@/lib/formatters";
 
 interface InvoicesManagerProps {
@@ -54,7 +55,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
         normalizedInput.trim() || null
       );
       if (!res.success) {
-        alert(res.error || "Erreur de mise à jour");
+        alert(res.error || "Update failed");
       } else if (res.invoice) {
         setInvoices((prev) => prev.map((i) => (i.id === selectedInvoice.id ? res.invoice! : i)));
         setSelectedInvoice(res.invoice);
@@ -83,13 +84,13 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
 
   const handleCancelInvoice = async (id: string) => {
     if (!cancellationReason.trim()) {
-      alert("Veuillez saisir un motif d'annulation explicite.");
+      alert("Please provide an explicit cancellation reason.");
       return;
     }
 
     const res = await cancelInvoiceAction(id, cancellationReason);
     if (!res.success) {
-      alert(res.error || "Erreur d'annulation.");
+      alert(res.error || "Cancellation failed.");
     } else if (res.invoice) {
       setInvoices((prev) => prev.map((i) => (i.id === id ? res.invoice! : i)));
       if (selectedInvoice?.id === id) {
@@ -106,19 +107,19 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Factures
+            Total Invoices
           </p>
           <p className="text-xl font-black text-primary mt-1">{invoices.length}</p>
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Factures Non Soldées
+            Unpaid Invoices
           </p>
           <p className="text-xl font-black text-warning mt-1">{unpaidCount}</p>
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Volume Total Facturé
+            Total Invoiced Volume
           </p>
           <p className="text-xl font-black text-primary font-mono mt-1">
              {formatUSD(totalInvoiced)}
@@ -126,7 +127,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Créances à Recouvrer
+            Outstanding Receivables
           </p>
           <p className="text-xl font-black text-destructive font-mono mt-1">
              {formatUSD(totalReceivables)}
@@ -141,7 +142,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Rechercher par N° facture, client, commande..."
+              placeholder="Search by invoice no., client, order..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
@@ -156,12 +157,12 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
           >
-            <option value="ALL">Tous statuts</option>
-            <option value="ISSUED">Émise</option>
-            <option value="PARTIALLY_PAID">Partiellement payée</option>
-            <option value="PAID">Payée intégralement</option>
-            <option value="OVERDUE">Échue</option>
-            <option value="CANCELLED">Annulée</option>
+            <option value="ALL">All statuses</option>
+            <option value="ISSUED">Issued</option>
+            <option value="PARTIALLY_PAID">Partially paid</option>
+            <option value="PAID">Fully paid</option>
+            <option value="OVERDUE">Overdue</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
 
@@ -169,25 +170,25 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
           href="/dashboard/orders"
           className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0"
         >
-          <Receipt className="size-4" /> Facturer depuis une commande
+          <Receipt className="size-4" /> Invoice from an Order
         </Link>
       </div>
 
-      {/* Invoices Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      {/* Invoices Table - Desktop View */}
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="py-3.5 px-4">N° Facture</th>
+                <th className="py-3.5 px-4">Invoice No.</th>
                 <th className="py-3.5 px-4">Client</th>
-                <th className="py-3.5 px-4">Commande & BL</th>
-                <th className="py-3.5 px-4">Émise le</th>
-                <th className="py-3.5 px-4">Échéance</th>
-                <th className="py-3.5 px-4 text-right">Total TTC</th>
-                <th className="py-3.5 px-4 text-right">Payé</th>
-                <th className="py-3.5 px-4 text-right">Solde Dû</th>
-                <th className="py-3.5 px-4 text-center">Statut</th>
+                <th className="py-3.5 px-4">Order & Delivery Note</th>
+                <th className="py-3.5 px-4">Issue Date</th>
+                <th className="py-3.5 px-4">Due Date</th>
+                <th className="py-3.5 px-4 text-right">Total (incl. tax)</th>
+                <th className="py-3.5 px-4 text-right">Paid</th>
+                <th className="py-3.5 px-4 text-right">Balance Due</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-center">Actions & PDF</th>
               </tr>
             </thead>
@@ -196,9 +197,9 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                 <tr>
                   <td colSpan={10} className="py-16 text-center text-muted-foreground">
                     <Receipt className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-                    <p className="font-bold text-foreground">Aucune facture trouvée</p>
+                    <p className="font-bold text-foreground">No invoices found</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Les factures sont émises automatiquement lors de chaque lot de livraison.
+                      Invoices are generated automatically with each delivery batch.
                     </p>
                   </td>
                 </tr>
@@ -214,7 +215,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                       {inv.normalizedInvoiceNumber && (
                         <p
                           className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[150px]"
-                          title={`Normalisée: ${inv.normalizedInvoiceNumber}`}
+                          title={`Standardized: ${inv.normalizedInvoiceNumber}`}
                         >
                           {inv.normalizedInvoiceNumber}
                         </p>
@@ -224,7 +225,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                     <td className="py-3.5 px-4">
                       <div className="space-y-0.5">
                         <span className="font-mono text-xs text-muted-foreground block">
-                          {inv.orderNumber || "Directe"}
+                          {inv.orderNumber || "Direct"}
                         </span>
                         {inv.deliveryNoteNumber && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary">
@@ -253,7 +254,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                           type="button"
                           onClick={() => setSelectedInvoice(inv)}
                           className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
-                          title="Aperçu détails"
+                          title="View details"
                         >
                           <Eye className="size-3.5" />
                         </button>
@@ -262,14 +263,14 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
-                          title="Aperçu Facture PDF"
+                          title="Preview Invoice PDF"
                         >
                           <FileText className="size-3.5" />
                         </a>
                         <a
                           href={`/api/invoices/${inv.id}/pdf?disposition=attachment`}
                           className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          title="Télécharger Facture PDF"
+                          title="Download Invoice PDF"
                         >
                           <Download className="size-3.5" />
                         </a>
@@ -277,9 +278,9 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                           <Link
                             href={`/dashboard/payments?client=${inv.clientId}&invoice=${inv.id}`}
                             className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2 py-1 text-[10px] font-bold text-success hover:bg-success/25 transition-colors border border-success/30 ml-0.5"
-                            title="Encaisser un paiement"
+                            title="Record payment"
                           >
-                            <CreditCard className="size-3" /> Payer
+                            <CreditCard className="size-3" /> Pay
                           </Link>
                         )}
                         {inv.paidAmount === 0 && inv.status !== "CANCELLED" && (
@@ -287,7 +288,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                             type="button"
                             onClick={() => setCancellingId(inv.id)}
                             className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                            title="Annuler avec motif"
+                            title="Cancel with reason"
                           >
                             <XCircle className="size-3.5" />
                           </button>
@@ -302,18 +303,94 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
         </div>
       </div>
 
+      {/* Invoices - Mobile Cards View */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="py-12 text-center rounded-2xl border border-dashed border-border bg-card">
+            <Receipt className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+            <p className="font-bold text-foreground text-sm">No invoices found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Invoices are generated automatically with each delivery batch.
+            </p>
+          </div>
+        ) : (
+          filtered.map((inv) => (
+            <div
+              key={inv.id}
+              onClick={() => openInvoiceDetails(inv)}
+              className="rounded-2xl border border-border bg-card p-4 shadow-xs cursor-pointer active:scale-[0.99] transition-transform space-y-2.5"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <RefChip value={inv.invoiceNumber} />
+                <StatusBadge status={inv.status} />
+              </div>
+
+              <div>
+                <h4 className="text-sm font-bold text-foreground truncate">{inv.clientName}</h4>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                  {inv.orderNumber && <span>PO: {inv.orderNumber}</span>}
+                  {inv.deliveryNoteNumber && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+                      <Truck className="size-3" /> {inv.deliveryNoteNumber}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Date: {inv.issueDate}</span>
+                <span className={inv.status === "OVERDUE" ? "text-destructive font-bold" : ""}>
+                  Due: {inv.dueDate}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                <div>
+                  <MoneyText amount={inv.total} className="text-xs font-bold text-foreground font-mono" />
+                  {inv.balanceDue > 0 && (
+                    <p className="text-[10px] text-destructive font-bold">
+                      Due: {formatUSD(inv.balanceDue)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <a
+                    href={`/api/invoices/${inv.id}/pdf?disposition=inline`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                    title="Preview Invoice PDF"
+                  >
+                    <FileText className="size-4" />
+                  </a>
+                  {inv.balanceDue > 0 && inv.status !== "CANCELLED" && (
+                    <Link
+                      href={`/dashboard/payments?client=${inv.clientId}&invoice=${inv.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-success/15 px-2.5 py-1 text-[10px] font-bold text-success border border-success/30"
+                    >
+                      <CreditCard className="size-3" /> Pay
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Detail Sheet for Invoice */}
       <DetailSheet
         isOpen={!!selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
         size="xl"
-        title={selectedInvoice?.invoiceNumber || "Détail de la Facture"}
+        title={selectedInvoice?.invoiceNumber || "Invoice Details"}
         statusBadge={selectedInvoice ? <StatusBadge status={selectedInvoice.status} /> : undefined}
       >
         {selectedInvoice && (
           <div className="space-y-6">
             <div>
-              <p className="text-xs font-bold text-muted-foreground">Client facturé</p>
+              <p className="text-xs font-bold text-muted-foreground">Billed Client</p>
               <h2 className="text-base font-black text-foreground mt-0.5 flex items-center gap-2">
                 <Building2 className="size-4 text-primary" />
                 {selectedInvoice.clientName}
@@ -321,37 +398,37 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile label="Date d'émission" value={selectedInvoice.issueDate} />
-              <KeyValueTile label="Date d'échéance" value={selectedInvoice.dueDate} />
-              <KeyValueTile label="Commande liée" value={selectedInvoice.orderNumber || "Directe"} />
-              <KeyValueTile label="PO N° Client" value={selectedInvoice.clientPoNumber || "—"} />
-              <KeyValueTile label="BL associé" value={selectedInvoice.deliveryNoteNumber || "—"} />
-              <KeyValueTile label="Taux TVA" value={`${selectedInvoice.vatRate}%`} />
+              <KeyValueTile label="Issue Date" value={selectedInvoice.issueDate} />
+              <KeyValueTile label="Due Date" value={selectedInvoice.dueDate} />
+              <KeyValueTile label="Linked Order" value={selectedInvoice.orderNumber || "Direct"} />
+              <KeyValueTile label="Client PO No." value={selectedInvoice.clientPoNumber || "—"} />
+              <KeyValueTile label="Associated Delivery Note" value={selectedInvoice.deliveryNoteNumber || "—"} />
+              <KeyValueTile label="VAT Rate" value={`${selectedInvoice.vatRate}%`} />
             </div>
 
             {/* Normalized Invoice Number Configuration Box */}
             <div className="rounded-xl border border-border bg-secondary/30 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-foreground">
-                  Numéro Facture Normalisée (DGI / Fiscal)
+                  Standardized Invoice Number (Fiscal / Tax ID)
                 </label>
                 {selectedInvoice.normalizedInvoiceNumber ? (
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground font-bold">
-                    Assigné
+                    Assigned
                   </span>
                 ) : (
                   <span className="text-[10px] text-muted-foreground italic">
-                    Non renseigné (—)
+                    Not specified (—)
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Identifiant fiscal officiel utilisé sur le relevé de factures impayées (ex: <code className="font-mono text-primary font-bold">FC/CD02035320/1-6/2026</code>).
+                Official fiscal identifier used on statement of unpaid invoices (e.g. <code className="font-mono text-primary font-bold">FC/CD02035320/1-6/2026</code>).
               </p>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="ex: FC/CD02035320/1-6/2026"
+                  placeholder="e.g. FC/CD02035320/1-6/2026"
                   value={normalizedInput}
                   onChange={(e) => setNormalizedInput(e.target.value)}
                   className="h-8 flex-1 rounded-lg border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
@@ -364,12 +441,12 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                 >
                   {normalizedSaved ? (
                     <>
-                      <Check className="size-3.5 text-accent" /> Enregistré
+                      <Check className="size-3.5 text-accent" /> Saved
                     </>
                   ) : isSavingNormalized ? (
-                    "Enregistrement..."
+                    "Saving..."
                   ) : (
-                    "Enregistrer"
+                    "Save"
                   )}
                 </button>
               </div>
@@ -377,7 +454,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
 
             {/* PDF Generation Quick Strip */}
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-              <span className="text-[11px] font-bold text-primary block">Document Officiel Facture (PDF)</span>
+              <span className="text-[11px] font-bold text-primary block">Official Invoice Document (PDF)</span>
               <div className="flex gap-2">
                 <a
                   href={`/api/invoices/${selectedInvoice.id}/pdf?disposition=inline`}
@@ -385,12 +462,12 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                   rel="noopener noreferrer"
                   className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-2xs"
                 >
-                  <FileText className="size-3.5" /> Aperçu Facture PDF
+                  <FileText className="size-3.5" /> Preview Invoice PDF
                 </a>
                 <a
                   href={`/api/invoices/${selectedInvoice.id}/pdf?disposition=attachment`}
                   className="inline-flex items-center justify-center size-9 rounded-lg border border-primary/30 bg-card hover:bg-primary/10 text-primary transition-colors"
-                  title="Télécharger PDF"
+                  title="Download PDF"
                 >
                   <Download className="size-4" />
                 </a>
@@ -398,14 +475,14 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
 
               {selectedInvoice.deliveryNoteId && (
                 <div className="pt-2 border-t border-primary/15 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Bon de Livraison lié :</span>
+                  <span className="text-muted-foreground">Linked Delivery Note:</span>
                   <a
                     href={`/api/delivery-notes/${selectedInvoice.deliveryNoteId}/pdf?disposition=inline`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
                   >
-                    <Truck className="size-3" /> Voir BL {selectedInvoice.deliveryNoteNumber}
+                    <Truck className="size-3" /> View Note {selectedInvoice.deliveryNoteNumber}
                   </a>
                 </div>
               )}
@@ -414,23 +491,23 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
             {/* Financial Balance Card */}
             <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
-                <span>Sous-total HT :</span>
+                <span>Subtotal (excl. tax):</span>
                 <MoneyText amount={selectedInvoice.subtotal} className="font-mono font-bold text-foreground" />
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>TVA ({selectedInvoice.vatRate}%) :</span>
+                <span>VAT ({selectedInvoice.vatRate}%):</span>
                 <MoneyText amount={selectedInvoice.vatAmount} className="font-mono font-bold text-foreground" />
               </div>
               <div className="flex justify-between text-muted-foreground border-t border-border/80 pt-2">
-                <span>Total Facture TTC :</span>
+                <span>Total Invoice (incl. tax):</span>
                 <MoneyText amount={selectedInvoice.total} className="font-mono font-bold text-foreground" />
               </div>
               <div className="flex justify-between text-success">
-                <span>Montant Encaissé :</span>
+                <span>Amount Received:</span>
                 <MoneyText amount={selectedInvoice.paidAmount} className="font-mono font-bold text-success" />
               </div>
               <div className="flex justify-between text-sm font-black text-destructive border-t border-border pt-2">
-                <span>SOLDE RESTANT DÛ :</span>
+                <span>OUTSTANDING BALANCE DUE:</span>
                 <MoneyText amount={selectedInvoice.balanceDue} className="font-mono text-base text-destructive" />
               </div>
             </div>
@@ -442,7 +519,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                   href={`/dashboard/payments?client=${selectedInvoice.clientId}&invoice=${selectedInvoice.id}`}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
                 >
-                  <CreditCard className="size-4" /> Enregistrer un encaissement pour cette facture
+                  <CreditCard className="size-4" /> Record a payment for this invoice
                 </Link>
               )}
             </div>
@@ -451,42 +528,43 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
       </DetailSheet>
 
       {/* Cancellation Modal */}
-      {cancellingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border space-y-4">
-            <h3 className="text-sm font-extrabold text-primary">
-              Motif d&apos;annulation de la facture
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Les factures ne peuvent pas être supprimées sans trace. Un motif d&apos;annulation écrit est enregistré dans le journal d&apos;audit légal.
-            </p>
-            <textarea
-              required
-              rows={3}
-              placeholder="Indiquez la raison (erreur de facturation, litige, annulation de commande...)"
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCancellingId(null)}
-                className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-              >
-                Retour
-              </button>
-              <button
-                type="button"
-                onClick={() => handleCancelInvoice(cancellingId)}
-                className="h-9 px-4 rounded-xl bg-destructive text-white hover:bg-destructive/90 text-xs font-bold transition-colors cursor-pointer shadow-xs"
-              >
-                Confirmer l&apos;annulation
-              </button>
-            </div>
+      <ResponsiveModal
+        open={!!cancellingId}
+        onClose={() => setCancellingId(null)}
+        title="Invoice Cancellation Reason"
+        variant="danger"
+        maxWidthClass="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Invoices cannot be deleted without a trace. A written cancellation reason is recorded in the official audit log.
+          </p>
+          <textarea
+            required
+            rows={3}
+            placeholder="Specify the reason (billing error, dispute, order cancellation...)"
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 resize-none"
+          />
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setCancellingId(null)}
+              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => cancellingId && handleCancelInvoice(cancellingId)}
+              className="h-10 px-5 rounded-xl bg-destructive text-white hover:bg-destructive/90 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              Confirm Cancellation
+            </button>
           </div>
         </div>
-      )}
+      </ResponsiveModal>
     </div>
   );
 }

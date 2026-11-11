@@ -398,3 +398,46 @@ textarea.form-field {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   Dashboard-scoped mobile utility helpers
+   ============================================================ */
+
+/* Safe-area padding for iOS notch / home bar (bottom sheets, sticky footers) */
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Prevent body scroll when a modal/sheet is open — applied programmatically */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Hide scrollbar visually while keeping it functional (Webkit) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Modal responsive layout helper — mobile-first */
+.responsive-modal-inner {
+  width: 100%;
+  max-width: calc(100vw - 2rem);
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (min-width: 640px) {
+  .responsive-modal-inner {
+    max-width: 32rem; /* ~512px */
+  }
+}
+

@@ -22,6 +22,7 @@ import {
   deleteSupplierAction,
 } from "@/actions/suppliers";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 
 interface SuppliersManagerProps {
   initialSuppliers: SupplierRecord[];
@@ -281,328 +282,177 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
       </div>
 
       {/* Modal Création Fournisseur */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-extrabold text-primary">Nouveau Fournisseur</h3>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Code *</label>
-                  <input
-                    name="code"
-                    required
-                    placeholder="FOURN-ATL"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
-                  <input
-                    name="name"
-                    required
-                    placeholder="Atlas Mining Supplies..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
-                  <input
-                    name="country"
-                    placeholder="RDC, Afrique du Sud, Belgique..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
-                  <input
-                    name="contactPerson"
-                    placeholder="Directeur commercial..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Téléphone</label>
-                  <input
-                    name="phone"
-                    placeholder="+27 ... ou +243 ..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Email commercial</label>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="sales@fournisseur.com"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
-                <input
-                  name="address"
-                  placeholder="Ville, Province, Pays..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
-                <textarea
-                  name="notes"
-                  rows={2}
-                  placeholder="Pièces d'usure, robinetterie industrielle, câblage..."
-                  className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  {isSubmitting ? "Enregistrement..." : "Créer le fournisseur"}
-                </button>
-              </div>
-            </form>
+      <ResponsiveModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Nouveau Fournisseur"
+        maxWidthClass="max-w-lg"
+      >
+        {formError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {formError}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleCreateSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Code *</label>
+              <input
+                name="code"
+                required
+                placeholder="FOURN-ATL"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
+              <input
+                name="name"
+                required
+                placeholder="Atlas Mining Supplies..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
+              <input name="country" placeholder="RDC, Afrique du Sud..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
+              <input name="contactPerson" placeholder="Directeur commercial..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Téléphone</label>
+              <input name="phone" placeholder="+27 ... ou +243 ..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Email commercial</label>
+              <input name="email" type="email" placeholder="sales@fournisseur.com" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
+            <input name="address" placeholder="Ville, Province, Pays..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
+            <textarea name="notes" rows={2} placeholder="Pièces d'usure, robinetterie industrielle..." className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 resize-none" />
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
+            <button type="button" onClick={() => setIsCreateModalOpen(false)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              {isSubmitting ? "Enregistrement..." : "Créer le fournisseur"}
+            </button>
+          </div>
+        </form>
+      </ResponsiveModal>
 
       {/* Modal Modification Fournisseur */}
-      {editingSupplier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Pencil className="size-4 text-primary" />
-                <h3 className="text-base font-extrabold text-foreground">
-                  Modifier le Fournisseur
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingSupplier(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleEditSubmit} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Code *</label>
-                  <input
-                    value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
-                    required
-                    placeholder="FOURN-ATL"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    required
-                    placeholder="Atlas Mining Supplies..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
-                  <input
-                    value={editCountry}
-                    onChange={(e) => setEditCountry(e.target.value)}
-                    placeholder="RDC, Afrique du Sud, Belgique..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
-                  <input
-                    value={editContactPerson}
-                    onChange={(e) => setEditContactPerson(e.target.value)}
-                    placeholder="Directeur commercial..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Téléphone</label>
-                  <input
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    placeholder="+27 ... ou +243 ..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Email commercial</label>
-                  <input
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    type="email"
-                    placeholder="sales@fournisseur.com"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
-                <input
-                  value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
-                  placeholder="Ville, Province, Pays..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
-                <textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Pièces d'usure, robinetterie industrielle, câblage..."
-                  className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Statut du partenaire *</label>
-                <select
-                  value={editIsActive ? "true" : "false"}
-                  onChange={(e) => setEditIsActive(e.target.value === "true")}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                >
-                  <option value="true">Actif (Partenaire régulier)</option>
-                  <option value="false">Inactif (Partenaire suspendu / archivé)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setEditingSupplier(null)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
-                </button>
-              </div>
-            </form>
+      <ResponsiveModal
+        open={!!editingSupplier}
+        onClose={() => setEditingSupplier(null)}
+        title="Modifier le Fournisseur"
+        titleIcon={<Pencil className="size-4 text-primary" />}
+        maxWidthClass="max-w-lg"
+      >
+        {formError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {formError}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleEditSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Code *</label>
+              <input value={editCode} onChange={(e) => setEditCode(e.target.value)} required placeholder="FOURN-ATL" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} required placeholder="Atlas Mining Supplies..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
+              <input value={editCountry} onChange={(e) => setEditCountry(e.target.value)} placeholder="RDC, Afrique du Sud..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
+              <input value={editContactPerson} onChange={(e) => setEditContactPerson(e.target.value)} placeholder="Directeur commercial..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Téléphone</label>
+              <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+27 ... ou +243 ..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Email commercial</label>
+              <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email" placeholder="sales@fournisseur.com" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
+            <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="Ville, Province, Pays..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
+            <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} placeholder="Pièces d'usure, robinetterie industrielle..." className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-foreground">Statut du partenaire *</label>
+            <select value={editIsActive ? "true" : "false"} onChange={(e) => setEditIsActive(e.target.value === "true")} className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1">
+              <option value="true">Actif (Partenaire régulier)</option>
+              <option value="false">Inactif (Partenaire suspendu / archivé)</option>
+            </select>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
+            <button type="button" onClick={() => setEditingSupplier(null)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </form>
+      </ResponsiveModal>
 
       {/* Modal Confirmation de Suppression */}
-      {deletingSupplier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center gap-3 pb-3 border-b border-border">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
-                <AlertTriangle className="size-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-foreground">Supprimer le fournisseur</h3>
-                <p className="text-xs text-muted-foreground">Confirmation requise</p>
-              </div>
-            </div>
-
-            {deleteError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {deleteError}
-              </div>
-            )}
-
-            <div className="mt-4 space-y-2 text-xs text-foreground">
-              <p>
-                Êtes-vous certain de vouloir supprimer définitivement le fournisseur{" "}
-                <span className="font-extrabold text-foreground">{deletingSupplier.name}</span> (
-                <span className="font-mono text-muted-foreground">{deletingSupplier.code}</span>) ?
-              </p>
-              <p className="text-[11px] text-muted-foreground bg-secondary/50 p-2.5 rounded-xl border border-border/60">
-                <strong>Information catalogue :</strong> Les articles actuellement rattachés à ce fournisseur seront conservés dans votre catalogue, mais leur attribution fournisseur sera réinitialisée.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setDeletingSupplier(null)}
-                className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleDeleteConfirm}
-                className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-              >
-                {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
-              </button>
-            </div>
+      <ResponsiveModal
+        open={!!deletingSupplier}
+        onClose={() => setDeletingSupplier(null)}
+        title="Supprimer le fournisseur"
+        titleIcon={<AlertTriangle className="size-4 text-destructive" />}
+        variant="danger"
+        maxWidthClass="max-w-md"
+      >
+        {deleteError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {deleteError}
           </div>
+        )}
+        <div className="space-y-3 text-xs text-foreground">
+          <p>
+            Êtes-vous certain de vouloir supprimer définitivement le fournisseur{" "}
+            <span className="font-extrabold">{deletingSupplier?.name}</span> (
+            <span className="font-mono text-muted-foreground">{deletingSupplier?.code}</span>) ?
+          </p>
+          <p className="text-[11px] text-muted-foreground bg-secondary/50 p-2.5 rounded-xl border border-border/60">
+            <strong>Information catalogue :</strong> Les articles actuellement rattachés à ce fournisseur seront conservés dans votre catalogue, mais leur attribution fournisseur sera réinitialisée.
+          </p>
         </div>
-      )}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 mt-3 border-t border-border">
+          <button type="button" onClick={() => setDeletingSupplier(null)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+          <button type="button" disabled={isSubmitting} onClick={handleDeleteConfirm} className="h-10 px-5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+            {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
+          </button>
+        </div>
+      </ResponsiveModal>
     </div>
   );
 }

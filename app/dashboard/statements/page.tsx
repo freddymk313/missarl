@@ -4,7 +4,7 @@ import { getClientAccountStatement } from "@/lib/db/statements";
 import { StatementsViewer } from "@/components/dashboard/statements-viewer";
 import { FileText, ShieldCheck } from "lucide-react";
 
-export default async function RelevesPage({
+export default async function StatementsPage({
   searchParams,
 }: {
   searchParams: Promise<{ clientId?: string; startDate?: string; endDate?: string }>;
@@ -27,13 +27,13 @@ export default async function RelevesPage({
           
           <div>
             <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
-              Comptabilité Tiers
+              Accounts Receivable
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Relevés de Compte Clients
+              Client Account Statements
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Extrait chronologique des facturations et encaissements avec calcul du solde progressif et balance de clôture.
+              Chronological extract of invoices and receipts with running balance and closing balance.
             </p>
           </div>
         </div>

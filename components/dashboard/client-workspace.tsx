@@ -66,7 +66,7 @@ export function ClientWorkspace({
       </div>
 
       {/* Client Identity Header Card */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
@@ -75,7 +75,7 @@ export function ClientWorkspace({
                  Actif
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-black text-primary tracking-tight">
+            <h1 className="mt-2 text-xl sm:text-2xl font-black text-primary tracking-tight">
               {client.name}
             </h1>
             {client.taxId && (
@@ -88,7 +88,7 @@ export function ClientWorkspace({
           <div className="flex flex-wrap gap-2 shrink-0">
             <Link
               href={`/dashboard/quotes/new?clientId=${client.id}`}
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
+              className="inline-flex items-center justify-center gap-1.5 h-9 w-full sm:w-auto px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
             >
               <Plus className="size-4" /> Nouveau Devis
             </Link>
@@ -129,7 +129,7 @@ export function ClientWorkspace({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile
           label="Total Devis Émis"
           value={quotations.length}
@@ -158,7 +158,7 @@ export function ClientWorkspace({
       </div>
 
       {/* Workspace Underlined Tabs Navigation */}
-      <div className="border-b border-border bg-card rounded-t-2xl px-6 pt-4 flex gap-6 overflow-x-auto">
+      <div className="border-b border-border bg-card rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab("overview")}
@@ -228,7 +228,7 @@ export function ClientWorkspace({
       </div>
 
       {/* Tab Contents */}
-      <div className="rounded-b-2xl border border-t-0 border-border bg-card p-6 shadow-2xs">
+      <div className="rounded-b-2xl border border-t-0 border-border bg-card p-4 sm:p-6 shadow-2xs">
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">

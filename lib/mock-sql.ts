@@ -251,6 +251,16 @@ export async function executeMockSql(
     return [];
   }
 
+  if (lowerQ.startsWith("delete from items where id =")) {
+    const id = values[0] as string;
+    const idx = mockDb.items.findIndex((it) => it.id === id);
+    if (idx !== -1) {
+      mockDb.items.splice(idx, 1);
+      return [{ id }];
+    }
+    return [];
+  }
+
   // 6. Clients & Quotation Sequence
   if (lowerQ.includes("select sequence_val from quotation_sequences") || lowerQ.includes("client_quotation_sequences") || lowerQ.includes("quotation_sequence")) {
     const clientCode = (values[0] as string) || "CLI-KCC";

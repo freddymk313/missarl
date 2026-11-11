@@ -34,18 +34,18 @@ interface TopbarProps {
 
 // Maps pathnames to icon and title
 const pageTitleMap: Record<string, { title: string; icon: React.ComponentType<{ className?: string }> }> = {
-  "/dashboard": { title: "Tableau de bord", icon: LayoutDashboard },
-  "/dashboard/items": { title: "Articles & Tarifs", icon: Package },
-  "/dashboard/suppliers": { title: "Fournisseurs", icon: Truck },
-  "/dashboard/clients": { title: "Clients & Partenaires", icon: Building2 },
-  "/dashboard/quotes": { title: "Devis & Proformas", icon: FileSpreadsheet },
-  "/dashboard/quotes/new": { title: "Nouveau Devis", icon: FileSpreadsheet },
-  "/dashboard/orders": { title: "Commandes Clients (PO)", icon: ShoppingCart },
-  "/dashboard/invoices": { title: "Factures de Vente", icon: Receipt },
-  "/dashboard/payments": { title: "Paiements Reçus", icon: CreditCard },
-  "/dashboard/statements": { title: "Relevés de Compte", icon: FileText },
-  "/dashboard/users": { title: "Gestion des Utilisateurs", icon: Users },
-  "/dashboard/settings": { title: "Paramètres Système", icon: Settings },
+  "/dashboard": { title: "Dashboard", icon: LayoutDashboard },
+  "/dashboard/items": { title: "Items & Pricing", icon: Package },
+  "/dashboard/suppliers": { title: "Suppliers", icon: Truck },
+  "/dashboard/clients": { title: "Clients & Partners", icon: Building2 },
+  "/dashboard/quotes": { title: "Quotations & Proformas", icon: FileSpreadsheet },
+  "/dashboard/quotes/new": { title: "New Quotation", icon: FileSpreadsheet },
+  "/dashboard/orders": { title: "Customer Orders (PO)", icon: ShoppingCart },
+  "/dashboard/invoices": { title: "Sales Invoices", icon: Receipt },
+  "/dashboard/payments": { title: "Received Payments", icon: CreditCard },
+  "/dashboard/statements": { title: "Account Statements", icon: FileText },
+  "/dashboard/users": { title: "User Management", icon: Users },
+  "/dashboard/settings": { title: "System Settings", icon: Settings },
 };
 
 export function Topbar({ user, onOpenMobile }: TopbarProps) {
@@ -59,21 +59,21 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
     const matchingKey = Object.keys(pageTitleMap).find(
       (k) => k !== "/dashboard" && pathname.startsWith(k)
     );
-    currentMeta = matchingKey ? pageTitleMap[matchingKey] : { title: "Espace Gestion", icon: LayoutDashboard };
+    currentMeta = matchingKey ? pageTitleMap[matchingKey] : { title: "Management Area", icon: LayoutDashboard };
   }
 
   const PageIcon = currentMeta.icon;
   const roleMeta = ROLES[user.role] || { label: user.role, description: "" };
 
   return (
-    <header className="sticky top-0 z-30 flex h-[77px] w-full items-center justify-between border-b border-border bg-card/90 px-4 sm:px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-14 sm:h-[77px] w-full items-center justify-between border-b border-border bg-card/90 px-3 sm:px-6 backdrop-blur-md">
       {/* Left: Mobile hamburger + Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onOpenMobile}
           className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Ouvrir le menu de navigation"
+          aria-label="Open navigation menu"
         >
           <Menu className="size-5" />
         </button>
@@ -99,7 +99,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
               setNotifOpen(false);
             }}
             className="flex size-9 items-center justify-center rounded-xl bg-secondary/80 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors border border-border/60 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Aide et assistance"
+            aria-label="Help & Assistance"
           >
             <InfoIcon className="size-4" />
           </button>
@@ -111,7 +111,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
                 onClick={() => setHelpOpen(false)}
                 aria-hidden="true"
               />
-              <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border bg-popover p-4 shadow-lg text-popover-foreground z-50 animate-in fade-in-50 zoom-in-95">
+              <div className="absolute right-0 top-full mt-2 w-[min(320px,calc(100vw-1.5rem))] rounded-2xl border border-border bg-popover p-4 shadow-lg text-popover-foreground z-50 animate-in fade-in-50 zoom-in-95">
                 <div className="flex items-center gap-2 pb-2.5 border-b border-border">
                   <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <InfoIcon className="size-4" />
@@ -152,7 +152,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
                     onClick={() => setHelpOpen(false)}
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
                   >
-                    <span>Voir les paramètres</span>
+                    <span>View settings</span>
                     <ChevronRight className="size-3" />
                   </Link>
                 </div>
@@ -182,13 +182,13 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
                 onClick={() => setNotifOpen(false)}
                 aria-hidden="true"
               />
-              <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-border bg-popover p-4 shadow-lg text-popover-foreground z-50 animate-in fade-in-50 zoom-in-95 text-center">
+              <div className="absolute right-0 top-full mt-2 w-[min(288px,calc(100vw-1.5rem))] rounded-2xl border border-border bg-popover p-4 shadow-lg text-popover-foreground z-50 animate-in fade-in-50 zoom-in-95 text-center">
                 <div className="flex items-center justify-between pb-2 border-b border-border text-left">
                   <p className="text-xs font-bold text-foreground">Notifications</p>
-                  <span className="text-[10px] text-muted-foreground font-semibold">0 nouvelle</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold">0 new</span>
                 </div>
                 <div className="py-6">
-                  <p className="text-xs text-muted-foreground">Aucune notification pour le moment.</p>
+                  <p className="text-xs text-muted-foreground">No notifications at the moment.</p>
                 </div>
               </div>
             </>

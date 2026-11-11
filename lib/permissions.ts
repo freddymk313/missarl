@@ -15,16 +15,16 @@ export interface UserSession {
 
 export const ROLES: Record<UserRole, { label: string; description: string }> = {
   SUPER_ADMIN: {
-    label: "Super Administrateur",
-    description: "Accès total au système, gestion des utilisateurs, articles et prix.",
+    label: "Super Administrator",
+    description: "Full system access, management of users, items and prices.",
   },
   ADMIN: {
-    label: "Administrateur Commercial",
-    description: "Gestion des clients, devis, commandes, factures, paiements et relevés.",
+    label: "Commercial Administrator",
+    description: "Management of clients, quotations, orders, invoices, payments, and statements.",
   },
   PRICE_COLLECTOR: {
-    label: "Collecteur de Prix",
-    description: "Consultation et recherche dans le catalogue d'articles et tarifs uniquement.",
+    label: "Price Collector",
+    description: "Consultation and search in item catalog and pricing only.",
   },
 };
 

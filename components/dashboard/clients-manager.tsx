@@ -23,6 +23,7 @@ import {
   deleteClientAction,
 } from "@/actions/clients";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 
 interface ClientsManagerProps {
   initialClients: ClientRecord[];
@@ -286,377 +287,348 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
       </div>
 
       {/* Modal Création Client */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-extrabold text-primary">Nouveau Client</h3>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Code Client *</label>
-                  <input
-                    name="code"
-                    required
-                    placeholder="CLI-KCC"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-foreground">Raison sociale / Nom *</label>
-                  <input
-                    name="name"
-                    required
-                    placeholder="Kamoto Copper Company..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Personne de contact</label>
-                  <input
-                    name="contactPerson"
-                    placeholder="Directeur des achats..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Identifiant fiscal (NIF)</label>
-                  <input
-                    name="taxId"
-                    placeholder="A09123456Z"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Téléphone</label>
-                  <input
-                    name="phone"
-                    placeholder="+243 ..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Adresse email</label>
-                  <input
-                    name="email"
-                    type="email"
-                    placeholder="achats@client.com"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Adresse de facturation</label>
-                <input
-                  name="billingAddress"
-                  placeholder="Commune, Ville, Province..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Site de livraison (Mine / Dépôt)</label>
-                <input
-                  name="deliveryAddress"
-                  placeholder="Site minier, Magasin central, Kolwezi..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Conditions de paiement</label>
-                  <select
-                    name="paymentTerms"
-                    defaultValue="30_DAYS"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value="COMPTANT">Paiement Comptant</option>
-                    <option value="30_DAYS">30 jours net</option>
-                    <option value="45_DAYS">45 jours net</option>
-                    <option value="60_DAYS">60 jours net</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Devise principale</label>
-                  <select
-                    name="currency"
-                    defaultValue="USD"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="CDF">CDF (FC)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  {isSubmitting ? "Création en cours..." : "Enregistrer le client"}
-                </button>
-              </div>
-            </form>
+      <ResponsiveModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Nouveau Client"
+        maxWidthClass="max-w-lg"
+      >
+        {formError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {formError}
           </div>
-        </div>
-      )}
+        )}
+
+        <form onSubmit={handleCreateSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Code Client *</label>
+              <input
+                name="code"
+                required
+                placeholder="CLI-KCC"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-foreground">Raison sociale / Nom *</label>
+              <input
+                name="name"
+                required
+                placeholder="Kamoto Copper Company..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Personne de contact</label>
+              <input
+                name="contactPerson"
+                placeholder="Directeur des achats..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Identifiant fiscal (NIF)</label>
+              <input
+                name="taxId"
+                placeholder="A09123456Z"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Téléphone</label>
+              <input
+                name="phone"
+                placeholder="+243 ..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Adresse email</label>
+              <input
+                name="email"
+                type="email"
+                placeholder="achats@client.com"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-foreground">Adresse de facturation</label>
+            <input
+              name="billingAddress"
+              placeholder="Commune, Ville, Province..."
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-foreground">Site de livraison (Mine / Dépôt)</label>
+            <input
+              name="deliveryAddress"
+              placeholder="Site minier, Magasin central, Kolwezi..."
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Conditions de paiement</label>
+              <select
+                name="paymentTerms"
+                defaultValue="30_DAYS"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              >
+                <option value="COMPTANT">Paiement Comptant</option>
+                <option value="30_DAYS">30 jours net</option>
+                <option value="45_DAYS">45 jours net</option>
+                <option value="60_DAYS">60 jours net</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Devise principale</label>
+              <select
+                name="currency"
+                defaultValue="USD"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="CDF">CDF (FC)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(false)}
+              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            >
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              {isSubmitting ? "Création en cours..." : "Enregistrer le client"}
+            </button>
+          </div>
+        </form>
+      </ResponsiveModal>
 
       {/* Modal Modification Client */}
-      {editingClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div className="flex items-center gap-2">
-                <Pencil className="size-4 text-primary" />
-                <h3 className="text-base font-extrabold text-foreground">Modifier le Client</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingClient(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {formError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleEditSubmit} className="mt-4 space-y-3.5">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Code Client *</label>
-                  <input
-                    value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
-                    required
-                    placeholder="CLI-KCC"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-foreground">Raison sociale / Nom *</label>
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    required
-                    placeholder="Kamoto Copper Company..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Personne de contact</label>
-                  <input
-                    value={editContactPerson}
-                    onChange={(e) => setEditContactPerson(e.target.value)}
-                    placeholder="Directeur des achats..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Identifiant fiscal (NIF)</label>
-                  <input
-                    value={editTaxId}
-                    onChange={(e) => setEditTaxId(e.target.value)}
-                    placeholder="A09123456Z"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Téléphone</label>
-                  <input
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    placeholder="+243 ..."
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Adresse email</label>
-                  <input
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    type="email"
-                    placeholder="achats@client.com"
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Adresse de facturation</label>
-                <input
-                  value={editBillingAddress}
-                  onChange={(e) => setEditBillingAddress(e.target.value)}
-                  placeholder="Commune, Ville, Province..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground">Site de livraison (Mine / Dépôt)</label>
-                <input
-                  value={editDeliveryAddress}
-                  onChange={(e) => setEditDeliveryAddress(e.target.value)}
-                  placeholder="Site minier, Magasin central, Kolwezi..."
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Conditions de paiement</label>
-                  <select
-                    value={editPaymentTerms}
-                    onChange={(e) => setEditPaymentTerms(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value="COMPTANT">Paiement Comptant</option>
-                    <option value="30_DAYS">30 jours net</option>
-                    <option value="45_DAYS">45 jours net</option>
-                    <option value="60_DAYS">60 jours net</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Devise principale</label>
-                  <select
-                    value={editCurrency}
-                    onChange={(e) => setEditCurrency(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="CDF">CDF (FC)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground">Statut du compte *</label>
-                  <select
-                    value={editIsActive ? "true" : "false"}
-                    onChange={(e) => setEditIsActive(e.target.value === "true")}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  >
-                    <option value="true">Actif</option>
-                    <option value="false">Inactif (Suspendu)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setEditingClient(null)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-                >
-                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
-                </button>
-              </div>
-            </form>
+      <ResponsiveModal
+        open={!!editingClient}
+        onClose={() => setEditingClient(null)}
+        title="Modifier le Client"
+        titleIcon={<Pencil className="size-4 text-primary" />}
+        maxWidthClass="max-w-lg"
+      >
+        {formError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {formError}
           </div>
-        </div>
-      )}
+        )}
+
+        <form onSubmit={handleEditSubmit} className="space-y-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Code Client *</label>
+              <input
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                required
+                placeholder="CLI-KCC"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-foreground">Raison sociale / Nom *</label>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                placeholder="Kamoto Copper Company..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Personne de contact</label>
+              <input
+                value={editContactPerson}
+                onChange={(e) => setEditContactPerson(e.target.value)}
+                placeholder="Directeur des achats..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Identifiant fiscal (NIF)</label>
+              <input
+                value={editTaxId}
+                onChange={(e) => setEditTaxId(e.target.value)}
+                placeholder="A09123456Z"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Téléphone</label>
+              <input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="+243 ..."
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Adresse email</label>
+              <input
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                type="email"
+                placeholder="achats@client.com"
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-foreground">Adresse de facturation</label>
+            <input
+              value={editBillingAddress}
+              onChange={(e) => setEditBillingAddress(e.target.value)}
+              placeholder="Commune, Ville, Province..."
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-foreground">Site de livraison (Mine / Dépôt)</label>
+            <input
+              value={editDeliveryAddress}
+              onChange={(e) => setEditDeliveryAddress(e.target.value)}
+              placeholder="Site minier, Magasin central, Kolwezi..."
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-foreground">Conditions de paiement</label>
+              <select
+                value={editPaymentTerms}
+                onChange={(e) => setEditPaymentTerms(e.target.value)}
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              >
+                <option value="COMPTANT">Paiement Comptant</option>
+                <option value="30_DAYS">30 jours net</option>
+                <option value="45_DAYS">45 jours net</option>
+                <option value="60_DAYS">60 jours net</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Devise principale</label>
+              <select
+                value={editCurrency}
+                onChange={(e) => setEditCurrency(e.target.value)}
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              >
+                <option value="USD">USD ($)</option>
+                <option value="CDF">CDF (FC)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-foreground">Statut du compte *</label>
+              <select
+                value={editIsActive ? "true" : "false"}
+                onChange={(e) => setEditIsActive(e.target.value === "true")}
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              >
+                <option value="true">Actif</option>
+                <option value="false">Inactif (Suspendu)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setEditingClient(null)}
+              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            >
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
+            </button>
+          </div>
+        </form>
+      </ResponsiveModal>
 
       {/* Modal Confirmation de Suppression */}
-      {deletingClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center gap-3 pb-3 border-b border-border">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/15 text-destructive">
-                <AlertTriangle className="size-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-foreground">Supprimer le client</h3>
-                <p className="text-xs text-muted-foreground">Confirmation requise</p>
-              </div>
-            </div>
-
-            {deleteError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {deleteError}
-              </div>
-            )}
-
-            <div className="mt-4 space-y-2 text-xs text-foreground">
-              <p>
-                Êtes-vous certain de vouloir supprimer définitivement le client{" "}
-                <span className="font-extrabold text-foreground">{deletingClient.name}</span> (
-                <span className="font-mono text-muted-foreground">{deletingClient.code}</span>) ?
-              </p>
-              <p className="text-[11px] text-muted-foreground bg-secondary/50 p-2.5 rounded-xl border border-border/60">
-                <strong>Attention comptable :</strong> Si des devis, bons de commande, factures ou paiements sont rattachés à ce client, la suppression sera bloquée afin de préserver l&apos;intégrité de vos états financiers. Vous pourrez dans ce cas désactiver son compte.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setDeletingClient(null)}
-                className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleDeleteConfirm}
-                className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
-              >
-                {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
-              </button>
-            </div>
+      <ResponsiveModal
+        open={!!deletingClient}
+        onClose={() => setDeletingClient(null)}
+        title="Supprimer le client"
+        titleIcon={<AlertTriangle className="size-4 text-destructive" />}
+        variant="danger"
+        maxWidthClass="max-w-md"
+      >
+        {deleteError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {deleteError}
           </div>
+        )}
+
+        <div className="space-y-3 text-xs text-foreground">
+          <p>
+            Êtes-vous certain de vouloir supprimer définitivement le client{" "}
+            <span className="font-extrabold text-foreground">{deletingClient?.name}</span> (
+            <span className="font-mono text-muted-foreground">{deletingClient?.code}</span>) ?
+          </p>
+          <p className="text-[11px] text-muted-foreground bg-secondary/50 p-2.5 rounded-xl border border-border/60">
+            <strong>Attention comptable :</strong> Si des devis, bons de commande, factures ou paiements sont rattachés à ce client, la suppression sera bloquée afin de préserver l&apos;intégrité de vos états financiers. Vous pourrez dans ce cas désactiver son compte.
+          </p>
         </div>
-      )}
+
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 mt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setDeletingClient(null)}
+            className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleDeleteConfirm}
+            className="h-10 px-5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+          >
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+            {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
+          </button>
+        </div>
+      </ResponsiveModal>
     </div>
   );
 }

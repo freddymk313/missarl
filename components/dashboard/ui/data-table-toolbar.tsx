@@ -100,7 +100,7 @@ export function DataTableToolbar({
             </PopoverTrigger>
             <PopoverContent
               align="start"
-              className="w-80 p-4 bg-card border-border shadow-lg"
+              className="w-[min(20rem,calc(100vw-2rem))] p-4 bg-card border-border shadow-lg"
             >
               <div className="space-y-3">{filterContent}</div>
             </PopoverContent>

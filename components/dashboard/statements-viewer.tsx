@@ -79,9 +79,9 @@ export function StatementsViewer({
       {/* Filter and Export Bar */}
       <form
         onSubmit={handleFilter}
-        className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-wrap items-end gap-3 print:hidden"
+        className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 print:hidden"
       >
-        <div className="flex-1 min-w-[220px]">
+        <div className="w-full sm:flex-1 sm:min-w-[220px]">
           <label className="block text-xs font-bold text-foreground">Sélectionner un client *</label>
           <select
             value={currentClientId}
@@ -96,72 +96,74 @@ export function StatementsViewer({
           </select>
         </div>
 
-        <div className="w-36">
-          <label className="block text-xs font-bold text-foreground">Date début</label>
-          <input
-            type="date"
-            value={currentStartDate}
-            onChange={(e) => setCurrentStartDate(e.target.value)}
-            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-          />
-        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 w-full sm:w-auto">
+          <div className="w-full sm:w-36">
+            <label className="block text-xs font-bold text-foreground">Date début</label>
+            <input
+              type="date"
+              value={currentStartDate}
+              onChange={(e) => setCurrentStartDate(e.target.value)}
+              className="h-9 w-full rounded-xl border border-border bg-card px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
 
-        <div className="w-36">
-          <label className="block text-xs font-bold text-foreground">Date fin</label>
-          <input
-            type="date"
-            value={currentEndDate}
-            onChange={(e) => setCurrentEndDate(e.target.value)}
-            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-          />
+          <div className="w-full sm:w-36">
+            <label className="block text-xs font-bold text-foreground">Date fin</label>
+            <input
+              type="date"
+              value={currentEndDate}
+              onChange={(e) => setCurrentEndDate(e.target.value)}
+              className="h-9 w-full rounded-xl border border-border bg-card px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+            />
+          </div>
         </div>
 
         <button
           type="submit"
-          className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="h-9 w-full sm:w-auto px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer text-center"
         >
           Actualiser le relevé
         </button>
 
         {statement && (
-          <>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
             <a
               href={`/api/statements/${currentClientId}/pdf?disposition=inline${currentStartDate ? `&startDate=${encodeURIComponent(currentStartDate)}` : ""}${currentEndDate ? `&endDate=${encodeURIComponent(currentEndDate)}` : ""}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-9 px-3.5 rounded-xl border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors shrink-0 flex items-center gap-1.5"
+              className="h-9 flex-1 sm:flex-initial px-3.5 rounded-xl border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors shrink-0 flex items-center justify-center gap-1.5"
               title="Aperçu du document officiel Relevé de compte & Facture non payée (PDF)"
             >
               <FileText className="size-3.5 text-primary" /> Aperçu PDF
             </a>
             <a
               href={`/api/statements/${currentClientId}/pdf?disposition=attachment${currentStartDate ? `&startDate=${encodeURIComponent(currentStartDate)}` : ""}${currentEndDate ? `&endDate=${encodeURIComponent(currentEndDate)}` : ""}`}
-              className="h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5"
+              className="h-9 flex-1 sm:flex-initial px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center justify-center gap-1.5"
               title="Télécharger le document officiel Relevé de compte & Facture non payée (PDF)"
             >
-              <Download className="size-3.5 text-muted-foreground" /> Télécharger PDF
+              <Download className="size-3.5 text-muted-foreground" /> PDF
             </a>
             <button
               type="button"
               onClick={handleDownloadCSV}
-              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Download className="size-3.5 text-muted-foreground" /> CSV
             </button>
             <button
               type="button"
               onClick={handlePrint}
-              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Printer className="size-3.5 text-muted-foreground" /> Imprimer
             </button>
-          </>
+          </div>
         )}
       </form>
 
       {/* Statement Sheet */}
       {statement ? (
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0">
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-8 shadow-xs space-y-6 print:border-none print:shadow-none print:p-0">
           {/* Statement Header */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-border pb-6">
             <div>
@@ -230,59 +232,122 @@ export function StatementsViewer({
           </div>
 
           {/* Statement Transactions Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-3">Date</th>
-                  <th className="py-3 px-3">Type</th>
-                  <th className="py-3 px-3">Réf. Pièce</th>
-                  <th className="py-3 px-3">Détail de l&apos;écriture</th>
-                  <th className="py-3 px-3 text-right">Débit (Facture)</th>
-                  <th className="py-3 px-3 text-right">Crédit (Règlement)</th>
-                  <th className="py-3 px-3 text-right">Solde Progressif</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {statement.transactions.length === 0 ? (
+          <div className="overflow-hidden rounded-xl border border-border">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[650px]">
+                <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      Aucune écriture comptable enregistrée pour ce client sur la période.
-                    </td>
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Réf. Pièce</th>
+                    <th className="py-3 px-3">Détail de l&apos;écriture</th>
+                    <th className="py-3 px-3 text-right">Débit (Facture)</th>
+                    <th className="py-3 px-3 text-right">Crédit (Règlement)</th>
+                    <th className="py-3 px-3 text-right">Solde Progressif</th>
                   </tr>
-                ) : (
-                  statement.transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 px-3 font-mono text-muted-foreground">{tx.date}</td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                            tx.type === "INVOICE"
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "bg-success/15 text-success border border-success/30"
-                          }`}
-                        >
-                          {tx.type === "INVOICE" ? "Facture" : "Encaissement"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <RefChip value={tx.reference} />
-                      </td>
-                      <td className="py-3 px-3 text-foreground">{tx.description}</td>
-                      <td className="py-3 px-3 text-right font-mono text-foreground">
-                        {tx.debit > 0 ? ` ${formatUSD(tx.debit)}` : "—"}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono text-success font-bold">
-                        {tx.credit > 0 ? ` ${formatUSD(tx.credit)}` : "—"}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-black text-foreground">
-                         {formatUSD(tx.runningBalance)}
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {statement.transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                        Aucune écriture comptable enregistrée pour ce client sur la période.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    statement.transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-secondary/30 transition-colors">
+                        <td className="py-3 px-3 font-mono text-muted-foreground">{tx.date}</td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                              tx.type === "INVOICE"
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : "bg-success/15 text-success border border-success/30"
+                            }`}
+                          >
+                            {tx.type === "INVOICE" ? "Facture" : "Encaissement"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <RefChip value={tx.reference} />
+                        </td>
+                        <td className="py-3 px-3 text-foreground">{tx.description}</td>
+                        <td className="py-3 px-3 text-right font-mono text-foreground">
+                          {tx.debit > 0 ? ` ${formatUSD(tx.debit)}` : "—"}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-success font-bold">
+                          {tx.credit > 0 ? ` ${formatUSD(tx.credit)}` : "—"}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-black text-foreground">
+                           {formatUSD(tx.runningBalance)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="md:hidden divide-y divide-border">
+              {statement.transactions.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs p-4">
+                  Aucune écriture comptable enregistrée pour ce client sur la période.
+                </div>
+              ) : (
+                statement.transactions.map((tx) => (
+                  <div key={tx.id} className="p-3.5 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-muted-foreground text-[11px]">{tx.date}</span>
+                        <RefChip value={tx.reference} />
+                      </div>
+                      <span
+                        className={`rounded px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                          tx.type === "INVOICE"
+                            ? "bg-primary/10 text-primary border border-primary/20"
+                            : "bg-success/15 text-success border border-success/30"
+                        }`}
+                      >
+                        {tx.type === "INVOICE" ? "Facture" : "Encaissement"}
+                      </span>
+                    </div>
+
+                    <p className="text-foreground text-xs font-medium">
+                      {tx.description}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px]">
+                      <div className="flex items-center gap-3">
+                        {tx.debit > 0 && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px] block">Débit</span>
+                            <span className="font-mono font-bold text-foreground">
+                              {formatUSD(tx.debit)}
+                            </span>
+                          </div>
+                        )}
+                        {tx.credit > 0 && (
+                          <div>
+                            <span className="text-muted-foreground text-[10px] block">Crédit</span>
+                            <span className="font-mono font-bold text-success">
+                              {formatUSD(tx.credit)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-muted-foreground text-[10px] block">Solde</span>
+                        <span className="font-mono font-black text-foreground">
+                          {formatUSD(tx.runningBalance)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Certified closing statement signature note */}

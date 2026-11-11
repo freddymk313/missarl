@@ -40,6 +40,7 @@ import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { formatUSD } from "@/lib/formatters";
 import {
   Dialog,
@@ -392,19 +393,19 @@ export function OrdersManager({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Commandes (BC)
+            Total Orders (PO)
           </p>
           <p className="text-xl font-black text-primary mt-1">{orders.length}</p>
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            En Cours de Livraison
+            Pending Deliveries
           </p>
           <p className="text-xl font-black text-primary mt-1">{activeOrders.length}</p>
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Clôturées (Livrées)
+            Completed (Delivered)
           </p>
           <p className="text-xl font-black text-success mt-1">
             {orders.filter((o) => o.status === "COMPLETED").length}
@@ -412,7 +413,7 @@ export function OrdersManager({
         </div>
         <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Volume Commandé
+            Total Ordered Volume
           </p>
           <p className="text-xl font-black text-primary font-mono mt-1">
             {formatUSD(totalAmount)}
@@ -424,7 +425,7 @@ export function OrdersManager({
       {activeOrders.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Truck className="size-3.5 text-primary" /> Commandes actives & En cours d&apos;exécution
+            <Truck className="size-3.5 text-primary" /> Active Orders & Fulfillment in Progress
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activeOrders.slice(0, 3).map((ord) => (
@@ -449,7 +450,7 @@ export function OrdersManager({
 
                 <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] text-muted-foreground">Montant Total TTC</p>
+                    <p className="text-[10px] text-muted-foreground">Total Amount (incl. tax)</p>
                     <MoneyText amount={ord.total} className="font-mono font-black text-primary text-sm" />
                   </div>
 
@@ -461,7 +462,7 @@ export function OrdersManager({
                     }}
                     className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold transition-colors cursor-pointer border border-primary/20"
                   >
-                    <Layers className="size-3" /> Gérer livraisons
+                    <Layers className="size-3" /> Manage deliveries
                   </button>
                 </div>
               </div>
@@ -477,7 +478,7 @@ export function OrdersManager({
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Rechercher par N° commande MIS, PO client, société..."
+              placeholder="Search by MIS order no., client PO, company..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-12 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
@@ -492,11 +493,11 @@ export function OrdersManager({
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
           >
-            <option value="ALL">Tous statuts</option>
-            <option value="CONFIRMED">Confirmé</option>
-            <option value="PARTIALLY_DELIVERED">Livré partiel</option>
-            <option value="COMPLETED">Clôturé (Livré)</option>
-            <option value="CANCELLED">Annulé</option>
+            <option value="ALL">All statuses</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="PARTIALLY_DELIVERED">Partially delivered</option>
+            <option value="COMPLETED">Completed (Delivered)</option>
+            <option value="CANCELLED">Cancelled</option>
           </select>
         </div>
 
@@ -507,23 +508,23 @@ export function OrdersManager({
           }}
           className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
-          <Plus className="size-4" /> Enregistrer un Bon de Commande (PO)
+          <Plus className="size-4" /> Record Purchase Order (PO)
         </button>
       </div>
 
-      {/* Orders Data Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+      {/* Orders Data Table - Desktop View */}
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
               <tr>
-                <th className="py-3.5 px-4">N° Commande (BC)</th>
+                <th className="py-3.5 px-4">Order No. (PO)</th>
                 <th className="py-3.5 px-4">Client</th>
-                <th className="py-3.5 px-4">PO N° Client</th>
-                <th className="py-3.5 px-4">Devis Validé</th>
-                <th className="py-3.5 px-4">Date PO</th>
-                <th className="py-3.5 px-4 text-right">Total TTC</th>
-                <th className="py-3.5 px-4 text-center">Statut</th>
+                <th className="py-3.5 px-4">Client PO No.</th>
+                <th className="py-3.5 px-4">Validated Quote</th>
+                <th className="py-3.5 px-4">PO Date</th>
+                <th className="py-3.5 px-4 text-right">Total (incl. tax)</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
@@ -532,9 +533,9 @@ export function OrdersManager({
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-muted-foreground">
                     <ShoppingCart className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-                    <p className="font-bold text-foreground">Aucune commande trouvée</p>
+                    <p className="font-bold text-foreground">No orders found</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Convertissez un devis validé en bon de commande pour commencer.
+                      Convert a validated quotation into a purchase order to get started.
                     </p>
                   </td>
                 </tr>
@@ -564,9 +565,9 @@ export function OrdersManager({
                           type="button"
                           onClick={() => handleSelectOrder(order)}
                           className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 font-bold text-[11px] transition-colors cursor-pointer"
-                          title="Détails et livraisons"
+                          title="Details and deliveries"
                         >
-                          <Eye className="size-3.5" /> Ouvrir
+                          <Eye className="size-3.5" /> Open
                         </button>
                       </div>
                     </td>
@@ -578,6 +579,50 @@ export function OrdersManager({
         </div>
       </div>
 
+      {/* Orders - Mobile Cards View */}
+      <div className="md:hidden space-y-3">
+        {filtered.length === 0 ? (
+          <div className="py-12 text-center rounded-2xl border border-dashed border-border bg-card">
+            <ShoppingCart className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+            <p className="font-bold text-foreground text-sm">No orders found</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Convert a validated quotation into a purchase order to get started.
+            </p>
+          </div>
+        ) : (
+          filtered.map((order) => (
+            <div
+              key={order.id}
+              onClick={() => handleSelectOrder(order)}
+              className="rounded-2xl border border-border bg-card p-4 shadow-xs cursor-pointer active:scale-[0.99] transition-transform space-y-2.5"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <RefChip value={order.orderNumber} />
+                <StatusBadge status={order.status} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-foreground truncate">{order.clientName}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Client PO: <span className="font-mono font-bold text-foreground">{order.clientPoNumber}</span>
+                </p>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Date: {order.poDate}</span>
+                {order.quotationReference && (
+                  <span className="font-mono text-[10px] text-muted-foreground">Devis: {order.quotationReference}</span>
+                )}
+              </div>
+              <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                <MoneyText amount={order.total} className="text-sm font-black text-primary font-mono" />
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-primary">
+                  <Eye className="size-3.5" /> Details
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* ── Order Detail & Delivery Batches Sheet ─────────────────────────── */}
       <DetailSheet
         isOpen={!!selectedOrder}
@@ -586,29 +631,29 @@ export function OrdersManager({
           setDetailedOrder(null);
         }}
         size="xl"
-        title={selectedOrder?.orderNumber || "Détail du Bon de Commande"}
+        title={selectedOrder?.orderNumber || "Purchase Order Details"}
         statusBadge={selectedOrder ? <StatusBadge status={selectedOrder.status} /> : undefined}
         hasChildDialog={isDeliveryModalOpen}
       >
         {selectedOrder && (
           <div className="space-y-6">
             <div>
-              <p className="text-xs font-bold text-muted-foreground">Client donneur d&apos;ordre</p>
+              <p className="text-xs font-bold text-muted-foreground">Ordering Client</p>
               <h2 className="text-base font-black text-foreground mt-0.5">
                 {selectedOrder.clientName}
               </h2>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
-              <KeyValueTile label="PO Client" value={selectedOrder.clientPoNumber} />
-              <KeyValueTile label="Devis d'origine" value={selectedOrder.quotationReference || "—"} />
-              <KeyValueTile label="Date du PO" value={selectedOrder.poDate} />
-              <KeyValueTile label="Livraison convenue" value={selectedOrder.expectedDeliveryDate || "Convenue"} />
+              <KeyValueTile label="Client PO" value={selectedOrder.clientPoNumber} />
+              <KeyValueTile label="Originating Quote" value={selectedOrder.quotationReference || "—"} />
+              <KeyValueTile label="PO Date" value={selectedOrder.poDate} />
+              <KeyValueTile label="Agreed Delivery" value={selectedOrder.expectedDeliveryDate || "Agreed"} />
             </div>
 
             {selectedOrder.notes && (
               <div className="rounded-xl border border-border bg-secondary/30 p-3 text-xs">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase">Instructions de livraison</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Delivery Instructions</span>
                 <p className="text-foreground mt-0.5">{selectedOrder.notes}</p>
               </div>
             )}
@@ -616,15 +661,15 @@ export function OrdersManager({
             {/* Financial Totals */}
             <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-xs">
               <div className="flex justify-between text-muted-foreground">
-                <span>Sous-total HT :</span>
+                <span>Subtotal (excl. tax):</span>
                 <MoneyText amount={selectedOrder.subtotal} className="font-mono font-bold text-foreground" />
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>TVA ({selectedOrder.vatRate}%) :</span>
+                <span>VAT ({selectedOrder.vatRate}%):</span>
                 <MoneyText amount={selectedOrder.vatAmount} className="font-mono font-bold text-foreground" />
               </div>
               <div className="flex justify-between text-sm font-black text-primary border-t border-border pt-2">
-                <span>TOTAL COMMANDE TTC :</span>
+                <span>TOTAL ORDER (INCL. TAX):</span>
                 <MoneyText amount={selectedOrder.total} className="font-mono text-base text-primary" />
               </div>
             </div>
@@ -635,12 +680,12 @@ export function OrdersManager({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Truck className="size-4 text-primary" />
-                    <span className="text-xs font-bold text-foreground">Expédition par lots (BL)</span>
+                    <span className="text-xs font-bold text-foreground">Batch Shipping (Delivery Notes)</span>
                   </div>
                   <span className="text-[11px] font-bold text-primary">
                     {totalDeliverableAvailable > 0
-                      ? `${totalDeliverableAvailable} dispo à livrer`
-                      : "Tous les articles sont alloués"}
+                      ? `${totalDeliverableAvailable} available to deliver`
+                      : "All items are allocated"}
                   </span>
                 </div>
                 <button
@@ -649,7 +694,7 @@ export function OrdersManager({
                   onClick={handleOpenDeliveryModal}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <PackageCheck className="size-4" /> Préparer une livraison partielle (Nouveau BL)
+                  <PackageCheck className="size-4" /> Prepare partial delivery (New Delivery Note)
                 </button>
               </div>
             )}
@@ -657,20 +702,20 @@ export function OrdersManager({
             {/* Items with Allocation Status */}
             <div className="space-y-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <ShoppingCart className="size-3.5 text-primary" /> Articles commandés & Disponibilité
+                <ShoppingCart className="size-3.5 text-primary" /> Ordered Items & Availability
               </h3>
               {isLoadingOrderDetails ? (
-                <p className="text-xs text-muted-foreground py-4 text-center">Chargement des disponibilités...</p>
+                <p className="text-xs text-muted-foreground py-4 text-center">Loading availability...</p>
               ) : orderDetailError ? (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
                   <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                   <div>
-                    <p className="font-bold">Erreur de chargement des articles</p>
+                    <p className="font-bold">Error loading items</p>
                     <p className="text-[11px] mt-0.5 opacity-90">{orderDetailError}</p>
                   </div>
                 </div>
               ) : !detailedOrder?.items || detailedOrder.items.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">Aucun article enregistré sur cette commande.</p>
+                <p className="text-xs text-muted-foreground py-2">No items recorded on this order.</p>
               ) : (
                 <div className="space-y-2">
                   {detailedOrder.items.map((item: OrderLineItem) => {
@@ -699,31 +744,31 @@ export function OrdersManager({
 
                         {item.brand && (
                           <p className="text-[10px] text-muted-foreground pl-7">
-                            Marque : <span className="font-semibold text-foreground">{item.brand}</span>
+                            Brand: <span className="font-semibold text-foreground">{item.brand}</span>
                           </p>
                         )}
 
                         <div className="grid grid-cols-4 gap-2 pt-2 border-t border-border/60 text-[10px]">
                           <div>
-                            <span className="text-muted-foreground block">Commandé</span>
+                            <span className="text-muted-foreground block">Ordered</span>
                             <span className="font-bold text-foreground">
                               {alloc.ordered} {item.unit}
                             </span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground block">Livré (Acté)</span>
+                            <span className="text-muted-foreground block">Delivered</span>
                             <span className="font-bold text-success">
                               {alloc.delivered} {item.unit}
                             </span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground block">En cours</span>
+                            <span className="text-muted-foreground block">In Progress</span>
                             <span className="font-bold text-warning">
                               {alloc.reserved} {item.unit}
                             </span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground block">Disponible</span>
+                            <span className="text-muted-foreground block">Available</span>
                             <span
                               className={`font-black ${
                                 alloc.available > 0 ? "text-primary" : "text-muted-foreground"
@@ -743,12 +788,12 @@ export function OrdersManager({
             {/* Delivery Notes (BL) History & Linked Invoices */}
             <div className="space-y-3 pt-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Truck className="size-3.5 text-primary" /> Bons de Livraison & Factures Associées ({deliveryNotes.length})
+                <Truck className="size-3.5 text-primary" /> Delivery Notes & Associated Invoices ({deliveryNotes.length})
               </h3>
 
               {deliveryNotes.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                  Aucun bon de livraison émis pour cette commande.
+                  No delivery notes issued for this order.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -764,13 +809,13 @@ export function OrdersManager({
                             <StatusBadge status={bl.status} />
                           </div>
                           <p className="text-[11px] text-muted-foreground mt-1">
-                            Date livraison : <span className="font-bold text-foreground">{bl.deliveryDate}</span>
+                            Delivery date: <span className="font-bold text-foreground">{bl.deliveryDate}</span>
                           </p>
                         </div>
 
                         {bl.invoiceNumber && (
                           <div className="text-right">
-                            <span className="text-[10px] text-muted-foreground block">Facture liée</span>
+                            <span className="text-[10px] text-muted-foreground block">Linked invoice</span>
                             <RefChip value={bl.invoiceNumber} />
                           </div>
                         )}
@@ -778,10 +823,10 @@ export function OrdersManager({
 
                       {(bl.carrierName || bl.driverName || bl.vehiclePlate) && (
                         <div className="rounded-xl bg-secondary/40 p-2.5 text-[11px] text-foreground space-y-0.5">
-                          {bl.carrierName && <p>Transporteur : <span className="font-semibold">{bl.carrierName}</span></p>}
-                          {bl.driverName && <p>Chauffeur : <span className="font-semibold">{bl.driverName}</span></p>}
-                          {bl.vehiclePlate && <p>Plaque : <span className="font-mono font-semibold">{bl.vehiclePlate}</span></p>}
-                          {bl.receiverName && <p>Réceptionnaire : <span className="font-semibold">{bl.receiverName}</span></p>}
+                          {bl.carrierName && <p>Carrier: <span className="font-semibold">{bl.carrierName}</span></p>}
+                          {bl.driverName && <p>Driver: <span className="font-semibold">{bl.driverName}</span></p>}
+                          {bl.vehiclePlate && <p>Plate: <span className="font-mono font-semibold">{bl.vehiclePlate}</span></p>}
+                          {bl.receiverName && <p>Receiver: <span className="font-semibold">{bl.receiverName}</span></p>}
                         </div>
                       )}
 
@@ -794,14 +839,14 @@ export function OrdersManager({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-secondary hover:bg-secondary/80 text-[11px] font-bold text-foreground transition-colors"
-                            title="Aperçu Bon de Livraison PDF"
+                            title="Preview Delivery Note PDF"
                           >
-                            <FileText className="size-3 text-primary" /> BL PDF
+                            <FileText className="size-3 text-primary" /> Delivery Note PDF
                           </a>
                           <a
                             href={`/api/delivery-notes/${bl.id}/pdf?disposition=attachment`}
                             className="inline-flex items-center justify-center size-7 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground transition-colors"
-                            title="Télécharger BL PDF"
+                            title="Download Delivery Note PDF"
                           >
                             <Download className="size-3.5" />
                           </a>
@@ -814,14 +859,14 @@ export function OrdersManager({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-[11px] font-bold text-primary transition-colors border border-primary/25"
-                                title="Aperçu Facture PDF"
+                                title="Preview Invoice PDF"
                               >
-                                <Receipt className="size-3" /> Facture PDF
+                                <Receipt className="size-3" /> Invoice PDF
                               </a>
                               <a
                                 href={`/api/invoices/${bl.invoiceId}/pdf?disposition=attachment`}
                                 className="inline-flex items-center justify-center size-7 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors border border-primary/25"
-                                title="Télécharger Facture PDF"
+                                title="Download Invoice PDF"
                               >
                                 <Download className="size-3.5" />
                               </a>
@@ -836,9 +881,9 @@ export function OrdersManager({
                               type="button"
                               onClick={() => handleUpdateBlStatus(bl.id, "IN_TRANSIT")}
                               className="inline-flex items-center gap-1 h-7 px-2 rounded-lg bg-warning/15 hover:bg-warning/25 text-[11px] font-bold text-warning border border-warning/30 transition-colors cursor-pointer"
-                              title="Marquer en cours de transport"
+                              title="Mark as in transit"
                             >
-                              <Truck className="size-3" /> En transit
+                              <Truck className="size-3" /> In transit
                             </button>
                           )}
 
@@ -847,9 +892,9 @@ export function OrdersManager({
                               type="button"
                               onClick={() => handleUpdateBlStatus(bl.id, "DELIVERED")}
                               className="inline-flex items-center gap-1 h-7 px-2 rounded-lg bg-success/15 hover:bg-success/25 text-[11px] font-bold text-success border border-success/30 transition-colors cursor-pointer"
-                              title="Confirmer la réception physique client"
+                              title="Confirm physical client delivery"
                             >
-                              <CheckCircle2 className="size-3" /> Livré
+                              <CheckCircle2 className="size-3" /> Delivered
                             </button>
                           )}
 
@@ -857,13 +902,13 @@ export function OrdersManager({
                             <button
                               type="button"
                               onClick={() => {
-                                const reason = prompt("Motif de l'annulation du bon de livraison :");
+                                const reason = prompt("Reason for delivery note cancellation:");
                                 if (reason && reason.trim()) {
                                   handleUpdateBlStatus(bl.id, "CANCELLED", reason.trim());
                                 }
                               }}
                               className="inline-flex items-center justify-center size-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                              title="Annuler ce bon de livraison"
+                              title="Cancel this delivery note"
                             >
                               <Ban className="size-3.5" />
                             </button>
@@ -880,26 +925,16 @@ export function OrdersManager({
       </DetailSheet>
 
       {/* ── Modal Create Order from Quotation with Partial Selection ─────── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div>
-                <h3 className="text-base font-extrabold text-primary">
-                  Enregistrer un Bon de Commande (Customer PO)
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Acceptation totale ou partielle des articles du devis validé
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      <ResponsiveModal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Record Purchase Order (Customer PO)"
+        maxWidthClass="max-w-2xl"
+      >
+        <div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Full or partial item acceptance from validated quotation
+          </p>
 
             {formError && (
               <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
@@ -910,7 +945,7 @@ export function OrdersManager({
             <form onSubmit={handleCreateOrder} className="mt-4 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Devis validé de référence *
+                  Reference Validated Quotation *
                 </label>
                 <select
                   required
@@ -926,7 +961,7 @@ export function OrdersManager({
                   }}
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 >
-                  <option value="">Sélectionner un devis validé...</option>
+                  <option value="">Select a validated quotation...</option>
                   {validatedQuotations.map((q) => (
                     <option key={q.id} value={q.id}>
                       {q.internalReference} — {q.clientName} (${q.total.toFixed(2)})
@@ -938,7 +973,7 @@ export function OrdersManager({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-foreground">
-                    Numéro de PO du client (ex: PO/2026/045) *
+                    Customer PO Number (e.g. PO/2026/045) *
                   </label>
                   <input
                     required
@@ -952,7 +987,7 @@ export function OrdersManager({
 
                 <div>
                   <label className="block text-xs font-bold text-foreground">
-                    Date de livraison convenue
+                    Agreed Delivery Date
                   </label>
                   <input
                     type="date"
@@ -968,7 +1003,7 @@ export function OrdersManager({
                 <div className="space-y-2 pt-2 border-t border-border">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-                      Sélection des articles acceptés par le PO client
+                      Select items accepted by customer PO
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -982,7 +1017,7 @@ export function OrdersManager({
                         }}
                         className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
                       >
-                        Tout cocher
+                        Select all
                       </button>
                       <span className="text-muted-foreground text-xs">•</span>
                       <button
@@ -990,30 +1025,31 @@ export function OrdersManager({
                         onClick={() => setSelectedItemIds({})}
                         className="text-[11px] font-bold text-muted-foreground hover:underline cursor-pointer"
                       >
-                        Tout décocher
+                        Deselect all
                       </button>
                     </div>
                   </div>
 
                   {isLoadingQuoteItems ? (
                     <p className="text-xs text-muted-foreground py-4 text-center">
-                      Chargement des lignes du devis...
+                      Loading quotation items...
                     </p>
                   ) : quoteItems.length === 0 ? (
                     <p className="text-xs text-muted-foreground py-2">
-                      Ce devis ne contient aucune ligne.
+                      This quotation contains no items.
                     </p>
                   ) : (
                     <div className="rounded-xl border border-border overflow-hidden">
-                      <table className="w-full text-left text-xs">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs min-w-[520px]">
                         <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
                           <tr>
                             <th className="p-2.5 w-8 text-center">✓</th>
-                            <th className="p-2.5">Article / Description</th>
-                            <th className="p-2.5 text-center">Devisé</th>
-                            <th className="p-2.5 text-right">P.U.</th>
-                            <th className="p-2.5 text-center w-24">Qté Acceptée</th>
-                            <th className="p-2.5 text-right">Total HT</th>
+                            <th className="p-2.5">Item / Description</th>
+                            <th className="p-2.5 text-center">Quoted</th>
+                            <th className="p-2.5 text-right">Unit Price</th>
+                            <th className="p-2.5 text-center w-24">Accepted Qty</th>
+                            <th className="p-2.5 text-right">Subtotal</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
@@ -1046,7 +1082,7 @@ export function OrdersManager({
                                 <td className="p-2.5">
                                   <p className="font-bold text-foreground">{it.description}</p>
                                   {it.brand && (
-                                    <p className="text-[10px] text-muted-foreground">Marque : {it.brand}</p>
+                                    <p className="text-[10px] text-muted-foreground">Brand: {it.brand}</p>
                                   )}
                                 </td>
                                 <td className="p-2.5 text-center font-mono">
@@ -1083,27 +1119,28 @@ export function OrdersManager({
                         </tbody>
                       </table>
                     </div>
+                  </div>
                   )}
 
                   {/* Live Financial Summary */}
                   {acceptedLines.length > 0 && (
                     <div className="rounded-xl bg-secondary/40 p-3 text-xs space-y-1.5 border border-border">
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Articles retenus :</span>
+                        <span>Selected items:</span>
                         <span className="font-bold text-foreground">
                           {acceptedLines.length} / {quoteItems.length}
                         </span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Sous-total HT accepté :</span>
+                        <span>Accepted Subtotal (excl. tax):</span>
                         <MoneyText amount={calculatedSubtotal} className="font-mono font-bold text-foreground" />
                       </div>
                       <div className="flex justify-between text-muted-foreground">
-                        <span>TVA ({vatRate}%) :</span>
+                        <span>VAT ({vatRate}%):</span>
                         <MoneyText amount={calculatedVat} className="font-mono font-bold text-foreground" />
                       </div>
                       <div className="flex justify-between text-sm font-black text-primary border-t border-border pt-1.5">
-                        <span>TOTAL COMMANDE RETENUE :</span>
+                        <span>TOTAL ACCEPTED ORDER:</span>
                         <MoneyText amount={calculatedTotal} className="font-mono text-base text-primary" />
                       </div>
                     </div>
@@ -1113,37 +1150,36 @@ export function OrdersManager({
 
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Instructions de livraison / Remarques
+                  Delivery Instructions / Notes
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Instructions spécifiques pour le transport ou le déchargement..."
+                  placeholder="Specific transport or unloading instructions..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+                  className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || acceptedLines.length === 0}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmitting ? "Création en cours..." : "Créer le Bon de Commande"}
+                  {isSubmitting ? "Creating..." : "Create Purchase Order"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </ResponsiveModal>
 
       {/* ── Modal Prepare Partial Delivery Batch (BL + Linked Invoice) ─────── */}
       <Dialog open={isDeliveryModalOpen} onOpenChange={(open) => { if (!open) setIsDeliveryModalOpen(false); }}>
@@ -1155,10 +1191,10 @@ export function OrdersManager({
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-base font-extrabold text-primary flex items-center gap-2">
-                  <PackageCheck className="size-5" /> Préparer un Bon de Livraison (BL)
+                  <PackageCheck className="size-5" /> Prepare Delivery Note (BL)
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Génère automatiquement 1 Bon de Livraison et 1 Facture associée pour ce lot
+                  Automatically generates 1 Delivery Note and 1 associated Invoice for this batch
                 </p>
               </div>
               <button
@@ -1183,7 +1219,7 @@ export function OrdersManager({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-foreground">
-                      Date de livraison *
+                      Delivery Date *
                     </label>
                     <input
                       required
@@ -1195,17 +1231,17 @@ export function OrdersManager({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-foreground">
-                      Échéance facture associée
+                      Associated Invoice Due Period
                     </label>
                     <select
                       value={dueDays}
                       onChange={(e) => setDueDays(Number(e.target.value))}
                       className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                     >
-                      <option value={15}>15 jours</option>
-                      <option value={30}>30 jours (Standard)</option>
-                      <option value={45}>45 jours</option>
-                      <option value={60}>60 jours</option>
+                      <option value={15}>15 days</option>
+                      <option value={30}>30 days (Standard)</option>
+                      <option value={45}>45 days</option>
+                      <option value={60}>60 days</option>
                     </select>
                   </div>
                 </div>
@@ -1213,11 +1249,11 @@ export function OrdersManager({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-foreground">
-                      Transporteur
+                      Carrier
                     </label>
                     <input
                       type="text"
-                      placeholder="MIS SARL / Externe"
+                      placeholder="MIS SARL / External"
                       value={carrierName}
                       onChange={(e) => setCarrierName(e.target.value)}
                       className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
@@ -1225,7 +1261,7 @@ export function OrdersManager({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-foreground">
-                      Nom Chauffeur
+                      Driver Name
                     </label>
                     <input
                       type="text"
@@ -1237,7 +1273,7 @@ export function OrdersManager({
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-foreground">
-                      Plaque véhicule
+                      Vehicle Plate
                     </label>
                     <input
                       type="text"
@@ -1251,11 +1287,11 @@ export function OrdersManager({
 
                 <div>
                   <label className="block text-xs font-bold text-foreground">
-                    Nom du réceptionnaire client (optionnel)
+                    Client Receiver Name (optional)
                   </label>
                   <input
                     type="text"
-                    placeholder="Responsable magasin / réception client..."
+                    placeholder="Warehouse manager / client receiver..."
                     value={receiverName}
                     onChange={(e) => setReceiverName(e.target.value)}
                     className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
@@ -1265,18 +1301,19 @@ export function OrdersManager({
                 {/* Items Allocation Table */}
                 <div className="space-y-2 pt-2 border-t border-border">
                   <span className="text-xs font-black uppercase tracking-wider text-muted-foreground block">
-                    Articles et quantités à livrer dans ce lot
+                    Items and quantities to deliver in this batch
                   </span>
 
                   <div className="rounded-xl border border-border overflow-hidden">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[500px]">
+                        <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
                         <tr>
                           <th className="p-2.5 w-8 text-center">✓</th>
                           <th className="p-2.5">Description</th>
-                          <th className="p-2.5 text-center">Disponible</th>
-                          <th className="p-2.5 text-center w-28">Qté à Livrer</th>
-                          <th className="p-2.5">Observation sur le BL</th>
+                          <th className="p-2.5 text-center">Available</th>
+                          <th className="p-2.5 text-center w-28">Qty to Deliver</th>
+                          <th className="p-2.5">Note on Delivery Document</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
@@ -1309,7 +1346,7 @@ export function OrdersManager({
                               <td className="p-2.5">
                                 <p className="font-bold text-foreground">{it.description}</p>
                                 {it.brand && (
-                                  <p className="text-[10px] text-muted-foreground">Marque : {it.brand}</p>
+                                  <p className="text-[10px] text-muted-foreground">Brand: {it.brand}</p>
                                 )}
                               </td>
                               <td className="p-2.5 text-center font-bold text-foreground">
@@ -1336,7 +1373,7 @@ export function OrdersManager({
                               <td className="p-2.5">
                                 <input
                                   type="text"
-                                  placeholder="ex: Colis 1/2, Bon état..."
+                                  placeholder="e.g. Package 1/2, Good condition..."
                                   disabled={!isChecked}
                                   value={obs}
                                   onChange={(e) =>
@@ -1352,14 +1389,15 @@ export function OrdersManager({
                     </table>
                   </div>
                 </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold text-foreground">
-                    Notes / Instructions spécifiques pour ce lot
+                    Notes / Specific instructions for this batch
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="Instructions de déchargement, références transport..."
+                    placeholder="Unloading instructions, transport references..."
                     value={deliveryNotesText}
                     onChange={(e) => setDeliveryNotesText(e.target.value)}
                     className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
@@ -1372,14 +1410,14 @@ export function OrdersManager({
                     onClick={() => setIsDeliveryModalOpen(false)}
                     className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
                   >
-                    Annuler
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSubmittingBatch}
                     className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                   >
-                    {isSubmittingBatch ? "Génération du lot..." : "Valider l'expédition & Générer BL + Facture"}
+                    {isSubmittingBatch ? "Generating batch..." : "Confirm Shipment & Generate Delivery Note + Invoice"}
                   </button>
                 </div>
               </form>

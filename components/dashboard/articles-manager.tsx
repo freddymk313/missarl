@@ -42,6 +42,7 @@ import {
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -651,9 +652,10 @@ export function ArticlesManager({
         )}
       </div>
 
-      {/* Results Table */}
+      {/* Results Table & Mobile Cards */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
               <tr>
@@ -792,6 +794,117 @@ export function ArticlesManager({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden divide-y divide-border">
+          {items.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Package className="mx-auto size-8 text-muted-foreground/50 mb-2" />
+              No items found. Try a different search.
+            </div>
+          ) : (
+            items.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => openDetail(item)}
+                className="p-4 space-y-2.5 active:bg-secondary/40 transition-colors cursor-pointer"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm line-clamp-2">
+                      {item.designation || item.description}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                      {item.categoryName && (
+                        <span className="inline-block rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-foreground">
+                          {item.categoryName}
+                        </span>
+                      )}
+                      {item.brandName && (
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          {item.brandName}
+                        </span>
+                      )}
+                      {item.manufacturerPartNumber && (
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          • {item.manufacturerPartNumber}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {item.matchBadge && item.matchBadge.type !== "FUZZY" && (
+                    <div className="shrink-0">
+                      <MatchBadgeChip badge={item.matchBadge} />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+                  <div className="flex items-baseline gap-3">
+                    {item.supplyPrice != null && (
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Supply</span>
+                        <span className="font-mono font-bold text-foreground text-xs">
+                          ${item.supplyPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {item.quotedPrice != null && (
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Quoted</span>
+                        <span className="font-mono font-bold text-primary text-xs">
+                          ${item.quotedPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {item.unitCode && (
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Unit</span>
+                        <span className="text-xs font-bold text-muted-foreground">
+                          {item.unitCode}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => openDetail(item)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary"
+                      title="View details"
+                    >
+                      <Eye className="size-4" />
+                    </button>
+                    {canManage && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(item)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary"
+                          title="Edit"
+                        >
+                          <Edit className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteTarget(item);
+                            setDeleteError("");
+                          }}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Delete"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -1039,29 +1152,19 @@ export function ArticlesManager({
       </DetailSheet>
 
       {/* ── CREATE / EDIT MODAL ── */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-xl border border-border my-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-extrabold text-primary">
-                {editingItem ? "Edit Item" : "New Item"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
+      <ResponsiveModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editingItem ? "Edit Item" : "New Item"}
+        maxWidthClass="max-w-2xl"
+      >
+        {formError && (
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+            {formError}
+          </div>
+        )}
 
-            {formError && (
-              <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="mt-4 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
               {/* Section: Identification */}
               <fieldset>
                 <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
@@ -1399,27 +1502,19 @@ export function ArticlesManager({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ResponsiveModal>
 
       {/* ── DELETE CONFIRM MODAL ── */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-extrabold text-destructive">
-                Delete Item
-              </h3>
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <p className="mt-4 text-sm text-foreground">
+      <ResponsiveModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Item"
+        maxWidthClass="max-w-sm"
+        variant="danger"
+      >
+        {deleteTarget && (
+          <div>
+            <p className="text-sm text-foreground">
               Delete{" "}
               <span className="font-bold">
                 {deleteTarget.designation || deleteTarget.skuRef}
@@ -1427,8 +1522,7 @@ export function ArticlesManager({
               ? This cannot be undone.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Items referenced in quotations, orders or invoices cannot be
-              deleted.
+              Historical records in quotations, orders, and invoices will be safely preserved.
             </p>
             {deleteError && (
               <p className="mt-3 text-xs text-destructive font-semibold">
@@ -1454,26 +1548,19 @@ export function ArticlesManager({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ResponsiveModal>
 
       {/* ── ADD OFFER MODAL ── */}
-      {offerModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl border border-border">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h3 className="text-base font-extrabold text-primary">
-                Add Supplier Offer
-              </h3>
-              <button
-                type="button"
-                onClick={() => setOfferModalItem(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
+      <ResponsiveModal
+        open={!!offerModalItem}
+        onClose={() => setOfferModalItem(null)}
+        title="Add Supplier Offer"
+        maxWidthClass="max-w-md"
+      >
+        {offerModalItem && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-3">
               Item:{" "}
               <span className="font-bold text-foreground">
                 {offerModalItem.designation || offerModalItem.skuRef}
@@ -1481,13 +1568,13 @@ export function ArticlesManager({
             </p>
 
             {offerError && (
-              <div className="mt-3 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
+              <div className="mb-3 rounded-xl bg-destructive/10 p-3 text-xs font-semibold text-destructive border border-destructive/20">
                 {offerError}
               </div>
             )}
 
-            <form onSubmit={handleAddOffer} className="mt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleAddOffer} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-foreground">
                     Supplier *
@@ -1517,7 +1604,7 @@ export function ArticlesManager({
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-foreground">
                     Currency
@@ -1547,7 +1634,7 @@ export function ArticlesManager({
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-foreground">
                     Quoted On
@@ -1615,8 +1702,8 @@ export function ArticlesManager({
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </ResponsiveModal>
     </div>
   );
 }

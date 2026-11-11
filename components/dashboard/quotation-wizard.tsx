@@ -146,7 +146,7 @@ function CatalogItemCombobox({
               setIsOpen(true);
             }}
             className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-            title="Désélectionner l'article"
+            title="Deselect item"
           >
             <X className="size-3.5" />
           </button>
@@ -162,7 +162,7 @@ function CatalogItemCombobox({
               setIsOpen(true);
             }}
             onFocus={() => setIsOpen(true)}
-            placeholder="Rechercher nom, code, MPN..."
+            placeholder="Search name, code, MPN..."
             className="h-9 w-full rounded-xl border border-border bg-card pl-8 pr-7 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
           {searchTerm && (
@@ -178,11 +178,11 @@ function CatalogItemCombobox({
       )}
 
       {isOpen && !selectedItem && (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full min-w-[320px] overflow-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl backdrop-blur-md">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full max-w-[calc(100vw-3rem)] sm:min-w-[320px] overflow-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl backdrop-blur-md">
           {filtered.length === 0 ? (
             <div className="py-4 text-center text-xs text-muted-foreground">
               <Package className="size-6 mx-auto mb-1 text-muted-foreground/40" />
-              Aucun article correspondant
+              No matching items
             </div>
           ) : (
             filtered.map((it) => {
@@ -216,16 +216,16 @@ function CatalogItemCombobox({
                     <div className="flex items-center gap-2.5 shrink-0 font-mono">
                       {buyPrice != null && (
                         <span className="text-muted-foreground text-[10px]">
-                          Achat: $ {buyPrice.toFixed(2)}
+                          Buy: $ {buyPrice.toFixed(2)}
                         </span>
                       )}
                       {sellPrice != null ? (
                         <span className="font-bold text-primary">
-                          Vente: $ {sellPrice.toFixed(2)}
+                          Sell: $ {sellPrice.toFixed(2)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">
-                          (Sans prix)
+                          (No price)
                         </span>
                       )}
                     </div>
@@ -408,18 +408,18 @@ export function QuotationWizard({
     setError("");
 
     if (!clientId) {
-      setError("Veuillez sélectionner un client.");
+      setError("Please select a client.");
       return;
     }
 
     if (!internalRef.trim()) {
-      setError("Le numéro de référence du devis (REF N°) est obligatoire.");
+      setError("The quote reference number (REF N°) is required.");
       return;
     }
 
     const validLines = lines.filter((l) => l.description.trim() !== "");
     if (validLines.length === 0) {
-      setError("Veuillez saisir au moins un article avec une désignation.");
+      setError("Please add at least one item with a description.");
       return;
     }
 
@@ -453,7 +453,7 @@ export function QuotationWizard({
       });
 
       if (!res.success) {
-        setError(res.error || "Erreur de création.");
+        setError(res.error || "Creation failed.");
         setIsSubmitting(false);
       } else if (res.quotation) {
         // Auto-increment and remember the next sequence in localStorage
@@ -482,7 +482,7 @@ export function QuotationWizard({
         router.push("/dashboard/quotes");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erreur inattendue");
+      setError(err instanceof Error ? err.message : "Unexpected error");
       setIsSubmitting(false);
     }
   };
@@ -497,10 +497,10 @@ export function QuotationWizard({
           </div>
           <div>
             <h2 className="text-lg font-black text-success">
-              Devis enregistré !
+              Quote saved!
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Référence :{" "}
+              Reference:{" "}
               <span className="font-mono font-bold text-foreground">
                 {savedQuotation.reference}
               </span>
@@ -510,7 +510,7 @@ export function QuotationWizard({
 
         <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-xs font-black text-primary mb-3">
-            Générer le document PDF
+            Generate PDF Document
           </p>
           <QuotationPdfActions
             quotationId={savedQuotation.id}
@@ -523,7 +523,7 @@ export function QuotationWizard({
           onClick={() => router.push("/dashboard/quotes")}
           className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
         >
-          <ArrowLeft className="size-4" /> Retour à la liste des devis
+          <ArrowLeft className="size-4" /> Back to Quotes List
         </button>
       </div>
     );
@@ -537,7 +537,7 @@ export function QuotationWizard({
           href="/dashboard/quotes"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
         >
-          <ArrowLeft className="size-3.5" /> Retour à la liste des devis
+          <ArrowLeft className="size-3.5" /> Back to Quotes List
         </Link>
       </div>
 
@@ -557,7 +557,7 @@ export function QuotationWizard({
               <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 1
               </span>
-              Paramètres Commerciaux &amp; Client
+              Commercial Parameters &amp; Client
             </h3>
 
             {/* Client, REF N°, RFQ, Doc Type */}
@@ -565,7 +565,7 @@ export function QuotationWizard({
               {/* 1. Client */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Client destinataire *
+                  Recipient Client *
                 </label>
                 <select
                   value={clientId}
@@ -581,11 +581,11 @@ export function QuotationWizard({
                 </select>
               </div>
 
-              {/* 2. REF N° (Modifiable & initialisé selon le client) */}
+              {/* 2. REF N° */}
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
-                    REF N° (Devis) *
+                    REF N° (Quote) *
                   </label>
                   <span className="text-[10px] text-muted-foreground font-mono">
                     +1 auto
@@ -601,11 +601,11 @@ export function QuotationWizard({
                 />
               </div>
 
-              {/* 3. RFQ Client (Seul le numéro est saisi) */}
+              {/* 3. RFQ Client */}
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
-                    RFQ Client
+                    Client RFQ
                   </label>
                   {fullRfq ? (
                     <span className="text-[10px] font-mono font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
@@ -642,10 +642,10 @@ export function QuotationWizard({
                 </div>
               </div>
 
-              {/* 4. Type de document */}
+              {/* 4. Document Type */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Type de document *
+                  Document Type *
                 </label>
                 <select
                   value={docType}
@@ -654,18 +654,18 @@ export function QuotationWizard({
                   }
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
                 >
-                  <option value="QUOTATION">Devis Standard</option>
-                  <option value="PROFORMA">Facture Proforma</option>
+                  <option value="QUOTATION">Standard Quote</option>
+                  <option value="PROFORMA">Proforma Invoice</option>
                 </select>
               </div>
             </div>
 
             {/* Row 2: Terms & Lead times */}
             <div className="grid gap-4 sm:grid-cols-4">
-              {/* 1. Validité (1 colonne) */}
+              {/* 1. Validity */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Validité (jours)
+                  Validity (days)
                 </label>
                 <input
                   type="number"
@@ -677,10 +677,10 @@ export function QuotationWizard({
                 />
               </div>
 
-              {/* 2. Taux TVA (1 colonne) */}
+              {/* 2. VAT Rate */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Taux TVA (%)
+                  VAT Rate (%)
                 </label>
                 <input
                   type="number"
@@ -691,14 +691,14 @@ export function QuotationWizard({
                 />
               </div>
 
-              {/* 3. Commission globale (2 colonnes sur desktop grâce à sm:col-span-2) */}
+              {/* 3. Global Commission */}
               <div className="sm:col-span-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
-                    Commission globale (%)
+                    Global Commission (%)
                   </label>
                   <span className="text-[10px] text-primary font-bold">
-                    défaut par ligne
+                    default per line
                   </span>
                 </div>
                 <input
@@ -719,7 +719,7 @@ export function QuotationWizard({
             <div>
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Délai livraison
+                  Delivery Lead Time
                 </label>
                 <input
                   type="text"
@@ -738,14 +738,14 @@ export function QuotationWizard({
                 <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                   2
                 </span>
-                Spécifications et Lignes Chiffrées ({lines.length})
+                Item Specifications &amp; Pricing ({lines.length})
               </h3>
               <button
                 type="button"
                 onClick={addLine}
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-secondary/80 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
               >
-                <Plus className="size-3.5" /> Ajouter une ligne
+                <Plus className="size-3.5" /> Add Line
               </button>
             </div>
 
@@ -774,7 +774,7 @@ export function QuotationWizard({
                   >
                     <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
                       <span className="text-primary font-black">
-                        Ligne #{index + 1}
+                        Line #{index + 1}
                       </span>
                       {lines.length > 1 && (
                         <button
@@ -782,7 +782,7 @@ export function QuotationWizard({
                           onClick={() => removeLine(index)}
                           className="text-destructive hover:text-destructive/80 flex items-center gap-1 text-[11px] cursor-pointer"
                         >
-                          <Trash2 className="size-3.5" /> Supprimer
+                          <Trash2 className="size-3.5" /> Remove
                         </button>
                       )}
                     </div>
@@ -791,7 +791,7 @@ export function QuotationWizard({
                       {/* Searchable catalog item combobox */}
                       <div className="sm:col-span-5">
                         <label className="block text-[11px] font-bold text-foreground">
-                          Catalogue pré-enregistré (recherche rapide)
+                          Pre-registered catalog (quick search)
                         </label>
                         <CatalogItemCombobox
                           items={items}
@@ -805,7 +805,7 @@ export function QuotationWizard({
                       {/* Full description */}
                       <div className="sm:col-span-7">
                         <label className="block text-[11px] font-bold text-foreground">
-                          Désignation complète pour le devis *
+                          Full description for the quote *
                         </label>
                         <input
                           type="text"
@@ -814,18 +814,17 @@ export function QuotationWizard({
                           onChange={(e) =>
                             updateLine(index, "description", e.target.value)
                           }
-                          placeholder="Description détaillée de la fourniture ou pièce..."
+                          placeholder="Detailed description of the supply or part..."
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
                       </div>
                     </div>
 
-                    {/* Row: Unité | Quantité | Coût Achat | Commission % | Prix Vente | Total */}
-                    {/* Ligne : Unité | Quantité | Coût Achat | Commission % | Prix Vente | Total (répartis en 3 et 3) */}
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    {/* Row: Unit | Qty | Purchase Cost | Commission % | Sale Price | Total */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-[11px] font-bold text-foreground">
-                          Unité *
+                          Unit *
                         </label>
                         <input
                           type="text"
@@ -834,14 +833,14 @@ export function QuotationWizard({
                           onChange={(e) =>
                             updateLine(index, "unit", e.target.value)
                           }
-                          placeholder="Pce, Mètre, Lot..."
+                          placeholder="Pce, Metre, Lot..."
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
                       </div>
 
                       <div>
                         <label className="block text-[11px] font-bold text-foreground">
-                          Quantité *
+                          Quantity *
                         </label>
                         <input
                           type="number"
@@ -860,11 +859,11 @@ export function QuotationWizard({
                         />
                       </div>
 
-                      <div>
+                      <div className="col-span-2 sm:col-span-1">
                         <label className="block text-[11px] font-bold text-muted-foreground">
-                          Coût Achat ($){" "}
+                          Purchase Cost ($){" "}
                           <span className="text-[9px] font-normal">
-                            (Fourn.)
+                            (Supplier)
                           </span>
                         </label>
                         <input
@@ -896,11 +895,11 @@ export function QuotationWizard({
                         />
                       </div>
 
-                      {/* Deuxième ligne (les 3 éléments suivants) */}
+                      {/* Second row of 3 */}
                       <div>
                         <div className="flex items-center justify-between">
                           <label className="block text-[11px] font-bold text-foreground">
-                            Commis. (%)
+                            Commission (%)
                           </label>
                           {isLineOverride ? (
                             <button
@@ -925,7 +924,7 @@ export function QuotationWizard({
                                 );
                               }}
                               className="text-[9px] text-primary underline cursor-pointer hover:text-primary/70"
-                              title="Réinitialiser à la commission globale"
+                              title="Reset to global commission"
                             >
                               ↺ global
                             </button>
@@ -978,7 +977,7 @@ export function QuotationWizard({
 
                       <div>
                         <label className="block text-[11px] font-bold text-foreground">
-                          Prix Vente HT ($) *{" "}
+                          Sale Price excl. tax ($) *{" "}
                           <span className="text-[9px] font-normal text-primary">
                             (Client)
                           </span>
@@ -1000,9 +999,9 @@ export function QuotationWizard({
                         />
                       </div>
 
-                      <div>
+                      <div className="col-span-2 sm:col-span-1">
                         <label className="block text-[11px] font-bold text-foreground">
-                          Total Ligne HT
+                          Line Total excl. tax
                         </label>
                         <div className="h-9 w-full rounded-xl border border-border bg-secondary/50 px-3 flex items-center font-mono font-black text-primary text-xs mt-1">
                           {formatUSD(lineSubtotal)}
@@ -1023,7 +1022,7 @@ export function QuotationWizard({
               <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 3
               </span>
-              Récapitulatif Financier
+              Financial Summary
             </h3>
 
             {/* Purchase cost & Commission preview */}
@@ -1031,7 +1030,7 @@ export function QuotationWizard({
               {/* Global commission indicator */}
               <div className="flex justify-between items-center text-xs pb-2 border-b border-border/60">
                 <span className="font-bold text-foreground">
-                  Commission globale :
+                  Global commission:
                 </span>
                 <span className="font-mono font-black text-primary bg-primary/10 px-2 py-0.5 rounded">
                   {globalCommission}%
@@ -1039,7 +1038,7 @@ export function QuotationWizard({
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="font-semibold text-muted-foreground">
-                  Coût d&apos;achat total :
+                  Total purchase cost:
                 </span>
                 <span className="font-mono font-bold text-foreground">
                   {formatUSD(totalPurchaseCost)}
@@ -1047,7 +1046,7 @@ export function QuotationWizard({
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="font-semibold text-muted-foreground">
-                  Marge / Commission :
+                  Margin / Commission:
                 </span>
                 <span
                   className={`font-mono font-bold ${
@@ -1061,7 +1060,7 @@ export function QuotationWizard({
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground pt-1.5 border-t border-border/60">
-                Total sans commission (coût achat) :{" "}
+                Total without commission (purchase cost):{" "}
                 <span className="font-bold text-foreground">
                   {formatUSD(totalPurchaseCost)}
                 </span>
@@ -1071,19 +1070,19 @@ export function QuotationWizard({
             {/* Client-facing totals */}
             <div className="space-y-3 text-xs">
               <div className="flex justify-between text-muted-foreground">
-                <span>Sous-total Brut HT (Client) :</span>
+                <span>Gross Subtotal excl. tax (Client):</span>
                 <span className="font-mono font-bold text-foreground">
                   {formatUSD(subtotalSelling)}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Taux TVA applicable :</span>
+                <span>Applicable VAT rate:</span>
                 <span className="font-mono font-bold text-foreground">
                   {vatRate} %
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Montant TVA :</span>
+                <span>VAT Amount:</span>
                 <span className="font-mono font-bold text-foreground">
                   {formatUSD(vatAmount)}
                 </span>
@@ -1091,10 +1090,10 @@ export function QuotationWizard({
               <div className="pt-3 border-t border-border flex justify-between items-baseline">
                 <div>
                   <span className="text-xs font-black uppercase text-foreground">
-                    Total TTC
+                    Total incl. tax
                   </span>
                   <p className="text-[10px] text-muted-foreground">
-                    Devise officielle : USD
+                    Official currency: USD
                   </p>
                 </div>
                 <span className="font-mono text-2xl font-black text-primary">
@@ -1111,12 +1110,32 @@ export function QuotationWizard({
               >
                 <CheckCircle2 className="size-4" />
                 {isSubmitting
-                  ? "Génération en cours..."
-                  : "Valider et Générer"}
+                  ? "Generating..."
+                  : "Validate & Generate"}
               </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Sticky Quick Summary & Submit */}
+      <div className="lg:hidden sticky bottom-0 -mx-3 -mb-3 sm:-mx-5 sm:-mb-5 p-3.5 bg-card/95 backdrop-blur-md border-t border-border z-20 flex items-center justify-between gap-3 shadow-lg pb-safe">
+        <div>
+          <span className="text-[10px] text-muted-foreground uppercase font-bold block leading-none">
+            Total incl. tax
+          </span>
+          <span className="font-mono text-base font-black text-primary leading-tight">
+            {formatUSD(grandTotal)}
+          </span>
+        </div>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="h-10 px-5 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+        >
+          <CheckCircle2 className="size-4" />
+          {isSubmitting ? "Generating..." : "Validate & Generate"}
+        </button>
       </div>
     </form>
   );

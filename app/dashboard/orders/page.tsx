@@ -25,10 +25,10 @@ export default async function CommandesPage({
           <div>
             
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Bons de Commande Clients (PO)
+              Customer Purchase Orders (PO)
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Suivi des commandes fermes reçues, conformité avec les devis validés et déclenchement de la facturation.
+              Track firm orders received, verify compliance with validated quotations, and trigger delivery notes & invoicing.
             </p>
           </div>
         </div>

@@ -15,7 +15,7 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-secondary/35 text-foreground antialiased selection:bg-accent/40 selection:text-foreground">
+    <div className="flex h-[100dvh] overflow-hidden bg-secondary/35 text-foreground antialiased selection:bg-accent/40 selection:text-foreground">
       {/* Skip link inside dashboard for keyboard navigation */}
       <a
         href="#dashboard-main-content"
@@ -32,7 +32,7 @@ export function DashboardShell({
       />
 
       {/* Main Column */}
-      <div className="flex flex-1 flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex flex-1 flex-col min-w-0 h-[100dvh] overflow-hidden">
         <Topbar
           user={user}
           onOpenMobile={() => setMobileOpen(true)}
@@ -40,7 +40,7 @@ export function DashboardShell({
         <main
           id="dashboard-main-content"
           tabIndex={-1}
-          className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto outline-none"
+          className="flex-1 p-3 sm:p-5 lg:p-8 overflow-y-auto outline-none"
         >
           {children}
         </main>

@@ -74,7 +74,7 @@ interface RecentInvoiceRow {
 export default async function DashboardPage() {
   const session = await getCurrentSession();
   const calendarChip = getCalendarChipData();
-  const firstName = session?.fullName?.split(" ")[0] || "Collaborateur";
+  const firstName = session?.fullName?.split(" ")[0] || "Collaborator";
 
   // Price collector restricted view
   if (session?.role === "PRICE_COLLECTOR") {
@@ -106,15 +106,14 @@ export default async function DashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
-                  Bonjour, {firstName}
+                  Hello, {firstName}
                 </h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-foreground border border-accent/40">
-                  Collecteur de Prix
+                  Price Collector
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Consultez et recherchez l&apos;ensemble des articles du
-                catalogue industriel MIS SARL.
+                Browse and search all items in the MIS SARL industrial catalog.
               </p>
             </div>
           </div>
@@ -124,7 +123,7 @@ export default async function DashboardPage() {
               href="/dashboard/items"
               className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-accent text-accent-foreground text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
-              <Package className="size-4" /> Consulter le Catalogue
+              <Package className="size-4" /> Browse Catalog
             </Link>
           </div>
         </div>
@@ -132,33 +131,31 @@ export default async function DashboardPage() {
         {/* Quick Stat Tiles */}
         <div className="grid gap-4 sm:grid-cols-2">
           <StatTile
-            label="Articles actifs au catalogue"
+            label="Active catalog items"
             value={itemStat.total}
             icon={Package}
             href="/dashboard/items"
-            subtext="Spécifications techniques et prix en vigueur"
+            subtext="Technical specifications and current pricing"
           />
           <StatTile
-            label="Catégories industrielles"
+            label="Industrial categories"
             value={itemStat.categories}
             icon={CheckCircle2}
             href="/dashboard/items"
-            subtext="Robinetterie, pompage, électricité, quincaillerie minière"
+            subtext="Valves, pumps, electrical, mining hardware"
           />
         </div>
 
         {/* Catalogue Info Banner */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-3 border-l-4 border-l-accent">
           <h2 className="text-sm font-black text-primary flex items-center gap-2">
-            <Layers className="size-4 text-accent" /> Mode Consultation
-            Catalogue
+            <Layers className="size-4 text-accent" /> Catalog Read-Only Mode
           </h2>
           <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
-            Votre profil vous permet d&apos;accéder en lecture seule à la base
-            articles de Lubumbashi : désignations complètes, codes SKU, marques
-            agréées et tarifs publics en vigueur. Pour toute modification ou
-            ajout de référence, veuillez vous rapprocher de la Direction
-            Commerciale.
+            Your profile gives you read-only access to the Lubumbashi item
+            database: full designations, SKU codes, approved brands, and current
+            public pricing. For any modification or addition of a reference,
+            please contact Commercial Management.
           </p>
         </div>
       </div>
@@ -263,22 +260,22 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Overview Header Banner avec touche d'or/jaune discrète */}
-      <div className="bg-card p-6 rounded-2xl border border-border shadow-xs border-l-4 border-l-accent">
+      <div className="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-xs border-l-4 border-l-accent">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* Calendar Chip */}
-            <div className="flex flex-col items-center justify-center size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
+            <div className="flex flex-col items-center justify-center size-12 sm:size-13 rounded-xl bg-secondary/80 border border-border shrink-0 shadow-2xs">
               <span className="text-[10px] font-black uppercase tracking-wider text-accent">
                 {calendarChip.month}
               </span>
-              <span className="text-lg font-black text-primary leading-none mt-0.5">
+              <span className="text-base sm:text-lg font-black text-primary leading-none mt-0.5">
                 {calendarChip.day}
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
-                  Bonjour, {firstName}
+                  Hello, {firstName}
                 </h1>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -289,16 +286,16 @@ export default async function DashboardPage() {
           </div>
 
           {/* Quick Header Actions */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
             <Link
               href="/dashboard/quotes/new"
-              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 flex-1 sm:flex-initial px-3.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
               <FileSpreadsheet className="size-3.5" /> Nouveau Devis
             </Link>
             <Link
               href="/dashboard/clients"
-              className="inline-flex items-center justify-center gap-2 h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary/60 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 flex-1 sm:flex-initial px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary/60 transition-colors"
             >
               <Building2 className="size-3.5 text-primary" /> Clients
             </Link>
@@ -307,43 +304,52 @@ export default async function DashboardPage() {
       </div>
 
       {/* 4 KPI StatTiles */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile
-          label="Devis Émis"
-          value={quoteStat.total}
-          icon={FileSpreadsheet}
-          href="/dashboard/quotes"
-          subtext={`${quoteStat.validated} validés · $ ${formatUSD(quoteStat.total_amount)}`}
-        />
-        <StatTile
-          label="Bons de Commande"
-          value={orderStat.total}
-          icon={ShoppingCart}
-          href="/dashboard/orders"
-          subtext={`${orderStat.active} en cours · $ ${formatUSD(orderStat.total_amount)}`}
-        />
-        <StatTile
-          label="Créances à recouvrer"
-          value={` ${formatUSD(invoiceStat.total_receivables)}`}
-          icon={Receipt}
-          href="/dashboard/invoices"
-          trend="down"
-          subtext={`${invoiceStat.unpaid_count} facture(s) en attente`}
-        />
-        <StatTile
-          label="Paiements Encaissés"
-          value={`${formatUSD(paymentStat.total_collected)}`}
-          icon={CreditCard}
-          href="/dashboard/payments"
-          trend="up"
-          subtext={`${paymentStat.total} versement(s) reçu(s)`}
-        />
+      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"> */}
+      <div className="flex lg:grid lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
+        <div className="min-w-[260px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Devis Émis"
+            value={quoteStat.total}
+            icon={FileSpreadsheet}
+            href="/dashboard/quotes"
+            subtext={`${quoteStat.validated} validés · $ ${formatUSD(quoteStat.total_amount)}`}
+          />
+        </div>
+        <div className="min-w-[260px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Bons de Commande"
+            value={orderStat.total}
+            icon={ShoppingCart}
+            href="/dashboard/orders"
+            subtext={`${orderStat.active} en cours · $ ${formatUSD(orderStat.total_amount)}`}
+          />
+        </div>
+        <div className="min-w-[260px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Créances à recouvrer"
+            value={` ${formatUSD(invoiceStat.total_receivables)}`}
+            icon={Receipt}
+            href="/dashboard/invoices"
+            trend="down"
+            subtext={`${invoiceStat.unpaid_count} facture(s) en attente`}
+          />
+        </div>
+        <div className="min-w-[260px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Paiements Encaissés"
+            value={`${formatUSD(paymentStat.total_collected)}`}
+            icon={CreditCard}
+            href="/dashboard/payments"
+            trend="up"
+            subtext={`${paymentStat.total} versement(s) reçu(s)`}
+          />
+        </div>
       </div>
 
       {/* Main Grid: Activity & Budget Summary */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Left Column: Recent Tasks / Quotes (8 cols) */}
-        <div className="lg:col-span-8 rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+        <div className="lg:col-span-8 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-border">
             <div>
               <h2 className="text-sm font-black text-primary flex items-center gap-2">
@@ -409,7 +415,7 @@ export default async function DashboardPage() {
         {/* Right Column: Financial Balance & Invoices to Watch (4 cols) */}
         <div className="lg:col-span-4 space-y-6">
           {/* Treasury Summary Card */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-muted-foreground">
                 Suivi Trésorerie
@@ -463,7 +469,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Factures à surveiller */}
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-border">
               <h3 className="text-xs font-black text-primary flex items-center gap-1.5">
                 <AlertTriangle className="size-3.5 text-accent" /> Factures à

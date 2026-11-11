@@ -14,10 +14,10 @@ export default async function SuppliersPage() {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Fournisseurs Industriels
+              Industrial Suppliers
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Gestion des fabricants partenaires, importateurs miniers et contacts logistiques.
+              Manage partner manufacturers, mining importers, and logistics contacts.
             </p>
           </div>
         </div>

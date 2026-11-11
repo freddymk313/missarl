@@ -16,10 +16,10 @@ export default async function ClientsPage() {
           <div>
             
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Clients & Sociétés Minières
+              Clients &amp; Mining Companies
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Gestion des comptes clients, adresses de livraison sur site, coordonnées et accès aux dossiers commerciaux.
+              Manage client accounts, on-site delivery addresses, contacts, and access to commercial files.
             </p>
           </div>
         </div>

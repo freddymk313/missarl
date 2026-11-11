@@ -865,26 +865,14 @@ export async function updateItem(
 export async function deleteItem(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Check for references in quotation_items, order_items, invoice_items
-  const refs = await sql`
-    SELECT COUNT(*)::int as cnt FROM (
-      SELECT item_id FROM quotation_items WHERE item_id = ${id}::uuid
-      UNION ALL
-      SELECT item_id FROM order_items WHERE item_id = ${id}::uuid
-      UNION ALL
-      SELECT item_id FROM invoice_items WHERE item_id = ${id}::uuid
-    ) sub
-  `;
-  const count = (refs[0] as unknown as { cnt: number }).cnt;
-  if (count > 0) {
-    return {
-      success: false,
-      error: `Cannot delete: item is referenced in ${count} document line(s).`,
-    };
+  try {
+    await sql`DELETE FROM items WHERE id = ${id}::uuid`;
+    return { success: true };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Erreur lors de la suppression de l'article.";
+    return { success: false, error: message };
   }
-
-  await sql`DELETE FROM items WHERE id = ${id}::uuid`;
-  return { success: true };
 }
 
 // ---------------------------------------------------------------------------

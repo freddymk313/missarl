@@ -273,36 +273,67 @@ export function DataTable<T extends Record<string, unknown> = Record<string, unk
       {/* Mobile Card View (< md) */}
       <div className="md:hidden space-y-3">
         {paginatedData.length ? (
-          paginatedData.map((row, idx) => {
-            if (mobileCardRenderer) {
+          <>
+            {paginatedData.map((row, idx) => {
+              if (mobileCardRenderer) {
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => onRowClick?.(row)}
+                    className={cn(onRowClick && "cursor-pointer")}
+                  >
+                    {mobileCardRenderer(row, idx)}
+                  </div>
+                );
+              }
               return (
                 <div
                   key={idx}
                   onClick={() => onRowClick?.(row)}
-                  className={cn(onRowClick && "cursor-pointer")}
+                  className={cn(
+                    "rounded-2xl border border-border bg-card p-4 shadow-xs space-y-2.5",
+                    onRowClick && "cursor-pointer active:scale-[0.99] transition-transform"
+                  )}
                 >
-                  {mobileCardRenderer(row, idx)}
+                  {columns.map((col) => (
+                    <div key={col.key} className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-muted-foreground">{col.header}</span>
+                      <div className="text-right">{col.cell(row, idx)}</div>
+                    </div>
+                  ))}
                 </div>
               );
-            }
-            return (
-              <div
-                key={idx}
-                onClick={() => onRowClick?.(row)}
-                className={cn(
-                  "rounded-2xl border border-border bg-card p-4 shadow-xs space-y-2.5",
-                  onRowClick && "cursor-pointer active:scale-[0.99] transition-transform"
-                )}
-              >
-                {columns.map((col) => (
-                  <div key={col.key} className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-muted-foreground">{col.header}</span>
-                    <div className="text-right">{col.cell(row, idx)}</div>
-                  </div>
-                ))}
+            })}
+
+            {/* Mobile Pagination */}
+            {rowCount > pageSize && (
+              <div className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5 bg-card text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                  disabled={pageIndex === 0}
+                  className="size-7 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  aria-label="Page précédente"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+
+                <span className="px-2 text-xs font-semibold text-foreground tabular-nums">
+                  Page {pageIndex + 1} / {Math.max(1, pageCount)}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={pageIndex >= pageCount - 1}
+                  className="size-7 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight className="size-3.5" />
+                </button>
               </div>
-            );
-          })
+            )}
+          </>
         ) : (
           <EmptyState
             icon={FolderOpen}

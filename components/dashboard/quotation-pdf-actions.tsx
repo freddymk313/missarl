@@ -41,7 +41,7 @@ export function QuotationPdfActions({
     // Open in new tab — browser's native PDF viewer handles display & print
     const win = window.open(pdfUrl("inline"), "_blank", "noopener,noreferrer");
     if (!win) {
-      setError("Impossible d'ouvrir l'aperçu. Autorisez les popups pour ce site.");
+      setError("Unable to open preview. Please allow popups for this site.");
     }
     setLoading(null);
   };
@@ -54,7 +54,7 @@ export function QuotationPdfActions({
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(
-          (data as { error?: string }).error ?? "Échec de téléchargement du PDF."
+          (data as { error?: string }).error ?? "Failed to download PDF."
         );
       }
       const blob = await res.blob();
@@ -72,7 +72,7 @@ export function QuotationPdfActions({
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Échec de génération du PDF."
+        err instanceof Error ? err.message : "Failed to generate PDF."
       );
     } finally {
       setLoading(null);
@@ -84,7 +84,7 @@ export function QuotationPdfActions({
     setLoading("print");
     const win = window.open(pdfUrl("inline"), "_blank", "noopener,noreferrer");
     if (!win) {
-      setError("Impossible d'ouvrir l'impression. Autorisez les popups pour ce site.");
+      setError("Unable to open print preview. Please allow popups for this site.");
       setLoading(null);
       return;
     }
@@ -100,7 +100,7 @@ export function QuotationPdfActions({
           onClick={handlePreview}
           disabled={loading !== null}
           className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50"
-          title="Aperçu PDF"
+          title="PDF Preview"
         >
           {loading === "preview" ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -113,7 +113,7 @@ export function QuotationPdfActions({
           onClick={handleDownload}
           disabled={loading !== null}
           className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50"
-          title="Télécharger PDF"
+          title="Download PDF"
         >
           {loading === "download" ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -147,7 +147,7 @@ export function QuotationPdfActions({
           ) : (
             <FileText className="size-4" />
           )}
-          {loading === "preview" ? "Génération en cours..." : "Aperçu PDF"}
+          {loading === "preview" ? "Generating..." : "PDF Preview"}
         </button>
 
         {/* Download */}
@@ -162,7 +162,7 @@ export function QuotationPdfActions({
           ) : (
             <Download className="size-4" />
           )}
-          {loading === "download" ? "Téléchargement..." : "Télécharger le PDF"}
+          {loading === "download" ? "Downloading..." : "Download PDF"}
         </button>
 
         {/* Print */}
@@ -177,7 +177,7 @@ export function QuotationPdfActions({
           ) : (
             <Printer className="size-4" />
           )}
-          Imprimer
+          Print
         </button>
       </div>
     </div>

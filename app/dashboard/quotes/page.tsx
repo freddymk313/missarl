@@ -15,10 +15,10 @@ export default async function QuotationsPage() {
           <div>
            
             <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Devis & Factures Proformas
+              Quotations & Proforma Invoices
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Suivi des devis miniers et industriels avec numérotation indépendante par client et préservation des prix d&apos;émission.
+              Track mining and industrial quotations with client-specific sequential numbering and preserved pricing snapshots.
             </p>
           </div>
         </div>
