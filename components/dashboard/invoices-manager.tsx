@@ -12,10 +12,11 @@ import {
   FileText,
   Download,
   Truck,
+  Check,
 } from "lucide-react";
 import { InvoiceRecord } from "@/lib/db/invoices";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { cancelInvoiceAction } from "@/actions/invoices";
+import { cancelInvoiceAction, updateInvoiceNormalizedNumberAction } from "@/actions/invoices";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
@@ -33,6 +34,37 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancellationReason, setCancellationReason] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
+  const [normalizedInput, setNormalizedInput] = useState("");
+  const [isSavingNormalized, setIsSavingNormalized] = useState(false);
+  const [normalizedSaved, setNormalizedSaved] = useState(false);
+
+  const openInvoiceDetails = (inv: InvoiceRecord) => {
+    setSelectedInvoice(inv);
+    setNormalizedInput(inv.normalizedInvoiceNumber || "");
+    setNormalizedSaved(false);
+  };
+
+  const handleSaveNormalizedNumber = async () => {
+    if (!selectedInvoice) return;
+    setIsSavingNormalized(true);
+    setNormalizedSaved(false);
+    try {
+      const res = await updateInvoiceNormalizedNumberAction(
+        selectedInvoice.id,
+        normalizedInput.trim() || null
+      );
+      if (!res.success) {
+        alert(res.error || "Erreur de mise à jour");
+      } else if (res.invoice) {
+        setInvoices((prev) => prev.map((i) => (i.id === selectedInvoice.id ? res.invoice! : i)));
+        setSelectedInvoice(res.invoice);
+        setNormalizedSaved(true);
+        setTimeout(() => setNormalizedSaved(false), 2500);
+      }
+    } finally {
+      setIsSavingNormalized(false);
+    }
+  };
 
   const filtered = invoices.filter((inv) => {
     const matchesSearch =
@@ -174,11 +206,19 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                 filtered.map((inv) => (
                   <tr
                     key={inv.id}
-                    onClick={() => setSelectedInvoice(inv)}
+                    onClick={() => openInvoiceDetails(inv)}
                     className="hover:bg-secondary/30 transition-colors cursor-pointer"
                   >
                     <td className="py-3.5 px-4">
                       <RefChip value={inv.invoiceNumber} />
+                      {inv.normalizedInvoiceNumber && (
+                        <p
+                          className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[150px]"
+                          title={`Normalisée: ${inv.normalizedInvoiceNumber}`}
+                        >
+                          {inv.normalizedInvoiceNumber}
+                        </p>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-foreground">{inv.clientName}</td>
                     <td className="py-3.5 px-4">
@@ -287,6 +327,52 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
               <KeyValueTile label="PO N° Client" value={selectedInvoice.clientPoNumber || "—"} />
               <KeyValueTile label="BL associé" value={selectedInvoice.deliveryNoteNumber || "—"} />
               <KeyValueTile label="Taux TVA" value={`${selectedInvoice.vatRate}%`} />
+            </div>
+
+            {/* Normalized Invoice Number Configuration Box */}
+            <div className="rounded-xl border border-border bg-secondary/30 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground">
+                  Numéro Facture Normalisée (DGI / Fiscal)
+                </label>
+                {selectedInvoice.normalizedInvoiceNumber ? (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground font-bold">
+                    Assigné
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground italic">
+                    Non renseigné (—)
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Identifiant fiscal officiel utilisé sur le relevé de factures impayées (ex: <code className="font-mono text-primary font-bold">FC/CD02035320/1-6/2026</code>).
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="ex: FC/CD02035320/1-6/2026"
+                  value={normalizedInput}
+                  onChange={(e) => setNormalizedInput(e.target.value)}
+                  className="h-8 flex-1 rounded-lg border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveNormalizedNumber}
+                  disabled={isSavingNormalized}
+                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-2xs shrink-0 cursor-pointer disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {normalizedSaved ? (
+                    <>
+                      <Check className="size-3.5 text-accent" /> Enregistré
+                    </>
+                  ) : isSavingNormalized ? (
+                    "Enregistrement..."
+                  ) : (
+                    "Enregistrer"
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* PDF Generation Quick Strip */}

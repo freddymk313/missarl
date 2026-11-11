@@ -24,6 +24,7 @@ export interface InvoiceLineItem {
 export interface InvoiceRecord {
   id: string;
   invoiceNumber: string;
+  normalizedInvoiceNumber?: string | null;
   clientId: string;
   clientCode?: string;
   clientName?: string;
@@ -64,104 +65,219 @@ export async function getInvoices(options?: {
   const status = options?.status || null;
   const searchTerm = options?.search?.trim() ? `%${options.search.trim().toLowerCase()}%` : null;
 
-  const rows = await sql`
-    SELECT 
-      i.id,
-      i.invoice_number as "invoiceNumber",
-      i.client_id as "clientId",
-      c.code as "clientCode",
-      c.name as "clientName",
-      i.order_id as "orderId",
-      o.order_number as "orderNumber",
-      o.client_po_number as "clientPoNumber",
-      dn.id as "deliveryNoteId",
-      dn.bl_number as "deliveryNoteNumber",
-      i.quotation_id as "quotationId",
-      q.internal_reference as "quotationReference",
-      q.client_rfq_number as "clientRfqNumber",
-      i.issue_date::text as "issueDate",
-      i.due_date::text as "dueDate",
-      i.status,
-      i.currency,
-      i.subtotal::float as subtotal,
-      i.vat_rate::float as "vatRate",
-      i.vat_amount::float as "vatAmount",
-      i.total::float as total,
-      i.paid_amount::float as "paidAmount",
-      i.balance_due::float as "balanceDue",
-      i.payment_terms as "paymentTerms",
-      i.notes,
-      i.cancellation_reason as "cancellationReason",
-      i.created_by as "createdBy",
-      u.full_name as "createdByName",
-      i.created_at as "createdAt",
-      i.updated_at as "updatedAt"
-    FROM invoices i
-    JOIN clients c ON i.client_id = c.id
-    LEFT JOIN orders o ON i.order_id = o.id
-    LEFT JOIN quotations q ON i.quotation_id = q.id
-    LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
-    LEFT JOIN users u ON i.created_by = u.id
-    WHERE (${clientId}::uuid IS NULL OR i.client_id = ${clientId}::uuid)
-      AND (${status}::text IS NULL OR i.status = ${status})
-      AND (${searchTerm}::text IS NULL OR 
-           LOWER(i.invoice_number) LIKE ${searchTerm} OR 
-           LOWER(c.name) LIKE ${searchTerm} OR
-           LOWER(COALESCE(o.order_number, '')) LIKE ${searchTerm} OR
-           LOWER(COALESCE(o.client_po_number, '')) LIKE ${searchTerm} OR
-           LOWER(COALESCE(dn.bl_number, '')) LIKE ${searchTerm})
-    ORDER BY i.created_at DESC
-  `;
+  let rows: Record<string, unknown>[];
+  try {
+    rows = (await sql`
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.normalized_invoice_number as "normalizedInvoiceNumber",
+        i.client_id as "clientId",
+        c.code as "clientCode",
+        c.name as "clientName",
+        i.order_id as "orderId",
+        o.order_number as "orderNumber",
+        o.client_po_number as "clientPoNumber",
+        dn.id as "deliveryNoteId",
+        dn.bl_number as "deliveryNoteNumber",
+        i.quotation_id as "quotationId",
+        q.internal_reference as "quotationReference",
+        q.client_rfq_number as "clientRfqNumber",
+        i.issue_date::text as "issueDate",
+        i.due_date::text as "dueDate",
+        i.status,
+        i.currency,
+        i.subtotal::float as subtotal,
+        i.vat_rate::float as "vatRate",
+        i.vat_amount::float as "vatAmount",
+        i.total::float as total,
+        i.paid_amount::float as "paidAmount",
+        i.balance_due::float as "balanceDue",
+        i.payment_terms as "paymentTerms",
+        i.notes,
+        i.cancellation_reason as "cancellationReason",
+        i.created_by as "createdBy",
+        u.full_name as "createdByName",
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt"
+      FROM invoices i
+      JOIN clients c ON i.client_id = c.id
+      LEFT JOIN orders o ON i.order_id = o.id
+      LEFT JOIN quotations q ON i.quotation_id = q.id
+      LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
+      LEFT JOIN users u ON i.created_by = u.id
+      WHERE (${clientId}::uuid IS NULL OR i.client_id = ${clientId}::uuid)
+        AND (${status}::text IS NULL OR i.status = ${status})
+        AND (${searchTerm}::text IS NULL OR 
+             LOWER(i.invoice_number) LIKE ${searchTerm} OR 
+             LOWER(c.name) LIKE ${searchTerm} OR
+             LOWER(COALESCE(o.order_number, '')) LIKE ${searchTerm} OR
+             LOWER(COALESCE(o.client_po_number, '')) LIKE ${searchTerm} OR
+             LOWER(COALESCE(dn.bl_number, '')) LIKE ${searchTerm})
+      ORDER BY i.created_at DESC
+    `) as Record<string, unknown>[];
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string };
+    if (errorObj?.code === "42703" || errorObj?.message?.includes("normalized_invoice_number")) {
+      rows = (await sql`
+        SELECT 
+          i.id,
+          i.invoice_number as "invoiceNumber",
+          NULL::text as "normalizedInvoiceNumber",
+          i.client_id as "clientId",
+          c.code as "clientCode",
+          c.name as "clientName",
+          i.order_id as "orderId",
+          o.order_number as "orderNumber",
+          o.client_po_number as "clientPoNumber",
+          dn.id as "deliveryNoteId",
+          dn.bl_number as "deliveryNoteNumber",
+          i.quotation_id as "quotationId",
+          q.internal_reference as "quotationReference",
+          q.client_rfq_number as "clientRfqNumber",
+          i.issue_date::text as "issueDate",
+          i.due_date::text as "dueDate",
+          i.status,
+          i.currency,
+          i.subtotal::float as subtotal,
+          i.vat_rate::float as "vatRate",
+          i.vat_amount::float as "vatAmount",
+          i.total::float as total,
+          i.paid_amount::float as "paidAmount",
+          i.balance_due::float as "balanceDue",
+          i.payment_terms as "paymentTerms",
+          i.notes,
+          i.cancellation_reason as "cancellationReason",
+          i.created_by as "createdBy",
+          u.full_name as "createdByName",
+          i.created_at as "createdAt",
+          i.updated_at as "updatedAt"
+        FROM invoices i
+        JOIN clients c ON i.client_id = c.id
+        LEFT JOIN orders o ON i.order_id = o.id
+        LEFT JOIN quotations q ON i.quotation_id = q.id
+        LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
+        LEFT JOIN users u ON i.created_by = u.id
+        WHERE (${clientId}::uuid IS NULL OR i.client_id = ${clientId}::uuid)
+          AND (${status}::text IS NULL OR i.status = ${status})
+          AND (${searchTerm}::text IS NULL OR 
+               LOWER(i.invoice_number) LIKE ${searchTerm} OR 
+               LOWER(c.name) LIKE ${searchTerm} OR
+               LOWER(COALESCE(o.order_number, '')) LIKE ${searchTerm} OR
+               LOWER(COALESCE(o.client_po_number, '')) LIKE ${searchTerm} OR
+               LOWER(COALESCE(dn.bl_number, '')) LIKE ${searchTerm})
+        ORDER BY i.created_at DESC
+      `) as Record<string, unknown>[];
+    } else {
+      throw err;
+    }
+  }
 
   return rows as unknown as InvoiceRecord[];
 }
 
 export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> {
-  const rows = await sql`
-    SELECT 
-      i.id,
-      i.invoice_number as "invoiceNumber",
-      i.client_id as "clientId",
-      c.code as "clientCode",
-      c.name as "clientName",
-      c.email as "clientEmail",
-      c.phone as "clientPhone",
-      c.billing_address as "clientBillingAddress",
-      c.tax_id as "clientTaxId",
-      i.order_id as "orderId",
-      o.order_number as "orderNumber",
-      o.client_po_number as "clientPoNumber",
-      dn.id as "deliveryNoteId",
-      dn.bl_number as "deliveryNoteNumber",
-      i.quotation_id as "quotationId",
-      q.internal_reference as "quotationReference",
-      q.client_rfq_number as "clientRfqNumber",
-      i.issue_date::text as "issueDate",
-      i.due_date::text as "dueDate",
-      i.status,
-      i.currency,
-      i.subtotal::float as subtotal,
-      i.vat_rate::float as "vatRate",
-      i.vat_amount::float as "vatAmount",
-      i.total::float as total,
-      i.paid_amount::float as "paidAmount",
-      i.balance_due::float as "balanceDue",
-      i.payment_terms as "paymentTerms",
-      i.notes,
-      i.cancellation_reason as "cancellationReason",
-      i.created_by as "createdBy",
-      u.full_name as "createdByName",
-      i.created_at as "createdAt",
-      i.updated_at as "updatedAt"
-    FROM invoices i
-    JOIN clients c ON i.client_id = c.id
-    LEFT JOIN orders o ON i.order_id = o.id
-    LEFT JOIN quotations q ON i.quotation_id = q.id
-    LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
-    LEFT JOIN users u ON i.created_by = u.id
-    WHERE i.id = ${id}
-    LIMIT 1
-  `;
+  let rows: Record<string, unknown>[];
+  try {
+    rows = (await sql`
+      SELECT 
+        i.id,
+        i.invoice_number as "invoiceNumber",
+        i.normalized_invoice_number as "normalizedInvoiceNumber",
+        i.client_id as "clientId",
+        c.code as "clientCode",
+        c.name as "clientName",
+        c.email as "clientEmail",
+        c.phone as "clientPhone",
+        c.billing_address as "clientBillingAddress",
+        c.tax_id as "clientTaxId",
+        i.order_id as "orderId",
+        o.order_number as "orderNumber",
+        o.client_po_number as "clientPoNumber",
+        dn.id as "deliveryNoteId",
+        dn.bl_number as "deliveryNoteNumber",
+        i.quotation_id as "quotationId",
+        q.internal_reference as "quotationReference",
+        q.client_rfq_number as "clientRfqNumber",
+        i.issue_date::text as "issueDate",
+        i.due_date::text as "dueDate",
+        i.status,
+        i.currency,
+        i.subtotal::float as subtotal,
+        i.vat_rate::float as "vatRate",
+        i.vat_amount::float as "vatAmount",
+        i.total::float as total,
+        i.paid_amount::float as "paidAmount",
+        i.balance_due::float as "balanceDue",
+        i.payment_terms as "paymentTerms",
+        i.notes,
+        i.cancellation_reason as "cancellationReason",
+        i.created_by as "createdBy",
+        u.full_name as "createdByName",
+        i.created_at as "createdAt",
+        i.updated_at as "updatedAt"
+      FROM invoices i
+      JOIN clients c ON i.client_id = c.id
+      LEFT JOIN orders o ON i.order_id = o.id
+      LEFT JOIN quotations q ON i.quotation_id = q.id
+      LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
+      LEFT JOIN users u ON i.created_by = u.id
+      WHERE (i.id::text = ${id} OR i.invoice_number = ${id} OR i.normalized_invoice_number = ${id})
+      LIMIT 1
+    `) as Record<string, unknown>[];
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string };
+    if (errorObj?.code === "42703" || errorObj?.message?.includes("normalized_invoice_number")) {
+      rows = (await sql`
+        SELECT 
+          i.id,
+          i.invoice_number as "invoiceNumber",
+          NULL::text as "normalizedInvoiceNumber",
+          i.client_id as "clientId",
+          c.code as "clientCode",
+          c.name as "clientName",
+          c.email as "clientEmail",
+          c.phone as "clientPhone",
+          c.billing_address as "clientBillingAddress",
+          c.tax_id as "clientTaxId",
+          i.order_id as "orderId",
+          o.order_number as "orderNumber",
+          o.client_po_number as "clientPoNumber",
+          dn.id as "deliveryNoteId",
+          dn.bl_number as "deliveryNoteNumber",
+          i.quotation_id as "quotationId",
+          q.internal_reference as "quotationReference",
+          q.client_rfq_number as "clientRfqNumber",
+          i.issue_date::text as "issueDate",
+          i.due_date::text as "dueDate",
+          i.status,
+          i.currency,
+          i.subtotal::float as subtotal,
+          i.vat_rate::float as "vatRate",
+          i.vat_amount::float as "vatAmount",
+          i.total::float as total,
+          i.paid_amount::float as "paidAmount",
+          i.balance_due::float as "balanceDue",
+          i.payment_terms as "paymentTerms",
+          i.notes,
+          i.cancellation_reason as "cancellationReason",
+          i.created_by as "createdBy",
+          u.full_name as "createdByName",
+          i.created_at as "createdAt",
+          i.updated_at as "updatedAt"
+        FROM invoices i
+        JOIN clients c ON i.client_id = c.id
+        LEFT JOIN orders o ON i.order_id = o.id
+        LEFT JOIN quotations q ON i.quotation_id = q.id
+        LEFT JOIN delivery_notes dn ON dn.invoice_id = i.id
+        LEFT JOIN users u ON i.created_by = u.id
+        WHERE (i.id::text = ${id} OR i.invoice_number = ${id})
+        LIMIT 1
+      `) as Record<string, unknown>[];
+    } else {
+      throw err;
+    }
+  }
 
   if (!rows || rows.length === 0) return null;
   const invoice = rows[0] as unknown as InvoiceRecord;
@@ -183,7 +299,7 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
         line_subtotal::float as "lineSubtotal",
         line_subtotal::float as "lineTotal"
       FROM invoice_items
-      WHERE invoice_id = ${id}
+      WHERE invoice_id = ${invoice.id}
       ORDER BY line_number ASC
     `;
   } catch {
@@ -203,7 +319,7 @@ export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> 
           line_subtotal::float as "lineSubtotal",
           line_subtotal::float as "lineTotal"
         FROM invoice_items
-        WHERE invoice_id = ${id}
+        WHERE invoice_id = ${invoice.id}
         ORDER BY line_number ASC
       `;
     } catch (fallbackErr) {
@@ -233,13 +349,27 @@ export async function createInvoiceFromOrder(data: {
     throw new Error("La commande ne contient aucune ligne d'article.");
   }
 
-  // Generate sequential invoice number
+  // Generate sequential invoice number (format: 009/026/FAC)
   const currentYear = new Date().getFullYear();
-  const countRows = await sql`
-    SELECT COUNT(*)::int as count FROM invoices WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
-  `;
-  const nextSeq = (countRows[0].count as number) + 1;
-  const invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+  const yearCode = "0" + String(currentYear).slice(-2);
+  let invoiceNumber: string;
+  try {
+    const invCounterRows = await sql`
+      INSERT INTO document_counters (doc_type, year, current_val)
+      VALUES ('INVOICE', ${currentYear}, 1)
+      ON CONFLICT (doc_type, year)
+      DO UPDATE SET current_val = document_counters.current_val + 1, updated_at = NOW()
+      RETURNING current_val;
+    `;
+    const nextSeqFAC = invCounterRows[0]?.current_val ?? 1;
+    invoiceNumber = `${String(nextSeqFAC).padStart(3, "0")}/${yearCode}/FAC`;
+  } catch {
+    const countRows = await sql`
+      SELECT COUNT(*)::int as count FROM invoices WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
+    `;
+    const nextSeqFAC = (Number(countRows[0]?.count) || 0) + 1;
+    invoiceNumber = `${String(nextSeqFAC).padStart(3, "0")}/${yearCode}/FAC`;
+  }
 
   const dueDays = data.dueDays ?? 30;
   const dueDate = new Date();
@@ -345,6 +475,58 @@ export async function cancelInvoice(
     details: {
       invoiceNumber: current.invoiceNumber,
       reason: reason.trim(),
+    },
+  });
+
+  return getInvoiceById(id);
+}
+
+export async function updateInvoiceNormalizedNumber(
+  id: string,
+  normalizedNumber: string | null,
+  userId: string
+): Promise<InvoiceRecord | null> {
+  const current = await getInvoiceById(id);
+  if (!current) {
+    throw new Error("Facture introuvable.");
+  }
+
+  const trimmed = normalizedNumber?.trim() || null;
+
+  try {
+    await sql`
+      UPDATE invoices
+      SET 
+        normalized_invoice_number = ${trimmed},
+        updated_by = ${userId},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `;
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string };
+    if (errorObj?.code === "42703" || errorObj?.message?.includes("normalized_invoice_number")) {
+      await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS normalized_invoice_number VARCHAR(150);`;
+      await sql`
+        UPDATE invoices
+        SET 
+          normalized_invoice_number = ${trimmed},
+          updated_by = ${userId},
+          updated_at = NOW()
+        WHERE id = ${id}
+      `;
+    } else {
+      throw err;
+    }
+  }
+
+  await logAudit({
+    userId,
+    action: "UPDATE_INVOICE_NORMALIZED_NUMBER",
+    entityType: "INVOICE",
+    entityId: id,
+    details: {
+      invoiceNumber: current.invoiceNumber,
+      normalizedInvoiceNumber: trimmed,
     },
   });
 

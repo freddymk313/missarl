@@ -110,16 +110,16 @@ export function OrdersManager({
 
   // Load quotation items whenever selected quotation changes in creation modal
   useEffect(() => {
+    let isMounted = true;
     if (!selectedQuoteId) {
-      setQuoteItems([]);
-      setSelectedItemIds({});
-      setAcceptedQuantities({});
       return;
     }
 
-    let isMounted = true;
-    setIsLoadingQuoteItems(true);
-    setFormError("");
+    queueMicrotask(() => {
+      if (!isMounted) return;
+      setIsLoadingQuoteItems(true);
+      setFormError("");
+    });
 
     getQuotationItemsAction(selectedQuoteId).then((res) => {
       if (!isMounted) return;
@@ -369,6 +369,9 @@ export function OrdersManager({
         setIsModalOpen(false);
         setClientPoNumber("");
         setSelectedQuoteId("");
+        setQuoteItems([]);
+        setSelectedItemIds({});
+        setAcceptedQuantities({});
       }
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : "Erreur inattendue");
@@ -912,7 +915,15 @@ export function OrdersManager({
                 <select
                   required
                   value={selectedQuoteId}
-                  onChange={(e) => setSelectedQuoteId(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedQuoteId(val);
+                    if (!val) {
+                      setQuoteItems([]);
+                      setSelectedItemIds({});
+                      setAcceptedQuantities({});
+                    }
+                  }}
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 >
                   <option value="">Sélectionner un devis validé...</option>

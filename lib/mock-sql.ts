@@ -3,7 +3,7 @@
 // Dispatches queries to in-memory MockDatabase when real DB is offline/unconfigured.
 // ============================================================================
 
-import { mockDb, MockClient } from "./mock-db";
+import { mockDb, MockClient, MockOrder, MockDeliveryNote, MockInvoice } from "./mock-db";
 
 export async function executeMockSql(
   queryText: string,
@@ -25,6 +25,7 @@ export async function executeMockSql(
       { version: "003", name: "003_items_catalog.sql", applied_at: "2026-11-02T08:00:00Z" },
       { version: "004", name: "004_supplier_pricing_and_quotation_snapshots.sql", applied_at: "2026-11-03T08:00:00Z" },
       { version: "005", name: "005_partial_po_acceptance_and_delivery_batches.sql", applied_at: "2026-11-09T08:00:00Z" },
+      { version: "006", name: "006_invoice_normalized_number.sql", applied_at: "2026-11-11T08:00:00Z" },
     ];
   }
 
@@ -693,9 +694,8 @@ export async function executeMockSql(
   }
 
   if (lowerQ.startsWith("update orders set status =")) {
-    const status = values[0] as any;
+    const status = values[0] as MockOrder["status"];
     const reason = values[1] as string | null;
-    const userId = values[2] as string;
     const id = values[3] as string;
     const ord = mockDb.orders.find((o) => o.id === id);
     if (ord) {
@@ -879,9 +879,9 @@ export async function executeMockSql(
     return [{ id: newDni.id }];
   }
 
-  if (lowerQ.includes("from delivery_notes") && lowerQ.includes("where dn.id =")) {
+  if (lowerQ.includes("from delivery_notes") && (lowerQ.includes("where dn.id =") || lowerQ.includes("dn.id::text ="))) {
     const id = values[0] as string;
-    const bl = mockDb.deliveryNotes.find((d) => d.id === id);
+    const bl = mockDb.deliveryNotes.find((d) => d.id === id || d.bl_number === id);
     if (!bl) return [];
     const client = mockDb.clients.find((c) => c.id === bl.client_id);
     const order = mockDb.orders.find((o) => o.id === bl.order_id);
@@ -974,7 +974,7 @@ export async function executeMockSql(
   }
 
   if (lowerQ.startsWith("update delivery_notes set status =")) {
-    const status = values[0] as any;
+    const status = values[0] as MockDeliveryNote["status"];
     const reason = values[1] as string | null;
     const id = values[2] as string;
     const bl = mockDb.deliveryNotes.find((d) => d.id === id);
@@ -996,7 +996,7 @@ export async function executeMockSql(
       quotation_id: (values[3] as string) || null,
       issue_date: (values[4] as string) || new Date().toISOString().split("T")[0],
       due_date: (values[5] as string) || new Date().toISOString().split("T")[0],
-      status: (values[6] as any) || "ISSUED",
+      status: (values[6] as MockInvoice["status"]) || "ISSUED",
       currency: (values[7] as string) || "USD",
       subtotal: Number(values[8]),
       vat_rate: Number(values[9] || 16.0),
@@ -1053,6 +1053,57 @@ export async function executeMockSql(
     return [{ id: newIi.id }];
   }
 
+  if (lowerQ.startsWith("update invoices set normalized_invoice_number =")) {
+    const val = (values[0] as string | null) || null;
+    const id = values[2] as string;
+    const inv = mockDb.invoices.find((i) => i.id === id);
+    if (inv) {
+      inv.normalized_invoice_number = val;
+      inv.updated_at = new Date().toISOString();
+    }
+    return [{ id }];
+  }
+
+  if (lowerQ.includes("from invoices") && lowerQ.includes("i.balance_due > 0")) {
+    const clientId = values[0] as string;
+    const startFilter = (values[1] as string) || null;
+    const endFilter = (values[2] as string) || null;
+
+    let list = mockDb.invoices.filter((i) =>
+      i.client_id === clientId &&
+      i.status !== "CANCELLED" &&
+      i.status !== "DRAFT" &&
+      ["ISSUED", "PARTIALLY_PAID", "OVERDUE"].includes(i.status) &&
+      i.balance_due > 0
+    );
+
+    if (startFilter) {
+      list = list.filter((i) => i.issue_date >= startFilter);
+    }
+    if (endFilter) {
+      list = list.filter((i) => i.issue_date <= endFilter);
+    }
+
+    list.sort((a, b) => new Date(a.issue_date).getTime() - new Date(b.issue_date).getTime());
+
+    return list.map((inv) => {
+      const order = mockDb.orders.find((o) => o.id === inv.order_id);
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        normalizedInvoiceNumber: inv.normalized_invoice_number || null,
+        clientPoNumber: order?.client_po_number || null,
+        orderNumber: order?.order_number || null,
+        issueDate: inv.issue_date,
+        currency: inv.currency,
+        debit: inv.total,
+        credit: inv.paid_amount,
+        balance: inv.balance_due,
+        status: inv.status,
+      };
+    });
+  }
+
   if (lowerQ.includes("from invoices") && lowerQ.includes("count(*)::int as total")) {
     const totalInvoiced = mockDb.invoices.reduce((s, i) => s + (i.status !== "CANCELLED" ? i.total : 0), 0);
     const receivables = mockDb.invoices.reduce((s, i) => s + (i.status !== "CANCELLED" ? i.balance_due : 0), 0);
@@ -1060,9 +1111,9 @@ export async function executeMockSql(
     return [{ total: mockDb.invoices.length, total_invoiced: totalInvoiced, total_receivables: receivables, unpaid_count: unpaid }];
   }
 
-  if (lowerQ.includes("from invoices") && lowerQ.includes("where i.id =")) {
+  if (lowerQ.includes("from invoices") && (lowerQ.includes("where i.id =") || lowerQ.includes("i.id::text ="))) {
     const id = values[0] as string;
-    const inv = mockDb.invoices.find((i) => i.id === id);
+    const inv = mockDb.invoices.find((i) => i.id === id || i.invoice_number === id || i.normalized_invoice_number === id);
     if (!inv) return [];
     const client = mockDb.clients.find((c) => c.id === inv.client_id);
     const order = mockDb.orders.find((o) => o.id === inv.order_id);
@@ -1071,6 +1122,7 @@ export async function executeMockSql(
     return [{
       id: inv.id,
       invoiceNumber: inv.invoice_number,
+      normalizedInvoiceNumber: inv.normalized_invoice_number || null,
       clientId: inv.client_id,
       clientCode: client?.code,
       clientName: client?.name,
@@ -1112,6 +1164,7 @@ export async function executeMockSql(
       return {
         id: inv.id,
         invoiceNumber: inv.invoice_number,
+        normalizedInvoiceNumber: inv.normalized_invoice_number || null,
         clientId: inv.client_id,
         clientCode: client?.code,
         clientName: client?.name,

@@ -480,18 +480,29 @@ export function ClientWorkspace({
         {/* STATEMENT TAB */}
         {activeTab === "statement" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-secondary/30 p-4 border border-border">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-secondary/30 p-4 border border-border">
               <div>
                 <p className="text-xs font-black text-primary">Grand Livre / Relevé Client</p>
                 <p className="text-[11px] text-muted-foreground">
                   Calculé dynamiquement sur les factures émises et les paiements reçus.
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold text-muted-foreground">Solde Clôture Débiteur</p>
-                <p className="text-xl font-black text-destructive font-mono">
-                  $ {formatUSD(statement.closingBalance)}
-                </p>
+              <div className="flex items-center gap-4">
+                <a
+                  href={`/api/statements/${client.id}/pdf?disposition=inline`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors"
+                  title="Aperçu du relevé officiel et factures non payées (PDF)"
+                >
+                  <FileText className="size-3.5" /> Relevé PDF Officiel
+                </a>
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">Solde Clôture Débiteur</p>
+                  <p className="text-base font-black text-destructive font-mono">
+                    $ {formatUSD(statement.closingBalance)}
+                  </p>
+                </div>
               </div>
             </div>
 

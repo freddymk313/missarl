@@ -1,6 +1,6 @@
 import { neon, neonConfig } from "@neondatabase/serverless";
 import https from "https";
-import dns from "dns/promises";
+import dns from "dns";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 
@@ -90,7 +90,7 @@ export async function initDb(): Promise<void> {
     return Promise.resolve();
   }
   if (!initPromise) {
-    initPromise = dns
+    initPromise = dns.promises
       .lookup(neonHost, { all: true, family: 4 })
       .then((addresses) => {
         const ips = addresses.map((a) => a.address).filter(Boolean);

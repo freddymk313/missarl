@@ -218,6 +218,7 @@ export interface MockOrder {
 export interface MockInvoice {
   id: string;
   invoice_number: string;
+  normalized_invoice_number?: string | null;
   client_id: string;
   order_id: string | null;
   quotation_id: string | null;
@@ -372,7 +373,29 @@ export class MockDatabase {
     },
   ];
 
-  sessions: MockSession[] = [];
+  sessions: MockSession[] = [
+    {
+      user_id: "11111111-1111-1111-1111-111111111111", // SUPER_ADMIN (admin_test_token_statement_1234567890)
+      token_hash: "05b1a0a137fd0a133ba4515f0771b02bd40eaf944ec3e8db7c8d5972831c955e",
+      ip_address: "127.0.0.1",
+      user_agent: "Node-Test",
+      expires_at: "2099-12-31T23:59:59Z",
+    },
+    {
+      user_id: "11111111-1111-1111-1111-111111111111", // SUPER_ADMIN (token 9575...)
+      token_hash: "527c5f5f81329e121d08600a0c8d0508bec2844b1302867d3072df6e110c1b1d",
+      ip_address: "127.0.0.1",
+      user_agent: "Node-Test",
+      expires_at: "2099-12-31T23:59:59Z",
+    },
+    {
+      user_id: "33333333-3333-3333-3333-333333333333", // PRICE_COLLECTOR (collector_test_token_statement_12345)
+      token_hash: "ffed6db6757425eced106a735211e7fa6df191d0660a3f76cf9c9c8baec33afb",
+      ip_address: "127.0.0.1",
+      user_agent: "Node-Test",
+      expires_at: "2099-12-31T23:59:59Z",
+    },
+  ];
 
   clients: MockClient[] = [
     {
@@ -418,6 +441,22 @@ export class MockDatabase {
       delivery_address: "Kinsevere Warehouse, Lubumbashi",
       tax_id: "A07654321X",
       payment_terms: "45_DAYS",
+      currency: "USD",
+      is_active: true,
+      created_at: "2026-11-01T08:00:00Z",
+      updated_at: "2026-11-01T08:00:00Z",
+    },
+    {
+      id: "e718b60d-2b93-44bd-893e-42c5559ac9dd",
+      code: "CUS-003",
+      name: "Chemaf SA",
+      contact_person: "Service Comptabilité & Approvisionnements",
+      email: "finance@chemaf.com",
+      phone: "+243 81 000 0000",
+      billing_address: "Lubumbashi, Haut-Katanga, RDC",
+      delivery_address: "Usine Chemaf Etoile, Lubumbashi, RDC",
+      tax_id: "6-122-N46762M/KA1",
+      payment_terms: "30_DAYS",
       currency: "USD",
       is_active: true,
       created_at: "2026-11-01T08:00:00Z",
@@ -726,6 +765,55 @@ export class MockDatabase {
       created_by: "11111111-1111-1111-1111-111111111111",
       created_at: "2026-11-08T10:00:00Z",
       updated_at: "2026-11-09T08:00:00Z",
+    });
+
+    // Sample Chemaf Order & Unpaid Invoice (matching reference statement)
+    const chemafOrderId = "order-chemaf-001";
+    this.orders.push({
+      id: chemafOrderId,
+      order_number: "MIS/BC/2026/003",
+      client_id: "e718b60d-2b93-44bd-893e-42c5559ac9dd",
+      quotation_id: quoteId,
+      client_po_number: "PO 5000001306 OX",
+      po_date: "2026-11-06",
+      expected_delivery_date: "2026-12-06",
+      status: "CONFIRMED",
+      currency: "USD",
+      subtotal: 2944.3,
+      vat_rate: 16.0,
+      vat_amount: 471.09,
+      total: 3415.39,
+      notes: "Commande client Chemaf SA",
+      cancellation_reason: null,
+      created_by: "11111111-1111-1111-1111-111111111111",
+      created_at: "2026-11-06T09:00:00Z",
+      updated_at: "2026-11-06T09:00:00Z",
+    });
+
+    const chemafInvoiceId = "8148d9dc-04ba-47b2-8c07-65250af3517f";
+    this.invoices.push({
+      id: chemafInvoiceId,
+      invoice_number: "MIS/FAC/2026/005",
+      normalized_invoice_number: null,
+      client_id: "e718b60d-2b93-44bd-893e-42c5559ac9dd",
+      order_id: chemafOrderId,
+      quotation_id: null,
+      issue_date: "2026-11-27",
+      due_date: "2026-12-27",
+      status: "ISSUED",
+      currency: "USD",
+      subtotal: 2944.3,
+      vat_rate: 16.0,
+      vat_amount: 471.09,
+      total: 3415.39,
+      paid_amount: 0.0,
+      balance_due: 3415.39,
+      payment_terms: "30_DAYS",
+      notes: "Fourniture matériel industriel",
+      cancellation_reason: null,
+      created_by: "11111111-1111-1111-1111-111111111111",
+      created_at: "2026-11-27T10:00:00Z",
+      updated_at: "2026-11-27T10:00:00Z",
     });
 
     // Populate invoice items

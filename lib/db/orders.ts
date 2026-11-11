@@ -302,6 +302,7 @@ export async function createOrderFromQuotation(data: {
   const currentYear = new Date().getFullYear();
   let orderNumber: string;
   try {
+    const yearCode = "0" + String(currentYear).slice(-2);
     const counterRows = await sql`
       INSERT INTO document_counters (doc_type, year, current_val)
       VALUES ('ORDER', ${currentYear}, 1)
@@ -310,13 +311,14 @@ export async function createOrderFromQuotation(data: {
       RETURNING current_val;
     `;
     const nextSeq = counterRows[0]?.current_val ?? 1;
-    orderNumber = `MIS/BC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+    orderNumber = `${String(nextSeq).padStart(3, "0")}/${yearCode}/BC`;
   } catch {
+    const yearCode = "0" + String(currentYear).slice(-2);
     const countRows = await sql`
       SELECT COUNT(*)::int as count FROM orders WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
     `;
     const nextSeq = (countRows[0].count as number) + 1;
-    orderNumber = `MIS/BC/${currentYear}/${String(nextSeq).padStart(3, "0")}`;
+    orderNumber = `${String(nextSeq).padStart(3, "0")}/${yearCode}/BC`;
   }
 
   // 4. Insert order header

@@ -157,7 +157,7 @@ export async function getDeliveryNoteById(
     JOIN quotations q ON o.quotation_id = q.id
     LEFT JOIN invoices i ON dn.invoice_id = i.id
     LEFT JOIN users u ON dn.created_by = u.id
-    WHERE dn.id = ${id}
+    WHERE (dn.id::text = ${id} OR dn.bl_number = ${id})
     LIMIT 1
   `;
 
@@ -181,7 +181,7 @@ export async function getDeliveryNoteById(
       FROM delivery_note_items dni
       JOIN order_items oi ON dni.order_item_id = oi.id
       LEFT JOIN items it ON dni.item_id = it.id
-      WHERE dni.delivery_note_id = ${id}
+      WHERE dni.delivery_note_id = ${bl.id}
       ORDER BY dni.line_number ASC
     `;
   } catch {
@@ -200,7 +200,7 @@ export async function getDeliveryNoteById(
           '' as "observation"
         FROM delivery_note_items dni
         LEFT JOIN items it ON dni.item_id = it.id
-        WHERE dni.delivery_note_id = ${id}
+        WHERE dni.delivery_note_id = ${bl.id}
         ORDER BY dni.line_number ASC
       `;
     } catch (fallbackErr) {
@@ -387,7 +387,8 @@ export async function createDeliveryBatch(data: {
 
   const currentYear = new Date().getFullYear();
 
-  // 4. Concurrency-safe sequential numbering
+  // 4. Concurrency-safe sequential numbering (format: 009/026/BL and 009/026/FAC)
+  const yearCode = "0" + String(currentYear).slice(-2);
   let blNumber: string;
   try {
     const blCounterRows = await sql`
@@ -398,13 +399,13 @@ export async function createDeliveryBatch(data: {
       RETURNING current_val;
     `;
     const nextSeqBL = blCounterRows[0]?.current_val ?? 1;
-    blNumber = `MIS/BL/${currentYear}/${String(nextSeqBL).padStart(3, "0")}`;
+    blNumber = `${String(nextSeqBL).padStart(3, "0")}/${yearCode}/BL`;
   } catch {
     const countRows = await sql`
       SELECT COUNT(*)::int as count FROM delivery_notes WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
     `;
     const nextSeqBL = (Number(countRows[0]?.count) || 0) + 1;
-    blNumber = `MIS/BL/${currentYear}/${String(nextSeqBL).padStart(3, "0")}`;
+    blNumber = `${String(nextSeqBL).padStart(3, "0")}/${yearCode}/BL`;
   }
 
   let invoiceNumber: string;
@@ -417,13 +418,13 @@ export async function createDeliveryBatch(data: {
       RETURNING current_val;
     `;
     const nextSeqFAC = invCounterRows[0]?.current_val ?? 1;
-    invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeqFAC).padStart(3, "0")}`;
+    invoiceNumber = `${String(nextSeqFAC).padStart(3, "0")}/${yearCode}/FAC`;
   } catch {
     const countRows = await sql`
       SELECT COUNT(*)::int as count FROM invoices WHERE EXTRACT(YEAR FROM created_at) = ${currentYear}
     `;
     const nextSeqFAC = (Number(countRows[0]?.count) || 0) + 1;
-    invoiceNumber = `MIS/FAC/${currentYear}/${String(nextSeqFAC).padStart(3, "0")}`;
+    invoiceNumber = `${String(nextSeqFAC).padStart(3, "0")}/${yearCode}/FAC`;
   }
 
   // 5. Compute Due Date

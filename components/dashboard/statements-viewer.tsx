@@ -125,19 +125,35 @@ export function StatementsViewer({
 
         {statement && (
           <>
+            <a
+              href={`/api/statements/${currentClientId}/pdf?disposition=inline${currentStartDate ? `&startDate=${encodeURIComponent(currentStartDate)}` : ""}${currentEndDate ? `&endDate=${encodeURIComponent(currentEndDate)}` : ""}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-9 px-3.5 rounded-xl border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors shrink-0 flex items-center gap-1.5"
+              title="Aperçu du document officiel Relevé de compte & Facture non payée (PDF)"
+            >
+              <FileText className="size-3.5 text-primary" /> Aperçu PDF
+            </a>
+            <a
+              href={`/api/statements/${currentClientId}/pdf?disposition=attachment${currentStartDate ? `&startDate=${encodeURIComponent(currentStartDate)}` : ""}${currentEndDate ? `&endDate=${encodeURIComponent(currentEndDate)}` : ""}`}
+              className="h-9 px-3.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5"
+              title="Télécharger le document officiel Relevé de compte & Facture non payée (PDF)"
+            >
+              <Download className="size-3.5 text-muted-foreground" /> Télécharger PDF
+            </a>
             <button
               type="button"
               onClick={handleDownloadCSV}
               className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
             >
-              <Download className="size-3.5 text-muted-foreground" /> Télécharger CSV
+              <Download className="size-3.5 text-muted-foreground" /> CSV
             </button>
             <button
               type="button"
               onClick={handlePrint}
               className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center gap-1.5 cursor-pointer"
             >
-              <Printer className="size-3.5 text-muted-foreground" /> Imprimer / PDF
+              <Printer className="size-3.5 text-muted-foreground" /> Imprimer
             </button>
           </>
         )}
