@@ -452,6 +452,342 @@ export async function createQuotation(data: {
   return created!;
 }
 
+// ── Eligibility helper (shared by DB layer and server actions) ────────────────
+import { isQuotationEditable } from "@/lib/quotation-utils";
+export { isQuotationEditable };
+
+export async function checkQuotationEligibility(
+  quotationId: string,
+  status: QuotationRecord["status"]
+): Promise<{ eligible: boolean; reason?: string }> {
+  if (status === "CANCELLED") {
+    return {
+      eligible: false,
+      reason: "Les devis annulés sont archivés et ne peuvent plus être modifiés.",
+    };
+  }
+  if (status === "VALIDATED") {
+    return {
+      eligible: false,
+      reason: "Les devis validés sont fermés commercialement. Pour apporter des modifications, veuillez créer une révision.",
+    };
+  }
+  if (!isQuotationEditable(status)) {
+    return {
+      eligible: false,
+      reason: `Les devis avec le statut ${status} ne peuvent pas être modifiés.`,
+    };
+  }
+
+  // Check downstream documents
+  try {
+    const orders = await sql`
+      SELECT id FROM orders WHERE quotation_id = ${quotationId} LIMIT 1
+    `;
+    if (orders && orders.length > 0) {
+      return {
+        eligible: false,
+        reason: "Ce devis est déjà associé à un Bon de Commande (PO) et ne peut plus être modifié.",
+      };
+    }
+
+    const invoices = await sql`
+      SELECT id FROM invoices WHERE quotation_id = ${quotationId} LIMIT 1
+    `;
+    if (invoices && invoices.length > 0) {
+      return {
+        eligible: false,
+        reason: "Ce devis est déjà associé à une facture et ne peut plus être modifié.",
+      };
+    }
+  } catch (err) {
+    console.warn("[checkQuotationEligibility] Error querying dependent documents:", err);
+  }
+
+  return { eligible: true };
+}
+
+// ── updateQuotation ──────────────────────────────────────────────────────────
+
+export async function updateQuotation(data: {
+  quotationId: string;
+  userId: string;
+  // Header fields (editable)
+  docType?: "QUOTATION" | "PROFORMA";
+  clientRfqNumber?: string;
+  validityDays?: number;
+  vatRate?: number;
+  paymentTerms?: string;
+  deliveryLeadTime?: string;
+  notes?: string;
+  defaultCommissionPercent?: number;
+  // Line items
+  items: Array<{
+    itemId?: string;
+    supplierOfferId?: string | null;
+    description: string;
+    unit: string;
+    quantity: number;
+    unitPrice: number;
+    discountPercent?: number;
+    supplierPriceSnapshot?: number | null;
+    supplierCurrencySnapshot?: string | null;
+    supplierVatIncludedSnapshot?: boolean | null;
+    supplierVatRateSnapshot?: number | null;
+    exchangeRateSnapshot?: number | null;
+    baseCostUsdSnapshot?: number | null;
+    commissionPercent?: number | null;
+    commissionAmount?: number | null;
+  }>;
+  // Optimistic concurrency: reject if updatedAt doesn't match
+  expectedUpdatedAt?: string;
+}): Promise<QuotationRecord> {
+  if (!data.items || data.items.length === 0) {
+    throw new Error("Un devis doit contenir au moins un article.");
+  }
+
+  // 1. Load current quotation
+  const current = await getQuotationById(data.quotationId);
+  if (!current) throw new Error("Devis introuvable.");
+
+  // 2. Status gate — server-side authority
+  if (!isQuotationEditable(current.status)) {
+    if (current.status === "CANCELLED") {
+      throw new Error("Les devis annulés ne peuvent pas être modifiés.");
+    }
+    if (current.status === "VALIDATED") {
+      throw new Error(
+        "Les devis validés ne peuvent pas être modifiés directement. Créez une révision."
+      );
+    }
+    throw new Error(`Statut "${current.status}" non modifiable.`);
+  }
+
+  // 3. Concurrency check
+  if (data.expectedUpdatedAt && current.updatedAt) {
+    const expectedTime = new Date(data.expectedUpdatedAt).getTime();
+    const currentTime = new Date(current.updatedAt).getTime();
+    if (
+      !isNaN(expectedTime) &&
+      !isNaN(currentTime) &&
+      Math.abs(currentTime - expectedTime) > 1000
+    ) {
+      throw new Error(
+        "Ce devis a été modifié par un autre utilisateur. Veuillez recharger la page."
+      );
+    }
+  }
+
+  // 4. Downstream document protection
+  const dependentOrders = await sql`
+    SELECT id FROM orders WHERE quotation_id = ${data.quotationId} LIMIT 1
+  `;
+  if (dependentOrders.length > 0) {
+    throw new Error(
+      "Ce devis a un bon de commande associé et ne peut plus être modifié."
+    );
+  }
+
+  const dependentInvoices = await sql`
+    SELECT id FROM invoices WHERE quotation_id = ${data.quotationId} LIMIT 1
+  `;
+  if (dependentInvoices.length > 0) {
+    throw new Error(
+      "Ce devis a une facture associée et ne peut plus être modifié."
+    );
+  }
+
+  // 5. Recalculate server-side totals
+  const defaultCommission = data.defaultCommissionPercent ?? current.defaultCommissionPercent ?? 0;
+
+  let subtotal = 0;
+  const preparedLines = data.items.map((item, index) => {
+    const qty = Math.max(0.01, item.quantity);
+    let price = Math.max(0, item.unitPrice);
+    const disc = Math.min(100, Math.max(0, item.discountPercent || 0));
+
+    const effectiveCommissionPercent =
+      item.commissionPercent !== undefined && item.commissionPercent !== null
+        ? Math.max(0, item.commissionPercent)
+        : Math.max(0, defaultCommission);
+
+    let baseCostUsd = item.baseCostUsdSnapshot ?? null;
+    if (
+      baseCostUsd === null &&
+      item.supplierPriceSnapshot != null &&
+      item.exchangeRateSnapshot != null
+    ) {
+      baseCostUsd =
+        Math.round(item.supplierPriceSnapshot * item.exchangeRateSnapshot * 10000) / 10000;
+    }
+
+    let commissionAmount = item.commissionAmount ?? null;
+    if (commissionAmount === null && baseCostUsd !== null) {
+      commissionAmount =
+        Math.round(baseCostUsd * (effectiveCommissionPercent / 100) * 10000) / 10000;
+    }
+
+    if (price === 0 && baseCostUsd !== null) {
+      price = Math.round((baseCostUsd + (commissionAmount ?? 0)) * 100) / 100;
+    }
+
+    const lineTotal = Math.round(qty * price * (1 - disc / 100) * 100) / 100;
+    subtotal += lineTotal;
+
+    return {
+      itemId: item.itemId || null,
+      supplierOfferId: item.supplierOfferId || null,
+      lineNumber: index + 1,
+      description: item.description.trim(),
+      unit: item.unit.trim(),
+      quantity: qty,
+      unitPrice: price,
+      discountPercent: disc,
+      lineSubtotal: lineTotal,
+      supplierPriceSnapshot: item.supplierPriceSnapshot ?? null,
+      supplierCurrencySnapshot: item.supplierCurrencySnapshot ?? null,
+      supplierVatIncludedSnapshot: item.supplierVatIncludedSnapshot ?? null,
+      supplierVatRateSnapshot: item.supplierVatRateSnapshot ?? null,
+      exchangeRateSnapshot: item.exchangeRateSnapshot ?? null,
+      baseCostUsdSnapshot: baseCostUsd,
+      commissionPercentSnapshot: effectiveCommissionPercent,
+      commissionAmountSnapshot: commissionAmount,
+    };
+  });
+
+  subtotal = Math.round(subtotal * 100) / 100;
+  const vatRate = data.vatRate ?? current.vatRate ?? 16;
+  const vatAmount = Math.round(subtotal * (vatRate / 100) * 100) / 100;
+  const total = Math.round((subtotal + vatAmount) * 100) / 100;
+
+  // 6. Determine new validity date
+  const validityDays = data.validityDays ?? 30;
+  const validityDate = new Date();
+  validityDate.setDate(validityDate.getDate() + validityDays);
+  const validityDateStr = validityDate.toISOString().split("T")[0];
+
+  // 7. Status transition: revert to DRAFT if was SUBMITTED/EXPIRED/REJECTED
+  const newStatus: QuotationRecord["status"] =
+    current.status === "DRAFT" ? "DRAFT" : "DRAFT";
+
+  // 8. Update header — do NOT touch: id, internal_reference, sequence_number, year, document_date, created_by, created_at
+  try {
+    await sql`
+      UPDATE quotations
+      SET
+        doc_type               = COALESCE(${data.docType ?? null}, doc_type),
+        client_rfq_number      = ${data.clientRfqNumber?.trim() || null},
+        validity_date          = ${validityDateStr},
+        status                 = ${newStatus},
+        default_commission_percent = ${defaultCommission},
+        subtotal               = ${subtotal},
+        vat_rate               = ${vatRate},
+        vat_amount             = ${vatAmount},
+        total                  = ${total},
+        payment_terms          = ${data.paymentTerms?.trim() || null},
+        delivery_lead_time     = ${data.deliveryLeadTime?.trim() || null},
+        notes                  = ${data.notes?.trim() || null},
+        updated_by             = ${data.userId},
+        updated_at             = NOW()
+      WHERE id = ${data.quotationId}
+    `;
+  } catch {
+    // Fallback: without default_commission_percent column
+    await sql`
+      UPDATE quotations
+      SET
+        doc_type           = COALESCE(${data.docType ?? null}, doc_type),
+        client_rfq_number  = ${data.clientRfqNumber?.trim() || null},
+        validity_date      = ${validityDateStr},
+        status             = ${newStatus},
+        subtotal           = ${subtotal},
+        vat_rate           = ${vatRate},
+        vat_amount         = ${vatAmount},
+        total              = ${total},
+        payment_terms      = ${data.paymentTerms?.trim() || null},
+        delivery_lead_time = ${data.deliveryLeadTime?.trim() || null},
+        notes              = ${data.notes?.trim() || null},
+        updated_by         = ${data.userId},
+        updated_at         = NOW()
+      WHERE id = ${data.quotationId}
+    `;
+  }
+
+  // 9. Delete old line items and re-insert
+  await sql`DELETE FROM quotation_items WHERE quotation_id = ${data.quotationId}`;
+
+  for (const line of preparedLines) {
+    try {
+      await sql`
+        INSERT INTO quotation_items (
+          quotation_id, item_id, line_number, description_snapshot,
+          unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal,
+          supplier_offer_id, supplier_price_snapshot, supplier_currency_snapshot,
+          supplier_vat_included_snapshot, supplier_vat_rate_snapshot, exchange_rate_snapshot,
+          base_cost_usd_snapshot, commission_percent_snapshot, commission_amount_snapshot
+        )
+        VALUES (
+          ${data.quotationId},
+          ${line.itemId},
+          ${line.lineNumber},
+          ${line.description},
+          ${line.unit},
+          ${line.quantity},
+          ${line.unitPrice},
+          ${line.discountPercent},
+          ${line.lineSubtotal},
+          ${line.supplierOfferId},
+          ${line.supplierPriceSnapshot},
+          ${line.supplierCurrencySnapshot},
+          ${line.supplierVatIncludedSnapshot},
+          ${line.supplierVatRateSnapshot},
+          ${line.exchangeRateSnapshot},
+          ${line.baseCostUsdSnapshot},
+          ${line.commissionPercentSnapshot},
+          ${line.commissionAmountSnapshot}
+        )
+      `;
+    } catch {
+      await sql`
+        INSERT INTO quotation_items (
+          quotation_id, item_id, line_number, description_snapshot,
+          unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal
+        )
+        VALUES (
+          ${data.quotationId},
+          ${line.itemId},
+          ${line.lineNumber},
+          ${line.description},
+          ${line.unit},
+          ${line.quantity},
+          ${line.unitPrice},
+          ${line.discountPercent},
+          ${line.lineSubtotal}
+        )
+      `;
+    }
+  }
+
+  // 10. Audit log
+  await logAudit({
+    userId: data.userId,
+    action: "QUOTATION_UPDATED",
+    entityType: "QUOTATION",
+    entityId: data.quotationId,
+    details: {
+      internalReference: current.internalReference,
+      previousStatus: current.status,
+      newStatus,
+      subtotal,
+      total,
+      itemCount: preparedLines.length,
+    },
+  });
+
+  const updated = await getQuotationById(data.quotationId);
+  return updated!;
+}
+
 export async function updateQuotationStatus(
   id: string,
   status: "DRAFT" | "SUBMITTED" | "VALIDATED" | "EXPIRED" | "REJECTED" | "CANCELLED",

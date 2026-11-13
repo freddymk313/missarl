@@ -12,8 +12,10 @@ import {
   Eye,
   Building2,
   FileText,
+  Pencil,
 } from "lucide-react";
-import { QuotationRecord } from "@/lib/db/quotations";
+import type { QuotationRecord } from "@/lib/db/quotations";
+import { isQuotationEditable } from "@/lib/quotation-utils";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { updateQuotationStatusAction } from "@/actions/quotations";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
@@ -262,6 +264,15 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                         >
                           <Eye className="size-3.5" />
                         </button>
+                        {isQuotationEditable(quote.status) && (
+                          <Link
+                            href={`/dashboard/quotes/${quote.id}/edit`}
+                            className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                            title="Edit quote"
+                          >
+                            <Pencil className="size-3.5" />
+                          </Link>
+                        )}
                         {/* PDF Actions (compact) */}
                         <QuotationPdfActions
                           quotationId={quote.id}
@@ -361,6 +372,15 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                   className="flex items-center gap-2"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {isQuotationEditable(quote.status) && (
+                    <Link
+                      href={`/dashboard/quotes/${quote.id}/edit`}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                      title="Edit quote"
+                    >
+                      <Pencil className="size-4" />
+                    </Link>
+                  )}
                   <QuotationPdfActions
                     quotationId={quote.id}
                     quotationRef={quote.internalReference}
@@ -526,6 +546,14 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
 
             {/* Action buttons inside drawer */}
             <div className="pt-3 border-t border-border space-y-2">
+              {isQuotationEditable(selectedQuote.status) && (
+                <Link
+                  href={`/dashboard/quotes/${selectedQuote.id}/edit`}
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 transition-colors shadow-xs"
+                >
+                  <Pencil className="size-4" /> Edit Quotation
+                </Link>
+              )}
               {selectedQuote.status === "DRAFT" && (
                 <button
                   type="button"
@@ -536,12 +564,22 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                 </button>
               )}
               {selectedQuote.status === "VALIDATED" && (
-                <Link
-                  href={`/dashboard/orders?newOrderFromQuoteId=${selectedQuote.id}`}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
-                >
-                  <ArrowRight className="size-4" /> Convert to Purchase Order (PO)
-                </Link>
+                <div className="space-y-2">
+                  <Link
+                    href={`/dashboard/orders?newOrderFromQuoteId=${selectedQuote.id}`}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
+                  >
+                    <ArrowRight className="size-4" /> Convert to Purchase Order (PO)
+                  </Link>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Ce devis est validé commercialement et ne peut plus être modifié directement.
+                  </p>
+                </div>
+              )}
+              {selectedQuote.status === "CANCELLED" && (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Ce devis a été annulé et ne peut plus être modifié.
+                </p>
               )}
             </div>
           </div>

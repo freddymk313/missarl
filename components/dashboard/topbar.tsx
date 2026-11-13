@@ -42,8 +42,8 @@ const pageTitleMap: Record<string, { title: string; icon: React.ComponentType<{ 
   "/dashboard/quotes/new": { title: "New Quotation", icon: FileSpreadsheet },
   "/dashboard/orders": { title: "Customer Orders (PO)", icon: ShoppingCart },
   "/dashboard/invoices": { title: "Sales Invoices", icon: Receipt },
-  "/dashboard/payments": { title: "Received Payments", icon: CreditCard },
   "/dashboard/statements": { title: "Account Statements", icon: FileText },
+  "/dashboard/payments": { title: "Received Payments", icon: CreditCard },
   "/dashboard/users": { title: "User Management", icon: Users },
   "/dashboard/settings": { title: "System Settings", icon: Settings },
 };
@@ -66,7 +66,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
   const roleMeta = ROLES[user.role] || { label: user.role, description: "" };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 sm:h-[77px] w-full items-center justify-between border-b border-border bg-card/90 px-3 sm:px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-19.25 w-full items-center justify-between border-b border-border bg-card/90 px-3 sm:px-6 backdrop-blur-md">
       {/* Left: Mobile hamburger + Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button
@@ -91,7 +91,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
       {/* Right side icon buttons in rounded light-tinted squares */}
       <div className="flex items-center gap-2">
         {/* Help Popover */}
-        <div className="relative">
+        <div className="relative hidden sm:block">
           <button
             type="button"
             onClick={() => {

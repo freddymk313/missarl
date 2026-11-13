@@ -10,18 +10,24 @@ import {
   Search,
   X,
   Package,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { ClientRecord } from "@/lib/db/clients";
 import { ItemRecord } from "@/lib/db/items";
-import { createQuotationAction } from "@/actions/quotations";
+import { createQuotationAction, updateQuotationAction } from "@/actions/quotations";
 import { formatUSD } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
+import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
 
 interface QuotationWizardProps {
   clients: ClientRecord[];
   items: ItemRecord[];
   preselectedClientId?: string;
+  // Edit mode
+  mode?: "create" | "edit";
+  initialQuotation?: QuotationRecord;
+  initialLines?: QuotationLineItem[];
 }
 
 interface LineItemDraft {
@@ -33,6 +39,14 @@ interface LineItemDraft {
   supplyPrice: number; // Purchase / supplier cost ($)
   discountPercent: number;
   commissionPercent: number | null; // null = use global commission
+  // Snapshot fields preserved during edit
+  _supplierPriceSnapshot?: number | null;
+  _supplierCurrencySnapshot?: string | null;
+  _supplierVatIncludedSnapshot?: boolean | null;
+  _supplierVatRateSnapshot?: number | null;
+  _exchangeRateSnapshot?: number | null;
+  _baseCostUsdSnapshot?: number | null;
+  _supplierOfferId?: string | null;
 }
 
 // ── Helpers for Client Tag & Reference Number ────────────────────────────────
@@ -246,12 +260,18 @@ export function QuotationWizard({
   clients,
   items,
   preselectedClientId,
+  mode = "create",
+  initialQuotation,
+  initialLines,
 }: QuotationWizardProps) {
   const router = useRouter();
+  const isEdit = mode === "edit" && !!initialQuotation;
 
   // Selected Client
   const [clientId, setClientId] = useState(
-    preselectedClientId || clients[0]?.id || "",
+    isEdit
+      ? (initialQuotation?.clientId ?? preselectedClientId ?? clients[0]?.id ?? "")
+      : preselectedClientId || clients[0]?.id || "",
   );
 
   const selectedClient = useMemo(
@@ -264,16 +284,29 @@ export function QuotationWizard({
     [selectedClient],
   );
 
-  // Reference Number REF N° (e.g. 0088/026/MIS) — client-side auto-initialized and fully editable
+  // Reference Number REF N° — locked in edit mode, editable in create mode
   const [internalRef, setInternalRef] = useState<string>(() => {
+    if (isEdit && initialQuotation) {
+      return initialQuotation.internalReference;
+    }
     const tag = getClientTag(
       clients.find((c) => c.id === (preselectedClientId || clients[0]?.id)),
     );
     return formatRefNumber(getInitialSequence(tag));
   });
 
-  // Client RFQ Number: User only types the number (e.g. 14425)
-  const [rfqNumber, setRfqNumber] = useState("");
+  // Client RFQ Number — in edit mode, extract just the numeric part
+  const [rfqNumber, setRfqNumber] = useState<string>(() => {
+    if (isEdit && initialQuotation?.clientRfqNumber) {
+      const full = initialQuotation.clientRfqNumber;
+      // Strip prefix RFQ-TAG- and suffix OQ to get the raw number
+      const stripped = full
+        .replace(/^RFQ-[A-Z0-9]+-/i, "")
+        .replace(/\s*OQ$/i, "");
+      return stripped;
+    }
+    return "";
+  });
 
   // Full RFQ format computed: RFQ-[TAG]-[NUM] OQ
   const fullRfq = useMemo(() => {
@@ -283,40 +316,95 @@ export function QuotationWizard({
     return `RFQ-${clientTag}-${trimmed} OQ`;
   }, [rfqNumber, clientTag]);
 
-  // Handle client selection change: update REF N° and RFQ tag
+  // Handle client selection change: update REF N° and RFQ tag (create mode only)
   const handleClientChange = (newClientId: string) => {
     setClientId(newClientId);
-    const newClient = clients.find((c) => c.id === newClientId);
-    const newTag = getClientTag(newClient);
-    const seq = getInitialSequence(newTag);
-    setInternalRef(formatRefNumber(seq));
+    if (!isEdit) {
+      const newClient = clients.find((c) => c.id === newClientId);
+      const newTag = getClientTag(newClient);
+      const seq = getInitialSequence(newTag);
+      setInternalRef(formatRefNumber(seq));
+    }
   };
 
-  const [docType, setDocType] = useState<"QUOTATION" | "PROFORMA">("QUOTATION");
-  const [validityDays, setValidityDays] = useState(30);
-  const [vatRate, setVatRate] = useState(16);
-  const [globalCommission, setGlobalCommission] = useState(75);
-  const [paymentTerms, setPaymentTerms] = useState("30 jours fin de mois");
-  const [deliveryLeadTime, setDeliveryLeadTime] = useState("EX-STOCK");
-  const [notes, setNotes] = useState("");
+  const [docType, setDocType] = useState<"QUOTATION" | "PROFORMA">(
+    isEdit && initialQuotation ? initialQuotation.docType : "QUOTATION",
+  );
+  const [validityDays, setValidityDays] = useState(
+    isEdit && initialQuotation
+      ? (() => {
+          // Compute validityDays from validityDate
+          const now = new Date();
+          const exp = new Date(initialQuotation.validityDate);
+          const diff = Math.round((exp.getTime() - now.getTime()) / 86400000);
+          return Math.max(1, diff);
+        })()
+      : 30,
+  );
+  const [vatRate, setVatRate] = useState(
+    isEdit && initialQuotation ? (initialQuotation.vatRate ?? 16) : 16,
+  );
+  const [globalCommission, setGlobalCommission] = useState(
+    isEdit && initialQuotation
+      ? (initialQuotation.defaultCommissionPercent ?? 75)
+      : 75,
+  );
+  const [paymentTerms, setPaymentTerms] = useState(
+    isEdit && initialQuotation
+      ? (initialQuotation.paymentTerms ?? "30 jours fin de mois")
+      : "30 jours fin de mois",
+  );
+  const [deliveryLeadTime, setDeliveryLeadTime] = useState(
+    isEdit && initialQuotation
+      ? (initialQuotation.deliveryLeadTime ?? "EX-STOCK")
+      : "EX-STOCK",
+  );
+  const [notes, setNotes] = useState(
+    isEdit && initialQuotation ? (initialQuotation.notes ?? "") : "",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [savedQuotation, setSavedQuotation] = useState<{
     id: string;
     reference: string;
+    isEdit: boolean;
   } | null>(null);
 
-  const [lines, setLines] = useState<LineItemDraft[]>([
-    {
-      description: "",
-      unit: "Pce",
-      quantity: 1,
-      unitPrice: 0,
-      supplyPrice: 0,
-      discountPercent: 0,
-      commissionPercent: null,
-    },
-  ]);
+  // Build initial line items from initialLines (edit mode) or a blank row (create mode)
+  const [lines, setLines] = useState<LineItemDraft[]>(() => {
+    if (isEdit && initialLines && initialLines.length > 0) {
+      return initialLines.map((il) => ({
+        itemId: il.itemId ?? undefined,
+        description: il.description,
+        unit: il.unit,
+        quantity: il.quantity,
+        unitPrice: il.unitPrice,
+        // Use snapshot supply price if available
+        supplyPrice: il.baseCostUsdSnapshot ?? il.supplierPriceSnapshot ?? 0,
+        discountPercent: il.discountPercent ?? 0,
+        commissionPercent: il.commissionPercentSnapshot ?? null,
+        // Carry snapshot fields for preservation
+        _supplierPriceSnapshot: il.supplierPriceSnapshot ?? null,
+        _supplierCurrencySnapshot: il.supplierCurrencySnapshot ?? null,
+        _supplierVatIncludedSnapshot: il.supplierVatIncludedSnapshot ?? null,
+        _supplierVatRateSnapshot: il.supplierVatRateSnapshot ?? null,
+        _exchangeRateSnapshot: il.exchangeRateSnapshot ?? null,
+        _baseCostUsdSnapshot: il.baseCostUsdSnapshot ?? null,
+        _supplierOfferId: il.supplierOfferId ?? null,
+      }));
+    }
+    return [
+      {
+        description: "",
+        unit: "Pce",
+        quantity: 1,
+        unitPrice: 0,
+        supplyPrice: 0,
+        discountPercent: 0,
+        commissionPercent: null,
+      },
+    ];
+  });
 
   const addLine = () => {
     setLines((prev) => [
@@ -412,7 +500,7 @@ export function QuotationWizard({
       return;
     }
 
-    if (!internalRef.trim()) {
+    if (!isEdit && !internalRef.trim()) {
       setError("The quote reference number (REF N°) is required.");
       return;
     }
@@ -425,61 +513,116 @@ export function QuotationWizard({
 
     setIsSubmitting(true);
     try {
-      const res = await createQuotationAction({
-        clientId,
-        docType,
-        internalReference: internalRef.trim(),
-        clientRfqNumber: fullRfq || undefined,
-        validityDays,
-        vatRate,
-        paymentTerms,
-        deliveryLeadTime,
-        notes,
-        items: validLines.map((line) => ({
-          itemId: line.itemId,
-          description: line.description,
-          unit: line.unit,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          discountPercent: line.discountPercent,
-          supplierPriceSnapshot: line.supplyPrice || null,
-          baseCostUsdSnapshot: line.supplyPrice || null,
-          commissionAmount:
-            line.unitPrice - line.supplyPrice > 0
-              ? line.unitPrice - line.supplyPrice
-              : 0,
-          commissionPercent: line.commissionPercent ?? globalCommission,
-        })),
-      });
-
-      if (!res.success) {
-        setError(res.error || "Creation failed.");
-        setIsSubmitting(false);
-      } else if (res.quotation) {
-        // Auto-increment and remember the next sequence in localStorage
-        try {
-          const match = internalRef.match(/^(\d+)/);
-          if (match) {
-            const currentSeq = parseInt(match[1], 10);
-            if (!isNaN(currentSeq)) {
-              localStorage.setItem(
-                `mis_quote_seq_${clientTag}`,
-                String(currentSeq + 1),
-              );
-            }
-          }
-        } catch {
-          // Ignore localStorage write failures
-        }
-
-        // Show success state with PDF actions before redirecting
-        setSavedQuotation({
-          id: res.quotation.id,
-          reference: res.quotation.internalReference,
+      if (isEdit && initialQuotation) {
+        // ── EDIT MODE ──────────────────────────────────────────────────────
+        const res = await updateQuotationAction({
+          quotationId: initialQuotation.id,
+          docType,
+          clientRfqNumber: fullRfq || undefined,
+          validityDays,
+          vatRate,
+          paymentTerms,
+          deliveryLeadTime,
+          notes,
+          defaultCommissionPercent: globalCommission,
+          expectedUpdatedAt: initialQuotation.updatedAt,
+          items: validLines.map((line) => ({
+            itemId: line.itemId,
+            supplierOfferId: line._supplierOfferId ?? null,
+            description: line.description,
+            unit: line.unit,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            discountPercent: line.discountPercent,
+            // Preserve original snapshots — do NOT replace from current catalogue
+            supplierPriceSnapshot: line._supplierPriceSnapshot ?? (line.supplyPrice || null),
+            supplierCurrencySnapshot: line._supplierCurrencySnapshot ?? null,
+            supplierVatIncludedSnapshot: line._supplierVatIncludedSnapshot ?? null,
+            supplierVatRateSnapshot: line._supplierVatRateSnapshot ?? null,
+            exchangeRateSnapshot: line._exchangeRateSnapshot ?? null,
+            baseCostUsdSnapshot: line._baseCostUsdSnapshot ?? (line.supplyPrice || null),
+            commissionPercent: line.commissionPercent ?? globalCommission,
+            commissionAmount:
+              line.unitPrice - line.supplyPrice > 0
+                ? line.unitPrice - line.supplyPrice
+                : 0,
+          })),
         });
-        setIsSubmitting(false);
+
+        if (!res.success) {
+          setError(res.error || "Update failed.");
+          setIsSubmitting(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else if (res.quotation) {
+          setSavedQuotation({
+            id: res.quotation.id,
+            reference: res.quotation.internalReference,
+            isEdit: true,
+          });
+          setIsSubmitting(false);
+        } else {
+          router.push("/dashboard/quotes");
+        }
       } else {
-        router.push("/dashboard/quotes");
+        // ── CREATE MODE ────────────────────────────────────────────────────
+        const res = await createQuotationAction({
+          clientId,
+          docType,
+          internalReference: internalRef.trim(),
+          clientRfqNumber: fullRfq || undefined,
+          validityDays,
+          vatRate,
+          paymentTerms,
+          deliveryLeadTime,
+          notes,
+          defaultCommissionPercent: globalCommission,
+          items: validLines.map((line) => ({
+            itemId: line.itemId,
+            description: line.description,
+            unit: line.unit,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            discountPercent: line.discountPercent,
+            supplierPriceSnapshot: line.supplyPrice || null,
+            baseCostUsdSnapshot: line.supplyPrice || null,
+            commissionAmount:
+              line.unitPrice - line.supplyPrice > 0
+                ? line.unitPrice - line.supplyPrice
+                : 0,
+            commissionPercent: line.commissionPercent ?? globalCommission,
+          })),
+        });
+
+        if (!res.success) {
+          setError(res.error || "Creation failed.");
+          setIsSubmitting(false);
+        } else if (res.quotation) {
+          // Auto-increment and remember the next sequence in localStorage
+          try {
+            const match = internalRef.match(/^(\d+)/);
+            if (match) {
+              const currentSeq = parseInt(match[1], 10);
+              if (!isNaN(currentSeq)) {
+                localStorage.setItem(
+                  `mis_quote_seq_${clientTag}`,
+                  String(currentSeq + 1),
+                );
+              }
+            }
+          } catch {
+            // Ignore localStorage write failures
+          }
+
+          // Show success state with PDF actions before redirecting
+          setSavedQuotation({
+            id: res.quotation.id,
+            reference: res.quotation.internalReference,
+            isEdit: false,
+          });
+          setIsSubmitting(false);
+        } else {
+          router.push("/dashboard/quotes");
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unexpected error");
@@ -497,7 +640,7 @@ export function QuotationWizard({
           </div>
           <div>
             <h2 className="text-lg font-black text-success">
-              Quote saved!
+              {savedQuotation.isEdit ? "Quote updated successfully!" : "Quote saved!"}
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
               Reference:{" "}
@@ -539,6 +682,14 @@ export function QuotationWizard({
         >
           <ArrowLeft className="size-3.5" /> Back to Quotes List
         </Link>
+        {isEdit && initialQuotation && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-semibold">Editing Reference:</span>
+            <span className="font-mono text-xs font-bold bg-primary/10 text-primary px-2.5 py-1 rounded-lg border border-primary/20">
+              {initialQuotation.internalReference}
+            </span>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -565,13 +716,16 @@ export function QuotationWizard({
               {/* 1. Client */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Recipient Client *
+                  Recipient Client {isEdit ? "(Fixed)" : "*"}
                 </label>
                 <select
                   value={clientId}
                   onChange={(e) => handleClientChange(e.target.value)}
+                  disabled={isEdit}
                   required
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 cursor-pointer"
+                  className={`h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 ${
+                    isEdit ? "opacity-75 cursor-not-allowed bg-secondary/50" : "cursor-pointer"
+                  }`}
                 >
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -585,19 +739,25 @@ export function QuotationWizard({
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
-                    REF N° (Quote) *
+                    REF N° (Quote) {isEdit ? "(Locked)" : "*"}
                   </label>
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    +1 auto
-                  </span>
+                  {!isEdit && (
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      +1 auto
+                    </span>
+                  )}
                 </div>
                 <input
                   type="text"
                   required
+                  readOnly={isEdit}
+                  disabled={isEdit}
                   value={internalRef}
                   onChange={(e) => setInternalRef(e.target.value)}
                   placeholder="0088/026/MIS"
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-black text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  className={`h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-black text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 ${
+                    isEdit ? "opacity-75 cursor-not-allowed bg-secondary/50" : ""
+                  }`}
                 />
               </div>
 
@@ -1102,6 +1262,12 @@ export function QuotationWizard({
               </div>
             </div>
 
+            {error && (
+              <p className="text-xs font-bold text-destructive bg-destructive/10 p-2.5 rounded-xl border border-destructive/20">
+                {error}
+              </p>
+            )}
+
             <div className="pt-3 border-t border-border">
               <button
                 type="submit"
@@ -1110,7 +1276,11 @@ export function QuotationWizard({
               >
                 <CheckCircle2 className="size-4" />
                 {isSubmitting
-                  ? "Generating..."
+                  ? isEdit
+                    ? "Saving changes..."
+                    : "Generating..."
+                  : isEdit
+                  ? "Save Changes"
                   : "Validate & Generate"}
               </button>
             </div>
@@ -1134,7 +1304,13 @@ export function QuotationWizard({
           className="h-10 px-5 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
         >
           <CheckCircle2 className="size-4" />
-          {isSubmitting ? "Generating..." : "Validate & Generate"}
+          {isSubmitting
+            ? isEdit
+              ? "Saving..."
+              : "Generating..."
+            : isEdit
+            ? "Save Changes"
+            : "Validate & Generate"}
         </button>
       </div>
     </form>
