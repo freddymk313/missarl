@@ -780,7 +780,7 @@ export async function generateQuotationPdf(
   const leadTimeText = `Délais de livraison : ${data.deliveryLeadTime || "EX-STOCK"}`;
   const leadTimeY = totalsBottom - 28.8;
   currentPage.drawText(leadTimeText, {
-    x: 330.67,
+    x: 265,
     y: leadTimeY,
     size: 8.76,
     font: fontBold,
