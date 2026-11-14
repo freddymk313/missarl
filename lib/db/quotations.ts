@@ -97,8 +97,8 @@ export async function getQuotations(options?: {
       q.cancellation_reason as "cancellationReason",
       q.created_by as "createdBy",
       u.full_name as "createdByName",
-      q.created_at as "createdAt",
-      q.updated_at as "updatedAt"
+      q.created_at::text as "createdAt",
+      q.updated_at::text as "updatedAt"
     FROM quotations q
     JOIN clients c ON q.client_id = c.id
     LEFT JOIN users u ON q.created_by = u.id
@@ -145,8 +145,8 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
       q.cancellation_reason as "cancellationReason",
       q.created_by as "createdBy",
       u.full_name as "createdByName",
-      q.created_at as "createdAt",
-      q.updated_at as "updatedAt"
+      q.created_at::text as "createdAt",
+      q.updated_at::text as "updatedAt"
     FROM quotations q
     JOIN clients c ON q.client_id = c.id
     LEFT JOIN users u ON q.created_by = u.id
@@ -780,10 +780,26 @@ export async function updateQuotation(data: {
     `;
   }
 
-  // 9. Delete old line items and re-insert
+  // 9. Validate item IDs to prevent foreign key errors, delete old line items and re-insert
+  const rawItemIds = preparedLines
+    .map((l) => l.itemId)
+    .filter((id): id is string => Boolean(id && typeof id === "string" && id.trim()));
+  let validItemIds = new Set<string>();
+  if (rawItemIds.length > 0) {
+    try {
+      const existingItems = await sql`
+        SELECT id FROM items WHERE id = ANY(${rawItemIds}::uuid[])
+      `;
+      validItemIds = new Set((existingItems as Array<{ id: string }>).map((r) => r.id));
+    } catch {
+      validItemIds = new Set();
+    }
+  }
+
   await sql`DELETE FROM quotation_items WHERE quotation_id = ${data.quotationId}`;
 
   for (const line of preparedLines) {
+    const safeItemId = line.itemId && validItemIds.has(line.itemId) ? line.itemId : null;
     try {
       await sql`
         INSERT INTO quotation_items (
@@ -796,7 +812,7 @@ export async function updateQuotation(data: {
         )
         VALUES (
           ${data.quotationId},
-          ${line.itemId},
+          ${safeItemId},
           ${line.lineNumber},
           ${line.description},
           ${line.unit},
@@ -829,7 +845,7 @@ export async function updateQuotation(data: {
           )
           VALUES (
             ${data.quotationId},
-            ${line.itemId},
+            ${safeItemId},
             ${line.lineNumber},
             ${line.description},
             ${line.unit},
@@ -856,7 +872,7 @@ export async function updateQuotation(data: {
           )
           VALUES (
             ${data.quotationId},
-            ${line.itemId},
+            ${safeItemId},
             ${line.lineNumber},
             ${line.description},
             ${line.unit},

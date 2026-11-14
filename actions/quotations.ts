@@ -154,10 +154,19 @@ export async function updateQuotationAction(payload: {
     });
 
     revalidatePath("/dashboard/quotes");
+    revalidatePath(`/dashboard/quotes/${payload.quotationId}`);
+    revalidatePath(`/dashboard/quotes/${payload.quotationId}/edit`);
     if (quotation?.clientId) {
       revalidatePath(`/dashboard/clients/${quotation.clientId}`);
     }
-    return { success: true, quotation };
+    return {
+      success: true,
+      quotation: {
+        id: quotation.id,
+        internalReference: quotation.internalReference,
+        clientId: quotation.clientId,
+      },
+    };
   } catch (err: unknown) {
     console.error("[updateQuotationAction] Error updating quotation:", err);
     const message = err instanceof Error ? err.message : "Erreur lors de la mise à jour du devis.";

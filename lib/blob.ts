@@ -16,25 +16,40 @@ export type AllowedQuotationImageMimeType =
 export const QUOTATION_IMAGE_PATH_PREFIX = "quotation-line-images/";
 
 /**
+ * Strips optional surrounding quotes and whitespace from an environment string.
+ */
+function cleanEnvString(val?: string | null): string | null {
+  if (!val) return null;
+  let trimmed = val.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    trimmed = trimmed.slice(1, -1).trim();
+  }
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
  * Reads BLOB_READ_WRITE_TOKEN from server environment.
  * Never logs or exposes the token.
  */
 export function getBlobReadWriteToken(): string | null {
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-  return token && token.length > 0 ? token : null;
+  return cleanEnvString(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
 /**
  * Extracts and normalizes the configured Vercel Blob store ID.
- * Checks BLOB_STORE_ID first (stripping optional "store_" prefix),
+ * Checks BLOB_STORE_ID first (stripping optional quotes and "store_" prefix),
  * then falls back to parsing the storeId segment from BLOB_READ_WRITE_TOKEN.
  */
 export function getConfiguredBlobStoreId(): string | null {
-  const rawStoreId = process.env.BLOB_STORE_ID?.trim();
+  const rawStoreId = cleanEnvString(process.env.BLOB_STORE_ID);
   if (rawStoreId) {
-    const normalized = rawStoreId.startsWith("store_")
-      ? rawStoreId.slice("store_".length)
-      : rawStoreId;
+    let normalized = rawStoreId;
+    if (normalized.startsWith("store_")) {
+      normalized = normalized.slice("store_".length);
+    }
     if (normalized) return normalized;
   }
 
@@ -42,8 +57,11 @@ export function getConfiguredBlobStoreId(): string | null {
   if (token) {
     // Vercel Blob RW token format: vercel_blob_rw_<storeId>_<secret>
     const parts = token.split("_");
-    if (parts.length >= 5 && parts[0] === "vercel" && parts[1] === "blob") {
-      const storeId = parts[3]?.trim();
+    if (parts.length >= 4 && parts[0] === "vercel" && parts[1] === "blob" && parts[2] === "rw") {
+      let storeId = parts[3]?.trim();
+      if (storeId?.startsWith("store_")) {
+        storeId = storeId.slice("store_".length);
+      }
       if (storeId) return storeId;
     }
   }
@@ -58,6 +76,19 @@ export function getExpectedBlobHostname(): string | null {
   const storeId = getConfiguredBlobStoreId();
   if (!storeId) return null;
   return `${storeId.toLowerCase()}.public.blob.vercel-storage.com`;
+}
+
+/**
+ * Checks whether a given hostname matches the configured public Vercel Blob store.
+ * Supports both bare store ID and optional "store_" prefix.
+ */
+export function isAllowedBlobHostname(hostname: string): boolean {
+  const storeId = getConfiguredBlobStoreId();
+  if (!storeId) return false;
+  const h = hostname.toLowerCase();
+  const primaryExpected = `${storeId.toLowerCase()}.public.blob.vercel-storage.com`;
+  const storePrefixedExpected = `store_${storeId.toLowerCase()}.public.blob.vercel-storage.com`;
+  return h === primaryExpected || h === storePrefixedExpected;
 }
 
 /**
@@ -133,18 +164,17 @@ export function validateQuotationBlobImageUrl(
     return { valid: false, error: "Port URL non autorisé." };
   }
 
-  const expectedHost = getExpectedBlobHostname();
-  if (!expectedHost) {
+  if (!isAllowedBlobHostname(parsed.hostname)) {
+    const expectedHost = getExpectedBlobHostname();
+    if (!expectedHost) {
+      return {
+        valid: false,
+        error: "Configuration Vercel Blob manquante sur le serveur.",
+      };
+    }
     return {
       valid: false,
-      error: "Configuration Vercel Blob manquante.",
-    };
-  }
-
-  if (parsed.hostname.toLowerCase() !== expectedHost) {
-    return {
-      valid: false,
-      error: "L'URL de l'image n'appartient pas au stockage Vercel Blob autorisé.",
+      error: `L'hôte de l'image (${parsed.hostname}) n'appartient pas au stockage Vercel Blob configuré (${expectedHost}).`,
     };
   }
 

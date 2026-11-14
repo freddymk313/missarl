@@ -621,6 +621,14 @@ export function QuotationWizard({
     }));
   };
 
+  const scrollToTop = () => {
+    const main = document.getElementById("dashboard-main-content");
+    if (main) {
+      main.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   // ── Financial Calculations ────────────────────────────────────────────────
   const totalPurchaseCost = lines.reduce((sum, line) => {
     const qty = Math.max(0, line.quantity || 0);
@@ -711,7 +719,7 @@ export function QuotationWizard({
         if (!res.success) {
           setError(res.error || "Update failed.");
           setIsSubmitting(false);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          scrollToTop();
         } else if (res.quotation) {
           setSavedQuotation({
             id: res.quotation.id,
@@ -719,8 +727,10 @@ export function QuotationWizard({
             isEdit: true,
           });
           setIsSubmitting(false);
+          scrollToTop();
         } else {
           router.push("/dashboard/quotes");
+          router.refresh();
         }
       } else {
         // ── CREATE MODE ────────────────────────────────────────────────────
@@ -757,6 +767,7 @@ export function QuotationWizard({
         if (!res.success) {
           setError(res.error || "Creation failed.");
           setIsSubmitting(false);
+          scrollToTop();
         } else if (res.quotation) {
           // Auto-increment and remember the next sequence in localStorage
           try {
@@ -781,13 +792,16 @@ export function QuotationWizard({
             isEdit: false,
           });
           setIsSubmitting(false);
+          scrollToTop();
         } else {
           router.push("/dashboard/quotes");
+          router.refresh();
         }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unexpected error");
       setIsSubmitting(false);
+      scrollToTop();
     }
   };
 
@@ -824,7 +838,10 @@ export function QuotationWizard({
 
         <button
           type="button"
-          onClick={() => router.push("/dashboard/quotes")}
+          onClick={() => {
+            router.push("/dashboard/quotes");
+            router.refresh();
+          }}
           className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
         >
           <ArrowLeft className="size-4" /> Back to Quotes List

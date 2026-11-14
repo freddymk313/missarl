@@ -174,10 +174,18 @@ async function embedQuotationBrandImage(
   if (line.brandImageMimeType === "image/png") {
     try {
       return await doc.embedPng(bytes);
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[Quotation PDF Line ${line.lineNumber}] embedPng failed, attempting embedJpg fallback:`,
+        err instanceof Error ? err.message : err
+      );
       try {
         return await doc.embedJpg(bytes);
-      } catch {
+      } catch (err2) {
+        console.error(
+          `[Quotation PDF Line ${line.lineNumber}] Failed to embed image as PNG or JPG:`,
+          err2 instanceof Error ? err2.message : err2
+        );
         return null;
       }
     }
@@ -185,10 +193,18 @@ async function embedQuotationBrandImage(
   if (line.brandImageMimeType === "image/jpeg") {
     try {
       return await doc.embedJpg(bytes);
-    } catch {
+    } catch (err) {
+      console.warn(
+        `[Quotation PDF Line ${line.lineNumber}] embedJpg failed, attempting embedPng fallback:`,
+        err instanceof Error ? err.message : err
+      );
       try {
         return await doc.embedPng(bytes);
-      } catch {
+      } catch (err2) {
+        console.error(
+          `[Quotation PDF Line ${line.lineNumber}] Failed to embed image as JPG or PNG:`,
+          err2 instanceof Error ? err2.message : err2
+        );
         return null;
       }
     }
@@ -198,7 +214,11 @@ async function embedQuotationBrandImage(
   } catch {
     try {
       return await doc.embedJpg(bytes);
-    } catch {
+    } catch (err) {
+      console.error(
+        `[Quotation PDF Line ${line.lineNumber}] Failed to embed image with unknown mime:`,
+        err instanceof Error ? err.message : err
+      );
       return null;
     }
   }
@@ -493,8 +513,8 @@ export async function generateQuotationPdf(
   const PAGE_CONT_TOP_Y = 787.32;
   const TOTALS_SECTION_HEIGHT = 18 * 3 + 40; // 3 rows of 18 pt + delivery terms
 
-  const BRAND_IMG_MAX_W = COL_W.brand - 12; // 117.75 pt
-  const BRAND_IMG_MAX_H = 48.0; // max height in pt
+  const BRAND_IMG_MAX_W = COL_W.brand - 8; // 121.75 pt - well-contained inside column borders
+  const BRAND_IMG_MAX_H = 150.0; // large and clear like reference RFQ-CHEMAF-2000002358 OQ
 
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
@@ -516,7 +536,7 @@ export async function generateQuotationPdf(
         : Math.max(16.0, (descLineCount - 1) * 9.84 + 14.8);
 
     // Embed optional brand/product image & compute BRAND cell visual height
-    const brandText = line.brand?.trim() ? line.brand.trim() : null;
+    const brandText = line.brand?.trim() ? line.brand.trim().toUpperCase() : null;
     const embeddedBrandImg = await embedQuotationBrandImage(doc, line);
 
     let drawImgW = 0;
@@ -525,37 +545,37 @@ export async function generateQuotationPdf(
       const scale = Math.min(
         BRAND_IMG_MAX_W / embeddedBrandImg.width,
         BRAND_IMG_MAX_H / embeddedBrandImg.height,
-        2
+        1
       );
       drawImgW = embeddedBrandImg.width * scale;
       drawImgH = embeddedBrandImg.height * scale;
     }
 
+    const BRAND_FONT_SIZE = 8.04;
+    const BRAND_LINE_HEIGHT = 9.84;
     const brandLines = brandText
       ? wrapBrandText(
           brandText,
-          fontRegular,
-          8.04,
-          embeddedBrandImg ? COL_W.brand - 8 : COL_W.brand - 6
+          fontBold,
+          BRAND_FONT_SIZE,
+          COL_W.brand - 8
         )
       : [];
 
     let brandVisualHeight = 16.0;
     if (embeddedBrandImg && brandLines.length > 0) {
-      // Case D: Image + wrapped brand text centered below image
-      brandVisualHeight = Math.max(
-        16.0,
-        drawImgH + 20.5 + (brandLines.length - 1) * 9.84
-      );
+      // Case A: Image + wrapped brand text at bottom baseline
+      const totalBlockH = drawImgH + 5.0 + brandLines.length * BRAND_LINE_HEIGHT;
+      brandVisualHeight = Math.max(16.0, totalBlockH + 7.0);
     } else if (embeddedBrandImg) {
       // Case C: Image only
       brandVisualHeight = Math.max(16.0, drawImgH + 9.0);
     } else if (brandLines.length > 0) {
-      // Case B: Brand text only
+      // Case B: Brand text only (at bottom baseline)
       brandVisualHeight =
         brandLines.length === 1
           ? 16.0
-          : Math.max(16.0, (brandLines.length - 1) * 9.84 + 14.8);
+          : Math.max(16.0, (brandLines.length - 1) * BRAND_LINE_HEIGHT + 16.0);
     }
 
     const rowHeight = Math.max(descHeight, brandVisualHeight);
@@ -621,11 +641,14 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 2: BRAND (4 cases: empty / text only / image only / image + text)
+    // Column 2: BRAND (4 cases: image + text / text only / image only / empty)
     if (embeddedBrandImg && brandLines.length > 0) {
-      // Case D: Image centered near top, wrapped brand text centered below image
+      // Case A: Image centered above brand text; Brand text aligned at bottom baseline (textBaseY) in RED
+      const brandTopY = textBaseY + (brandLines.length - 1) * BRAND_LINE_HEIGHT + 7.5;
+      const spaceAboveBrand = Math.max(0, (rowTop - 3.0) - brandTopY);
+      const imgY = brandTopY + Math.max(2.0, (spaceAboveBrand - drawImgH) / 2);
       const imgX = COL_X.brand + (COL_W.brand - drawImgW) / 2;
-      const imgY = rowTop - 4.5 - drawImgH;
+
       currentPage.drawImage(embeddedBrandImg, {
         x: imgX,
         y: imgY,
@@ -633,19 +656,19 @@ export async function generateQuotationPdf(
         height: drawImgH,
       });
 
-      let bY = imgY - 11.0;
-      for (const bl of brandLines) {
-        const blW = fontRegular.widthOfTextAtSize(bl, 8.04);
+      // Draw brand text lines at bottom baseline (textBaseY) in RED
+      brandLines.forEach((bl, idx) => {
+        const blW = fontBold.widthOfTextAtSize(bl, BRAND_FONT_SIZE);
         const blX = COL_X.brand + (COL_W.brand - blW) / 2;
+        const lineY = textBaseY + (brandLines.length - 1 - idx) * BRAND_LINE_HEIGHT;
         currentPage.drawText(bl, {
           x: blX,
-          y: bY,
-          size: 8.04,
-          font: fontRegular,
-          color: BLACK,
+          y: lineY,
+          size: BRAND_FONT_SIZE,
+          font: fontBold,
+          color: RED_TEXT,
         });
-        bY -= 9.84;
-      }
+      });
     } else if (embeddedBrandImg) {
       // Case C: Image only (centered horizontally and vertically)
       const imgX = COL_X.brand + (COL_W.brand - drawImgW) / 2;
@@ -657,19 +680,21 @@ export async function generateQuotationPdf(
         height: drawImgH,
       });
     } else if (brandLines.length > 0) {
-      // Case B: Text only (left-aligned, matches reference template)
-      let bY = rowTop - 10.3;
-      for (const bl of brandLines) {
+      // Case B: Brand name only: aligned at bottom baseline (textBaseY) like all other columns, in RED
+      brandLines.forEach((bl, idx) => {
+        const blW = fontBold.widthOfTextAtSize(bl, BRAND_FONT_SIZE);
+        const blX = COL_X.brand + (COL_W.brand - blW) / 2;
+        const lineY = textBaseY + (brandLines.length - 1 - idx) * BRAND_LINE_HEIGHT;
         currentPage.drawText(bl, {
-          x: COL_X.brand + 3,
-          y: bY,
-          size: 8.04,
-          font: fontRegular,
-          color: BLACK,
+          x: blX,
+          y: lineY,
+          size: BRAND_FONT_SIZE,
+          font: fontBold,
+          color: RED_TEXT,
         });
-        bY -= 9.84;
-      }
+      });
     }
+    // Case D: Neither image nor brand name -> cell remains empty
 
     // Column 3: QTY (centered)
     const qtyStr = Number.isInteger(line.quantity)

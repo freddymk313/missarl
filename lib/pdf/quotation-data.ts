@@ -70,8 +70,9 @@ export interface QuotationPdfData {
   createdByName: string | null;
 }
 
-async function fetchQuotationLineImage(
-  rawUrl: string | null | undefined
+export async function fetchQuotationLineImage(
+  rawUrl: string | null | undefined,
+  lineNumber: number
 ): Promise<{
   bytes: Uint8Array;
   mimeType: AllowedQuotationImageMimeType;
@@ -80,20 +81,20 @@ async function fetchQuotationLineImage(
 
   const urlCheck = validateQuotationBlobImageUrl(rawUrl);
   if (!urlCheck.valid) {
-    console.warn("[Quotation PDF] Image URL rejected:", urlCheck.error);
+    console.warn(`[Quotation PDF Line ${lineNumber}] Image URL validation rejected:`, urlCheck.error);
     return null;
   }
 
   try {
     const res = await fetch(urlCheck.url, {
       method: "GET",
-      redirect: "error",
+      redirect: "follow",
       signal: AbortSignal.timeout(10000),
       cache: "no-store",
     });
 
     if (!res.ok) {
-      console.warn(`[Quotation PDF] Image fetch HTTP ${res.status}`);
+      console.warn(`[Quotation PDF Line ${lineNumber}] Image fetch failed with HTTP ${res.status} (${res.statusText})`);
       return null;
     }
 
@@ -101,7 +102,7 @@ async function fetchQuotationLineImage(
     if (contentLengthHeader) {
       const declaredSize = Number(contentLengthHeader);
       if (Number.isFinite(declaredSize) && declaredSize > MAX_QUOTATION_IMAGE_BYTES) {
-        console.warn("[Quotation PDF] Image exceeds max allowed size via Content-Length.");
+        console.warn(`[Quotation PDF Line ${lineNumber}] Image exceeds max allowed size via Content-Length (${declaredSize} bytes).`);
         return null;
       }
     }
@@ -109,20 +110,20 @@ async function fetchQuotationLineImage(
     const arrayBuffer = await res.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     if (bytes.byteLength === 0 || bytes.byteLength > MAX_QUOTATION_IMAGE_BYTES) {
-      console.warn("[Quotation PDF] Downloaded image size invalid:", bytes.byteLength);
+      console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded image size invalid (${bytes.byteLength} bytes).`);
       return null;
     }
 
     const detectedMime = detectImageFormatFromBytes(bytes);
     if (!detectedMime) {
-      console.warn("[Quotation PDF] Downloaded bytes are not a valid JPEG or PNG.");
+      console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded bytes failed JPEG/PNG magic signature check.`);
       return null;
     }
 
     return { bytes, mimeType: detectedMime };
   } catch (err) {
     console.warn(
-      "[Quotation PDF] Failed to fetch line brand image:",
+      `[Quotation PDF Line ${lineNumber}] Failed to fetch line brand image:`,
       err instanceof Error ? err.message : "Unknown error"
     );
     return null;
@@ -171,7 +172,7 @@ export async function getQuotationPdfData(
   const lines: QuotationLineForPdf[] = await Promise.all(
     (record.items ?? []).map(
       async (item: QuotationLineItem): Promise<QuotationLineForPdf> => {
-        const fetchedImage = await fetchQuotationLineImage(item.brandImageUrl);
+        const fetchedImage = await fetchQuotationLineImage(item.brandImageUrl, item.lineNumber);
         const trimmedBrand = item.brand?.trim() ? item.brand.trim() : null;
         return {
           lineNumber: item.lineNumber,
