@@ -2,12 +2,78 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
+import { validateQuotationBlobImageUrl } from "@/lib/blob";
 import {
   createQuotation,
   updateQuotation,
   updateQuotationStatus,
   getQuotationById,
 } from "@/lib/db/quotations";
+
+const MAX_BRAND_LENGTH = 100;
+
+interface QuotationActionLineInput {
+  itemId?: string;
+  brand?: string | null;
+  brandImageUrl?: string | null;
+  supplierOfferId?: string | null;
+  description: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  discountPercent?: number;
+  supplierPriceSnapshot?: number | null;
+  supplierCurrencySnapshot?: string | null;
+  supplierVatIncludedSnapshot?: boolean | null;
+  supplierVatRateSnapshot?: number | null;
+  exchangeRateSnapshot?: number | null;
+  baseCostUsdSnapshot?: number | null;
+  commissionPercent?: number | null;
+  commissionAmount?: number | null;
+}
+
+function validateAndNormalizeLineBrands(
+  items: QuotationActionLineInput[]
+): { ok: true; items: QuotationActionLineInput[] } | { ok: false; error: string } {
+  const normalizedItems: QuotationActionLineInput[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const lineNum = i + 1;
+
+    let normalizedBrand: string | null | undefined = item.brand;
+    if (item.brand !== undefined) {
+      const trimmedBrand = (item.brand ?? "").trim();
+      if (trimmedBrand.length > MAX_BRAND_LENGTH) {
+        return {
+          ok: false,
+          error: `Ligne ${lineNum} : le nom de la marque ne doit pas dépasser ${MAX_BRAND_LENGTH} caractères.`,
+        };
+      }
+      normalizedBrand = trimmedBrand;
+    }
+
+    let normalizedImageUrl: string | null = null;
+    if (typeof item.brandImageUrl === "string" && item.brandImageUrl.trim().length > 0) {
+      const urlCheck = validateQuotationBlobImageUrl(item.brandImageUrl);
+      if (!urlCheck.valid) {
+        return {
+          ok: false,
+          error: `Ligne ${lineNum} : ${urlCheck.error}`,
+        };
+      }
+      normalizedImageUrl = urlCheck.url;
+    }
+
+    normalizedItems.push({
+      ...item,
+      brand: normalizedBrand,
+      brandImageUrl: normalizedImageUrl,
+    });
+  }
+
+  return { ok: true, items: normalizedItems };
+}
 
 export async function createQuotationAction(payload: {
   clientId: string;
@@ -20,23 +86,7 @@ export async function createQuotationAction(payload: {
   deliveryLeadTime?: string;
   notes?: string;
   defaultCommissionPercent?: number;
-  items: Array<{
-    itemId?: string;
-    supplierOfferId?: string | null;
-    description: string;
-    unit: string;
-    quantity: number;
-    unitPrice: number;
-    discountPercent?: number;
-    supplierPriceSnapshot?: number | null;
-    supplierCurrencySnapshot?: string | null;
-    supplierVatIncludedSnapshot?: boolean | null;
-    supplierVatRateSnapshot?: number | null;
-    exchangeRateSnapshot?: number | null;
-    baseCostUsdSnapshot?: number | null;
-    commissionPercent?: number | null;
-    commissionAmount?: number | null;
-  }>;
+  items: QuotationActionLineInput[];
 }) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
@@ -48,9 +98,15 @@ export async function createQuotationAction(payload: {
     return { success: false, error: "Le devis doit comporter au moins une ligne d'article." };
   }
 
+  const brandCheck = validateAndNormalizeLineBrands(payload.items);
+  if (!brandCheck.ok) {
+    return { success: false, error: brandCheck.error };
+  }
+
   try {
     const quotation = await createQuotation({
       ...payload,
+      items: brandCheck.items,
       userId: session.id,
     });
 
@@ -74,23 +130,7 @@ export async function updateQuotationAction(payload: {
   notes?: string;
   defaultCommissionPercent?: number;
   expectedUpdatedAt?: string;
-  items: Array<{
-    itemId?: string;
-    supplierOfferId?: string | null;
-    description: string;
-    unit: string;
-    quantity: number;
-    unitPrice: number;
-    discountPercent?: number;
-    supplierPriceSnapshot?: number | null;
-    supplierCurrencySnapshot?: string | null;
-    supplierVatIncludedSnapshot?: boolean | null;
-    supplierVatRateSnapshot?: number | null;
-    exchangeRateSnapshot?: number | null;
-    baseCostUsdSnapshot?: number | null;
-    commissionPercent?: number | null;
-    commissionAmount?: number | null;
-  }>;
+  items: QuotationActionLineInput[];
 }) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
@@ -101,9 +141,15 @@ export async function updateQuotationAction(payload: {
     return { success: false, error: "Le devis doit comporter au moins une ligne d'article." };
   }
 
+  const brandCheck = validateAndNormalizeLineBrands(payload.items);
+  if (!brandCheck.ok) {
+    return { success: false, error: brandCheck.error };
+  }
+
   try {
     const quotation = await updateQuotation({
       ...payload,
+      items: brandCheck.items,
       userId: session.id,
     });
 

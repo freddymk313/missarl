@@ -10,6 +10,7 @@ export interface QuotationLineItem {
   id?: string;
   itemId?: string | null;
   brand?: string | null;
+  brandImageUrl?: string | null;
   supplierOfferId?: string | null;
   lineNumber: number;
   description: string;
@@ -161,7 +162,15 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
     SELECT 
       qi.id,
       qi.item_id as "itemId",
-      it.brand as "brand",
+      NULLIF(
+        COALESCE(
+          to_jsonb(qi)->>'brand_snapshot',
+          b.name,
+          NULLIF(TRIM(it.brand), '')
+        ),
+        ''
+      ) as "brand",
+      NULLIF(TRIM(to_jsonb(qi)->>'brand_image_url_snapshot'), '') as "brandImageUrl",
       (to_jsonb(qi)->>'supplier_offer_id')::uuid as "supplierOfferId",
       qi.line_number as "lineNumber",
       qi.description_snapshot as "description",
@@ -180,6 +189,7 @@ export async function getQuotationById(id: string): Promise<QuotationRecord | nu
       (to_jsonb(qi)->>'commission_amount_snapshot')::numeric::float as "commissionAmountSnapshot"
     FROM quotation_items qi
     LEFT JOIN items it ON qi.item_id = it.id
+    LEFT JOIN brands b ON b.id = it.brand_id
     WHERE qi.quotation_id = ${id}
     ORDER BY qi.line_number ASC
   `;
@@ -201,6 +211,8 @@ export async function createQuotation(data: {
   defaultCommissionPercent?: number;
   items: Array<{
     itemId?: string;
+    brand?: string | null;
+    brandImageUrl?: string | null;
     supplierOfferId?: string | null;
     description: string;
     unit: string;
@@ -263,8 +275,17 @@ export async function createQuotation(data: {
     const lineTotal = Math.round(qty * price * (1 - disc / 100) * 100) / 100;
     subtotal += lineTotal;
 
+    const normalizedBrand =
+      item.brand === undefined ? null : (item.brand ?? "").trim();
+    const normalizedBrandImageUrl =
+      item.brandImageUrl && item.brandImageUrl.trim()
+        ? item.brandImageUrl.trim()
+        : null;
+
     return {
       itemId: item.itemId || null,
+      brand: normalizedBrand,
+      brandImageUrl: normalizedBrandImageUrl,
       supplierOfferId: item.supplierOfferId || null,
       lineNumber: index + 1,
       description: item.description.trim(),
@@ -387,6 +408,7 @@ export async function createQuotation(data: {
         INSERT INTO quotation_items (
           quotation_id, item_id, line_number, description_snapshot,
           unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal,
+          brand_snapshot, brand_image_url_snapshot,
           supplier_offer_id, supplier_price_snapshot, supplier_currency_snapshot,
           supplier_vat_included_snapshot, supplier_vat_rate_snapshot, exchange_rate_snapshot,
           base_cost_usd_snapshot, commission_percent_snapshot, commission_amount_snapshot
@@ -401,6 +423,8 @@ export async function createQuotation(data: {
           ${line.unitPrice},
           ${line.discountPercent},
           ${line.lineSubtotal},
+          ${line.brand},
+          ${line.brandImageUrl},
           ${line.supplierOfferId},
           ${line.supplierPriceSnapshot},
           ${line.supplierCurrencySnapshot},
@@ -413,23 +437,55 @@ export async function createQuotation(data: {
         )
       `;
     } catch {
-      await sql`
-        INSERT INTO quotation_items (
-          quotation_id, item_id, line_number, description_snapshot,
-          unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal
-        )
-        VALUES (
-          ${quotationId},
-          ${line.itemId},
-          ${line.lineNumber},
-          ${line.description},
-          ${line.unit},
-          ${line.quantity},
-          ${line.unitPrice},
-          ${line.discountPercent},
-          ${line.lineSubtotal}
-        )
-      `;
+      try {
+        await sql`
+          INSERT INTO quotation_items (
+            quotation_id, item_id, line_number, description_snapshot,
+            unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal,
+            supplier_offer_id, supplier_price_snapshot, supplier_currency_snapshot,
+            supplier_vat_included_snapshot, supplier_vat_rate_snapshot, exchange_rate_snapshot,
+            base_cost_usd_snapshot, commission_percent_snapshot, commission_amount_snapshot
+          )
+          VALUES (
+            ${quotationId},
+            ${line.itemId},
+            ${line.lineNumber},
+            ${line.description},
+            ${line.unit},
+            ${line.quantity},
+            ${line.unitPrice},
+            ${line.discountPercent},
+            ${line.lineSubtotal},
+            ${line.supplierOfferId},
+            ${line.supplierPriceSnapshot},
+            ${line.supplierCurrencySnapshot},
+            ${line.supplierVatIncludedSnapshot},
+            ${line.supplierVatRateSnapshot},
+            ${line.exchangeRateSnapshot},
+            ${line.baseCostUsdSnapshot},
+            ${line.commissionPercentSnapshot},
+            ${line.commissionAmountSnapshot}
+          )
+        `;
+      } catch {
+        await sql`
+          INSERT INTO quotation_items (
+            quotation_id, item_id, line_number, description_snapshot,
+            unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal
+          )
+          VALUES (
+            ${quotationId},
+            ${line.itemId},
+            ${line.lineNumber},
+            ${line.description},
+            ${line.unit},
+            ${line.quantity},
+            ${line.unitPrice},
+            ${line.discountPercent},
+            ${line.lineSubtotal}
+          )
+        `;
+      }
     }
   }
 
@@ -524,6 +580,8 @@ export async function updateQuotation(data: {
   // Line items
   items: Array<{
     itemId?: string;
+    brand?: string | null;
+    brandImageUrl?: string | null;
     supplierOfferId?: string | null;
     description: string;
     unit: string;
@@ -634,8 +692,17 @@ export async function updateQuotation(data: {
     const lineTotal = Math.round(qty * price * (1 - disc / 100) * 100) / 100;
     subtotal += lineTotal;
 
+    const normalizedBrand =
+      item.brand === undefined ? null : (item.brand ?? "").trim();
+    const normalizedBrandImageUrl =
+      item.brandImageUrl && item.brandImageUrl.trim()
+        ? item.brandImageUrl.trim()
+        : null;
+
     return {
       itemId: item.itemId || null,
+      brand: normalizedBrand,
+      brandImageUrl: normalizedBrandImageUrl,
       supplierOfferId: item.supplierOfferId || null,
       lineNumber: index + 1,
       description: item.description.trim(),
@@ -722,6 +789,7 @@ export async function updateQuotation(data: {
         INSERT INTO quotation_items (
           quotation_id, item_id, line_number, description_snapshot,
           unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal,
+          brand_snapshot, brand_image_url_snapshot,
           supplier_offer_id, supplier_price_snapshot, supplier_currency_snapshot,
           supplier_vat_included_snapshot, supplier_vat_rate_snapshot, exchange_rate_snapshot,
           base_cost_usd_snapshot, commission_percent_snapshot, commission_amount_snapshot
@@ -736,6 +804,8 @@ export async function updateQuotation(data: {
           ${line.unitPrice},
           ${line.discountPercent},
           ${line.lineSubtotal},
+          ${line.brand},
+          ${line.brandImageUrl},
           ${line.supplierOfferId},
           ${line.supplierPriceSnapshot},
           ${line.supplierCurrencySnapshot},
@@ -748,23 +818,55 @@ export async function updateQuotation(data: {
         )
       `;
     } catch {
-      await sql`
-        INSERT INTO quotation_items (
-          quotation_id, item_id, line_number, description_snapshot,
-          unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal
-        )
-        VALUES (
-          ${data.quotationId},
-          ${line.itemId},
-          ${line.lineNumber},
-          ${line.description},
-          ${line.unit},
-          ${line.quantity},
-          ${line.unitPrice},
-          ${line.discountPercent},
-          ${line.lineSubtotal}
-        )
-      `;
+      try {
+        await sql`
+          INSERT INTO quotation_items (
+            quotation_id, item_id, line_number, description_snapshot,
+            unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal,
+            supplier_offer_id, supplier_price_snapshot, supplier_currency_snapshot,
+            supplier_vat_included_snapshot, supplier_vat_rate_snapshot, exchange_rate_snapshot,
+            base_cost_usd_snapshot, commission_percent_snapshot, commission_amount_snapshot
+          )
+          VALUES (
+            ${data.quotationId},
+            ${line.itemId},
+            ${line.lineNumber},
+            ${line.description},
+            ${line.unit},
+            ${line.quantity},
+            ${line.unitPrice},
+            ${line.discountPercent},
+            ${line.lineSubtotal},
+            ${line.supplierOfferId},
+            ${line.supplierPriceSnapshot},
+            ${line.supplierCurrencySnapshot},
+            ${line.supplierVatIncludedSnapshot},
+            ${line.supplierVatRateSnapshot},
+            ${line.exchangeRateSnapshot},
+            ${line.baseCostUsdSnapshot},
+            ${line.commissionPercentSnapshot},
+            ${line.commissionAmountSnapshot}
+          )
+        `;
+      } catch {
+        await sql`
+          INSERT INTO quotation_items (
+            quotation_id, item_id, line_number, description_snapshot,
+            unit_snapshot, quantity, unit_price_snapshot, discount_percent, line_subtotal
+          )
+          VALUES (
+            ${data.quotationId},
+            ${line.itemId},
+            ${line.lineNumber},
+            ${line.description},
+            ${line.unit},
+            ${line.quantity},
+            ${line.unitPrice},
+            ${line.discountPercent},
+            ${line.lineSubtotal}
+          )
+        `;
+      }
     }
   }
 

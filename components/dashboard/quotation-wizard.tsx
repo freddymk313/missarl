@@ -11,6 +11,9 @@ import {
   X,
   Package,
   Pencil,
+  ImagePlus,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { ClientRecord } from "@/lib/db/clients";
@@ -31,7 +34,10 @@ interface QuotationWizardProps {
 }
 
 interface LineItemDraft {
+  _key: string;
   itemId?: string;
+  brand: string;
+  brandImageUrl: string | null;
   description: string;
   unit: string;
   quantity: number;
@@ -47,6 +53,23 @@ interface LineItemDraft {
   _exchangeRateSnapshot?: number | null;
   _baseCostUsdSnapshot?: number | null;
   _supplierOfferId?: string | null;
+}
+
+const MAX_CLIENT_IMAGE_BYTES = 4 * 1024 * 1024; // 4 MB
+const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
+let draftKeyCounter = 0;
+
+function createDraftKey(): string {
+  draftKeyCounter += 1;
+  return `draft-${Date.now()}-${draftKeyCounter}`;
+}
+
+function isAllowedImageFile(file: File): boolean {
+  if (ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+    return true;
+  }
+  const lower = file.name.toLowerCase();
+  return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
 }
 
 // ── Helpers for Client Tag & Reference Number ────────────────────────────────
@@ -373,8 +396,11 @@ export function QuotationWizard({
   // Build initial line items from initialLines (edit mode) or a blank row (create mode)
   const [lines, setLines] = useState<LineItemDraft[]>(() => {
     if (isEdit && initialLines && initialLines.length > 0) {
-      return initialLines.map((il) => ({
+      return initialLines.map((il, idx) => ({
+        _key: `init-${idx}-${il.id ?? il.lineNumber}`,
         itemId: il.itemId ?? undefined,
+        brand: il.brand ?? "",
+        brandImageUrl: il.brandImageUrl ?? null,
         description: il.description,
         unit: il.unit,
         quantity: il.quantity,
@@ -395,6 +421,9 @@ export function QuotationWizard({
     }
     return [
       {
+        _key: "init-0",
+        brand: "",
+        brandImageUrl: null,
         description: "",
         unit: "Pce",
         quantity: 1,
@@ -406,10 +435,24 @@ export function QuotationWizard({
     ];
   });
 
+  // Transient UI state for per-line brand/product image uploads (keyed by line._key)
+  const [lineUploads, setLineUploads] = useState<
+    Record<string, { uploading: boolean; error: string | null }>
+  >({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const isAnyLineUploading = useMemo(
+    () => Object.values(lineUploads).some((u) => u.uploading),
+    [lineUploads],
+  );
+
   const addLine = () => {
     setLines((prev) => [
       ...prev,
       {
+        _key: createDraftKey(),
+        brand: "",
+        brandImageUrl: null,
         description: "",
         unit: "Pce",
         quantity: 1,
@@ -423,7 +466,16 @@ export function QuotationWizard({
 
   const removeLine = (index: number) => {
     if (lines.length === 1) return;
+    const removedKey = lines[index]?._key;
     setLines((prev) => prev.filter((_, i) => i !== index));
+    if (removedKey) {
+      setLineUploads((prev) => {
+        if (!(removedKey in prev)) return prev;
+        const next = { ...prev };
+        delete next[removedKey];
+        return next;
+      });
+    }
   };
 
   const updateLine = <K extends keyof LineItemDraft>(
@@ -458,6 +510,7 @@ export function QuotationWizard({
         return {
           ...line,
           itemId: item.id,
+          brand: item.brandName?.trim() || "",
           description: item.designation
             ? `${item.designation} — ${item.description}`
             : item.description,
@@ -467,6 +520,105 @@ export function QuotationWizard({
         };
       }),
     );
+  };
+
+  const handleLineImageUpload = async (lineKey: string, file: File | null) => {
+    if (!file) return;
+
+    if (!isAllowedImageFile(file)) {
+      setLineUploads((prev) => ({
+        ...prev,
+        [lineKey]: {
+          uploading: false,
+          error: "Format d'image non accepté (JPEG ou PNG uniquement).",
+        },
+      }));
+      return;
+    }
+
+    if (file.size === 0) {
+      setLineUploads((prev) => ({
+        ...prev,
+        [lineKey]: { uploading: false, error: "Aucun fichier sélectionné." },
+      }));
+      return;
+    }
+
+    if (file.size > MAX_CLIENT_IMAGE_BYTES) {
+      setLineUploads((prev) => ({
+        ...prev,
+        [lineKey]: {
+          uploading: false,
+          error: "Image trop volumineuse (4 MB maximum).",
+        },
+      }));
+      return;
+    }
+
+    setLineUploads((prev) => ({
+      ...prev,
+      [lineKey]: { uploading: true, error: null },
+    }));
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (isEdit && initialQuotation?.id) {
+        formData.append("quotationId", initialQuotation.id);
+      }
+
+      const res = await fetch("/api/quotations/line-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+
+      if (!res.ok || !payload.url) {
+        setLineUploads((prev) => ({
+          ...prev,
+          [lineKey]: {
+            uploading: false,
+            error: payload.error || "Échec du téléversement de l'image.",
+          },
+        }));
+        return;
+      }
+
+      const uploadedUrl = payload.url;
+      setLines((prev) =>
+        prev.map((l) =>
+          l._key === lineKey ? { ...l, brandImageUrl: uploadedUrl } : l,
+        ),
+      );
+      setLineUploads((prev) => ({
+        ...prev,
+        [lineKey]: { uploading: false, error: null },
+      }));
+    } catch {
+      setLineUploads((prev) => ({
+        ...prev,
+        [lineKey]: {
+          uploading: false,
+          error: "Échec du téléversement de l'image.",
+        },
+      }));
+    }
+  };
+
+  const handleRemoveLineImage = (lineKey: string) => {
+    setLines((prev) =>
+      prev.map((l) =>
+        l._key === lineKey ? { ...l, brandImageUrl: null } : l,
+      ),
+    );
+    setLineUploads((prev) => ({
+      ...prev,
+      [lineKey]: { uploading: false, error: null },
+    }));
   };
 
   // ── Financial Calculations ────────────────────────────────────────────────
@@ -505,6 +657,11 @@ export function QuotationWizard({
       return;
     }
 
+    if (isAnyLineUploading) {
+      setError("Veuillez attendre la fin du téléversement des images.");
+      return;
+    }
+
     const validLines = lines.filter((l) => l.description.trim() !== "");
     if (validLines.length === 0) {
       setError("Please add at least one item with a description.");
@@ -528,6 +685,8 @@ export function QuotationWizard({
           expectedUpdatedAt: initialQuotation.updatedAt,
           items: validLines.map((line) => ({
             itemId: line.itemId,
+            brand: line.brand.trim(),
+            brandImageUrl: line.brandImageUrl,
             supplierOfferId: line._supplierOfferId ?? null,
             description: line.description,
             unit: line.unit,
@@ -578,6 +737,8 @@ export function QuotationWizard({
           defaultCommissionPercent: globalCommission,
           items: validLines.map((line) => ({
             itemId: line.itemId,
+            brand: line.brand.trim(),
+            brandImageUrl: line.brandImageUrl,
             description: line.description,
             unit: line.unit,
             quantity: line.quantity,
@@ -927,9 +1088,13 @@ export function QuotationWizard({
                     : globalCommission;
                 const isLineOverride = line.commissionPercent !== null;
 
+                const uploadState = lineUploads[line._key];
+                const isUploading = uploadState?.uploading ?? false;
+                const uploadError = uploadState?.error ?? null;
+
                 return (
                   <div
-                    key={index}
+                    key={line._key}
                     className="p-4 rounded-xl border border-border bg-secondary/20 space-y-3"
                   >
                     <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
@@ -977,6 +1142,125 @@ export function QuotationWizard({
                           placeholder="Detailed description of the supply or part..."
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
+                      </div>
+                    </div>
+
+                    {/* Brand & Optional Visual Section (Column 2: BRAND in PDF) */}
+                    <div className="grid gap-3 sm:grid-cols-12 rounded-xl border border-border/80 bg-card/60 p-3">
+                      <div className="sm:col-span-5">
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="block text-[11px] font-bold text-foreground">
+                            Brand Name{" "}
+                            <span className="text-[10px] font-normal text-muted-foreground">
+                              (optional)
+                            </span>
+                          </label>
+                          {line.brand && (
+                            <button
+                              type="button"
+                              onClick={() => updateLine(index, "brand", "")}
+                              className="text-[10px] text-muted-foreground hover:text-destructive cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={100}
+                          value={line.brand}
+                          onChange={(e) =>
+                            updateLine(index, "brand", e.target.value)
+                          }
+                          placeholder="Enter brand name (optional)"
+                          className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-7">
+                        <label className="block text-[11px] font-bold text-foreground">
+                          Brand / Product Image{" "}
+                          <span className="text-[10px] font-normal text-muted-foreground">
+                            (JPEG/PNG, max 4 MB — optional)
+                          </span>
+                        </label>
+
+                        <input
+                          ref={(el) => {
+                            fileInputRefs.current[line._key] = el;
+                          }}
+                          type="file"
+                          accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const selectedFile = e.target.files?.[0] ?? null;
+                            e.target.value = "";
+                            void handleLineImageUpload(line._key, selectedFile);
+                          }}
+                        />
+
+                        <div className="mt-1 flex flex-wrap items-center gap-2.5">
+                          {line.brandImageUrl ? (
+                            <>
+                              <div className="relative flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-1">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={line.brandImageUrl}
+                                  alt={line.brand || `Line ${index + 1} brand`}
+                                  className="max-h-full max-w-full object-contain"
+                                />
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isUploading}
+                                  onClick={() =>
+                                    fileInputRefs.current[line._key]?.click()
+                                  }
+                                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-card text-[11px] font-bold text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isUploading ? (
+                                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                                  ) : (
+                                    <RefreshCw className="size-3.5 text-primary" />
+                                  )}
+                                  {isUploading ? "Uploading..." : "Replace Image"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isUploading}
+                                  onClick={() => handleRemoveLineImage(line._key)}
+                                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-destructive/30 bg-destructive/5 text-[11px] font-bold text-destructive hover:bg-destructive/10 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                  Remove Image
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isUploading}
+                              onClick={() =>
+                                fileInputRefs.current[line._key]?.click()
+                              }
+                              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-dashed border-primary/40 bg-primary/5 text-xs font-bold text-primary hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                              {isUploading ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <ImagePlus className="size-3.5" />
+                              )}
+                              {isUploading ? "Uploading image..." : "Upload Image"}
+                            </button>
+                          )}
+                        </div>
+
+                        {uploadError && (
+                          <p className="mt-1.5 text-[11px] font-semibold text-destructive">
+                            {uploadError}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1269,13 +1553,20 @@ export function QuotationWizard({
             )}
 
             <div className="pt-3 border-t border-border">
+              {isAnyLineUploading && (
+                <p className="mb-2 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                  Image upload in progress... Please wait before saving.
+                </p>
+              )}
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-success text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                disabled={isSubmitting || isAnyLineUploading}
+                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-success text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="size-4" />
-                {isSubmitting
+                {isAnyLineUploading
+                  ? "Uploading image..."
+                  : isSubmitting
                   ? isEdit
                     ? "Saving changes..."
                     : "Generating..."
@@ -1300,11 +1591,13 @@ export function QuotationWizard({
         </div>
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="h-10 px-5 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          disabled={isSubmitting || isAnyLineUploading}
+          className="h-10 px-5 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckCircle2 className="size-4" />
-          {isSubmitting
+          {isAnyLineUploading
+            ? "Uploading..."
+            : isSubmitting
             ? isEdit
               ? "Saving..."
               : "Generating..."

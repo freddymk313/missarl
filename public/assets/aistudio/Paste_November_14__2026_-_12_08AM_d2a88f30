@@ -1,0 +1,1060 @@
+# MIS SARL — Add Optional Brand Text and Product/Brand Images to Quotation Lines
+
+Act as a senior Next.js engineer, TypeScript developer, PostgreSQL specialist, Vercel Blob integration specialist, and PDF generation engineer.
+
+You are working on the existing MIS SARL business management application.
+
+Your task is to extend the existing quotation creation and editing workflow so that each quotation line can optionally contain:
+
+1. A manually editable brand name.
+2. An optional uploaded image, which can be a brand logo or a product photograph.
+3. Both brand name and image.
+4. Neither, when the client does not require brand information.
+
+This is a deliberately simple feature.
+
+**Do not create a brand library, brand image management module, new catalogue category, or a separate product image management system.**
+
+The brand name and image belong directly to the individual quotation line. They are specific to the commercial document being prepared.
+
+I have already created a PUBLIC Vercel Blob store called:
+
+`missarl-quotation-images`
+
+The repository already contains:
+
+`@vercel/blob`: `^2.9.0`
+
+Use this existing package and existing Blob store. Do not create another storage provider or another Blob store.
+
+I am also providing the reference quotation PDF:
+
+`RFQ-CHEMAF-2000002358 OQ.pdf`
+
+This PDF is the visual reference for the BRAND column.
+
+---
+
+# PART 1 — INSPECT THE CURRENT BRANCH BEFORE CODING
+
+Inspect the latest commit on branch `po` before making any changes.
+
+Important files:
+
+### Quotation interface
+
+- `components/dashboard/quotation-wizard.tsx`
+- `components/dashboard/quotations-list.tsx`
+- `app/dashboard/quotes/new/page.tsx`
+- `app/dashboard/quotes/[id]/edit/page.tsx`
+
+### Server actions
+
+- `actions/quotations.ts`
+
+### Database
+
+- `lib/db/quotations.ts`
+- `lib/db/items.ts`
+- `lib/db.ts`
+
+### PDF generation
+
+- `lib/pdf/quotation-data.ts`
+- `lib/pdf/quotation-pdf.ts`
+- `app/api/quotations/[id]/pdf/route.ts`
+
+### Migrations
+
+- `database/migrations/001_initial_schema.sql`
+- `database/migrations/003_items_catalog.sql`
+- `database/migrations/004_supplier_pricing_and_quotation_snapshots.sql`
+- `database/migrations/005_partial_po_acceptance_and_delivery_batches.sql`
+- `database/migrations/006_invoice_normalized_number.sql`
+
+The current application already supports:
+
+- Creating quotations.
+- Editing eligible existing quotations.
+- Adding and removing quotation lines.
+- Catalogue item selection.
+- Supplier price snapshots.
+- Customer selling prices.
+- Discounts.
+- VAT calculations.
+- Existing MIS SARL quotation PDF generation.
+
+Extend these existing features instead of implementing another quotation system.
+
+---
+
+# PART 2 — KEEP THE SOLUTION SIMPLE
+
+There must be no separate brand library.
+
+Do not create:
+
+- A new brands management page.
+- A brand logo CRUD module.
+- A new catalogue category.
+- A new product image management module.
+- A dedicated image library.
+- A mandatory brand selection step.
+
+The existing `brands` table and the `brand_id` relationship in the items catalogue should remain unchanged.
+
+The feature must operate directly on the quotation lines.
+
+## Desired quotation-line fields
+
+Every line must support two optional values:
+
+- `brand`: the exact brand name displayed on the quotation.
+- `brandImageUrl`: the public Vercel Blob URL of the optional logo or product image.
+
+For items selected from the existing catalogue:
+
+- Automatically prefill the brand name from `ItemRecord.brandName` when available.
+- Do not automatically upload or create an image.
+- Allow the user to edit the prefilled brand name.
+- Allow the user to leave the brand name empty.
+- Allow the user to upload a custom image for that particular quotation line.
+
+For manually entered lines:
+
+- Allow the user to type any brand name.
+- Allow the user to upload an optional image.
+
+The uploaded image may represent either the brand logo or the actual product photograph. Do not enforce a distinction.
+
+---
+
+# PART 3 — UPDATE THE QUOTATION WIZARD UI
+
+Inspect:
+
+`components/dashboard/quotation-wizard.tsx`
+
+The existing `LineItemDraft` interface currently contains:
+
+- `itemId`
+- `description`
+- `unit`
+- `quantity`
+- `unitPrice`
+- `supplyPrice`
+- `discountPercent`
+- `commissionPercent`
+- Supplier snapshot properties.
+
+Extend it with:
+
+```ts
+brand: string;
+brandImageUrl: string | null;
+```
+
+Add any transient UI state required for uploads, such as:
+
+- Image uploading state.
+- Upload error.
+- Selected image preview.
+
+Do not persist transient loading or error states in the database.
+
+## Add a compact BRAND section to each quotation line
+
+Place it near the catalogue item selection and item description fields.
+
+Suggested layout:
+
+**Brand Name**
+
+A normal text input.
+
+Placeholder:
+
+`Enter brand name (optional)`
+
+**Brand / Product Image**
+
+An optional upload control.
+
+Suggested actions:
+
+- Upload Image.
+- Replace Image.
+- Remove Image.
+
+Display a small preview once the upload succeeds.
+
+Do not create a separate brand selection dropdown.
+
+Do not require users to select a brand from the catalogue.
+
+Do not add unnecessary configuration steps.
+
+## Catalogue prefill
+
+The catalogue already returns:
+
+`item.brandName`
+
+When an item is selected through `CatalogItemCombobox`:
+
+- Prefill the line's brand field using `item.brandName`.
+- Leave the field empty if the item has no brand.
+- Do not overwrite manually typed brand text later simply because the user changes another unrelated field.
+
+The user must always be able to manually correct the brand name.
+
+Keep all existing quotation line functionality intact:
+
+- Item search.
+- Description.
+- Unit.
+- Quantity.
+- Supplier purchase cost.
+- Commission.
+- Selling price.
+- Discount.
+- Line subtotal.
+- Financial summary.
+
+Do not change the existing commercial calculations.
+
+---
+
+# PART 4 — VERCEL BLOB SERVER UPLOAD INTEGRATION
+
+Use the existing Vercel Blob SDK:
+
+`@vercel/blob`
+
+Use Vercel Blob **Server Uploads**, following the official documentation:
+
+[https://vercel.com/docs/vercel-blob/server-upload](https://vercel.com/docs/vercel-blob/server-upload)
+
+The existing Blob store is:
+
+`missarl-quotation-images`
+
+Its access mode is PUBLIC.
+
+The existing Vercel project provides environment variables such as:
+
+- `BLOB_READ_WRITE_TOKEN`
+- `BLOB_STORE_ID`
+
+Read these values only on the server.
+
+Never expose them to the browser.
+
+Never create a `NEXT_PUBLIC_BLOB_READ_WRITE_TOKEN` variable.
+
+Never print or log the actual token.
+
+Do not hard-code credentials.
+
+Do not replace the current `.env.local` file.
+
+## Create a dedicated upload endpoint
+
+Suggested path:
+
+`app/api/quotations/line-image/route.ts`
+
+Implement:
+
+`POST /api/quotations/line-image`
+
+The client submits the selected image using `FormData` with the field name:
+
+`file`
+
+The route must:
+
+1. Authenticate the user.
+2. Authorize only `SUPER_ADMIN` and `ADMIN`.
+3. Verify that the upload is for an authorized quotation workflow.
+4. Validate that the file exists.
+5. Verify the file's actual content type.
+6. Validate its extension and image signature.
+7. Enforce the maximum file size.
+8. Upload the image to the existing Vercel Blob store.
+9. Return the generated public URL and basic metadata.
+
+Use:
+
+```ts
+import { put } from "@vercel/blob";
+```
+
+Use a unique pathname such as:
+
+`quotation-line-images/{unique-id}.{extension}`
+
+Use:
+
+```ts
+const blob = await put(pathname, file, {
+  access: "public",
+  addRandomSuffix: true,
+  contentType: file.type,
+});
+```
+
+Adapt the implementation to the exact installed SDK types if necessary.
+
+## Upload validation
+
+For the initial implementation, support:
+
+- JPEG (`image/jpeg`)
+- PNG (`image/png`)
+
+Do not support WebP or HEIC unless you implement and test a reliable image conversion before passing the image to pdf-lib.
+
+Maximum application upload size:
+
+`4 MB`
+
+Vercel Server Uploads have a 4.5 MB request payload limit. Keep the application limit below this restriction.
+
+Reject unsupported formats.
+
+Return meaningful French error messages, including:
+
+- Aucun fichier sélectionné.
+- Format d'image non accepté.
+- Image trop volumineuse (4 MB maximum).
+- Échec du téléversement de l'image.
+- Configuration Vercel Blob manquante.
+
+Do not reveal sensitive server errors to the browser.
+
+Log useful server-side error information without logging tokens.
+
+## Public image URLs
+
+Return the real URL returned by Vercel Blob.
+
+Do not construct Blob URLs manually.
+
+Do not save image binaries in Neon PostgreSQL.
+
+Do not store Base64 image strings in the database.
+
+Store only the returned URL in the quotation line snapshot.
+
+If `BLOB_READ_WRITE_TOKEN` is unavailable in a development environment, return a clear error instead of silently using mock storage.
+
+---
+
+# PART 5 — CLIENT-SIDE UPLOAD EXPERIENCE
+
+Integrate the upload endpoint directly into each quotation line.
+
+When the user selects an image:
+
+1. Validate the file client-side for immediate feedback.
+2. Display an uploading state.
+3. POST the file to `/api/quotations/line-image`.
+4. Receive the returned Vercel Blob URL.
+5. Store that URL in the corresponding line state.
+6. Display the uploaded image preview.
+
+Each quotation line must maintain its own image state.
+
+Uploading an image to line 2 must never replace the image of line 1.
+
+Prevent users from submitting the quotation while an image upload is still in progress.
+
+Allow the user to:
+
+- Replace an image.
+- Remove an image from the current quotation line.
+- Keep an existing image when editing a quotation.
+- Upload a different image for another line.
+
+When the user removes an image, set the line's `brandImageUrl` to null.
+
+Do not automatically delete the Blob object from Vercel when an image is removed or replaced.
+
+This is intentional: the image could still be referenced by another existing quotation or historical document.
+
+Do not use temporary `blob:` browser URLs as persisted image URLs.
+
+Persist only the real URL returned by Vercel.
+
+Keep the UI responsive on mobile.
+
+---
+
+# PART 6 — DATABASE SNAPSHOTS AND MIGRATION
+
+Inspect the existing `quotation_items` table.
+
+The current schema contains quotation line snapshots, but it does not yet store the quotation-specific brand name and brand image.
+
+Create an additive migration:
+
+`database/migrations/007_quotation_brand_image_snapshots.sql`
+
+Add:
+
+```sql
+ALTER TABLE quotation_items
+ADD COLUMN IF NOT EXISTS brand_snapshot TEXT;
+
+ALTER TABLE quotation_items
+ADD COLUMN IF NOT EXISTS brand_image_url_snapshot TEXT;
+```
+
+Record migration version:
+
+`007`
+
+Use the repository's established `schema_migrations` convention.
+
+## Backward compatibility
+
+Existing quotation records must remain accessible.
+
+When reading an existing quotation line with no brand snapshot, fall back to the existing catalogue brand when available.
+
+The current catalogue uses:
+
+- `items.brand_id`
+- `brands.id`
+- `brands.name`
+
+The current `getQuotationById()` query reads `it.brand`, which is a legacy field.
+
+Correct the lookup by joining the current brands relationship:
+
+`LEFT JOIN brands b ON b.id = it.brand_id`
+
+Use a safe brand fallback order:
+
+1. `quotation_items.brand_snapshot`
+2. `brands.name`
+3. Legacy `items.brand`, when available.
+
+Do not allow current catalogue values to overwrite a non-null saved quotation brand snapshot.
+
+## New migration requirements
+
+- Must be additive.
+- Must not delete existing records.
+- Must not modify item records.
+- Must not create a brand library.
+- Must not change supplier pricing.
+- Must not modify historical quotation totals.
+- Must preserve all existing quotation references and IDs.
+
+Backfill existing textual brand snapshots from the current catalogue relationship where appropriate.
+
+Do not fabricate brand image URLs for historical quotations.
+
+Do not execute this migration automatically against a production database.
+
+Provide the exact migration command and required manual migration step.
+
+---
+
+# PART 7 — UPDATE QUOTATION DATABASE TYPES AND QUERIES
+
+Inspect:
+
+`lib/db/quotations.ts`
+
+Update:
+
+`QuotationLineItem`
+
+Include:
+
+```ts
+brand?: string | null;
+brandImageUrl?: string | null;
+```
+
+Update `getQuotationById()` so it retrieves:
+
+- Brand name snapshot.
+- Brand image URL snapshot.
+- Existing item ID.
+- Existing description snapshot.
+- Existing unit snapshot.
+- Existing quantity.
+- Existing selling price snapshot.
+- Existing discount.
+- Existing supplier pricing snapshots.
+
+Use a query equivalent to:
+
+```sql
+SELECT
+    qi.id,
+    qi.item_id AS "itemId",
+    COALESCE(qi.brand_snapshot, b.name, NULLIF(it.brand, '')) AS brand,
+    qi.brand_image_url_snapshot AS "brandImageUrl"
+FROM quotation_items qi
+LEFT JOIN items it ON qi.item_id = it.id
+LEFT JOIN brands b ON b.id = it.brand_id
+WHERE qi.quotation_id = ...
+```
+
+Keep all existing selected fields.
+
+Adapt the final SQL to the existing query and database compatibility.
+
+## Creation
+
+Extend `createQuotation()` so each line can receive:
+
+- `brand`
+- `brandImageUrl`
+
+Save them into:
+
+- `quotation_items.brand_snapshot`
+- `quotation_items.brand_image_url_snapshot`
+
+Do not derive a manually entered brand from the catalogue when the user supplied their own value.
+
+## Editing
+
+The quotation editing functionality already exists.
+
+Extend `updateQuotation()` so it also preserves and updates:
+
+- `brand_snapshot`
+- `brand_image_url_snapshot`
+
+Important:
+
+The existing edit workflow deletes and reinserts quotation lines.
+
+Therefore, make sure the edit form sends every existing brand name and image URL back to the server when the user saves.
+
+If the user changes only the quantity, price, or description, the brand and image must remain unchanged.
+
+If the user intentionally clears the brand or removes the image, the saved snapshot must reflect that change.
+
+Do not lose images when editing an existing quotation.
+
+Keep the existing quotation ID, internal reference, issue date, financial calculations, and commercial snapshots.
+
+---
+
+# PART 8 — UPDATE SERVER ACTION PAYLOADS
+
+Inspect:
+
+`actions/quotations.ts`
+
+Extend both:
+
+- `createQuotationAction()`
+- `updateQuotationAction()`
+
+So each submitted line supports:
+
+```ts
+brand?: string | null;
+brandImageUrl?: string | null;
+```
+
+Validate the brand text length (for example, maximum 100 characters).
+
+When an image URL is supplied:
+
+- Require HTTPS.
+- Validate that it belongs to the configured Vercel Blob store.
+- Use `BLOB_STORE_ID` to validate the expected public Blob hostname.
+- Do not accept arbitrary external image URLs.
+- Do not accept `data:` URLs or `blob:` browser URLs.
+- Do not permit arbitrary URLs pointing to internal or private network addresses.
+
+A valid image URL must come from the application's own upload endpoint.
+
+Preserve existing session and role checks.
+
+Do not allow `PRICE_COLLECTOR` to upload quotation images or modify quotations.
+
+---
+
+# PART 9 — UPDATE THE QUOTATION PDF DATA SERVICE
+
+Inspect:
+
+`lib/pdf/quotation-data.ts`
+
+The current `QuotationLineForPdf` only contains a text brand property.
+
+Extend it to include:
+
+- Brand text.
+- Brand image bytes or an equivalent server-resolved image buffer.
+- Image MIME type, if necessary.
+
+The PDF generator must receive the actual image bytes. It must not rely on client-side browser objects or React components.
+
+## Image retrieval
+
+For each quotation line with a saved `brandImageUrl`:
+
+1. Validate the URL before fetching it.
+2. Require HTTPS.
+3. Confirm that its hostname belongs to the configured public Vercel Blob store.
+4. Fetch the image server-side.
+5. Validate the response content type.
+6. Enforce the allowed PNG/JPEG formats.
+7. Enforce a safe maximum image size.
+8. Pass the image bytes to the PDF generator.
+
+Never fetch arbitrary URLs supplied by a request without validation.
+
+Prevent SSRF.
+
+Do not allow PDF generation to access arbitrary external websites.
+
+## Graceful failure
+
+If an individual image cannot be retrieved:
+
+- Log the problem server-side.
+- Do not crash the whole quotation PDF.
+- Still display the available brand text.
+- If there is no brand text, leave the BRAND cell empty.
+
+One broken optional image must not make an otherwise valid quotation impossible to generate.
+
+Keep the current customer and financial data logic unchanged.
+
+Never include supplier costs, commissions, exchange rates, or internal commercial margins in the customer-facing PDF.
+
+---
+
+# PART 10 — UPDATE THE PDF GENERATOR
+
+Inspect:
+
+`lib/pdf/quotation-pdf.ts`
+
+The existing PDF uses:
+
+- A4 portrait.
+- pdf-lib.
+- Helvetica and Helvetica Bold.
+- Existing MIS SARL company header.
+- A specific table geometry.
+- Yellow table header.
+- Fixed table column widths.
+- Existing borders and cell backgrounds.
+- Existing footer and signature positioning.
+
+The existing BRAND column uses text only.
+
+Extend it to display the following combinations.
+
+### Case A — No brand and no image
+
+Leave the BRAND cell empty.
+
+The old layout must remain visually unchanged.
+
+### Case B — Brand text only
+
+Display the brand name in the current typography and alignment.
+
+### Case C — Image only
+
+Display the uploaded product photo or brand logo within the BRAND cell.
+
+### Case D — Brand text and image
+
+Display the image and the brand name together.
+
+Use the image above the text, matching the supplied reference document as closely as practical.
+
+## Image rendering
+
+Use:
+
+`pdf-lib`
+
+The current generator already uses:
+
+- `doc.embedPng()`
+- `doc.embedJpg()`
+
+Reuse these methods.
+
+Requirements:
+
+- Preserve the source aspect ratio.
+- Never stretch or distort the image.
+- Use a contain-style fit.
+- Center the image within the BRAND cell.
+- Keep appropriate internal padding.
+- Display the brand name below the image when both exist.
+- Keep the brand text readable.
+- Avoid cropping.
+- Support transparent PNG logos.
+
+Suggested visual image area:
+
+- Width limited by the existing BRAND column.
+- Maximum image height around 45–50 pt, adjustable to fit the reference layout.
+
+Do not create a new PDF design.
+
+Do not change the existing BRAND column width.
+
+Do not change:
+
+- Company logo.
+- Company information.
+- Fonts.
+- Font sizes.
+- Yellow table header.
+- Existing column positions.
+- Financial columns.
+- Existing totals.
+- Signature.
+- Stamp.
+- Banking footer.
+
+Only extend the existing BRAND cell rendering.
+
+---
+
+# PART 11 — DYNAMIC TABLE ROW HEIGHT AND PAGINATION
+
+This is critical.
+
+The current row height is calculated primarily from the wrapped description text.
+
+That will no longer be sufficient once an image can be inserted in the BRAND column.
+
+Update the row-height calculation.
+
+Each row height must be large enough for the maximum of:
+
+1. Description content height.
+2. Brand text height.
+3. Brand image height plus text height, when both exist.
+
+For example:
+
+`rowHeight = max(descriptionHeight, brandVisualHeight) + appropriatePadding`
+
+Do not use one fixed image position if rows have different content heights.
+
+Requirements:
+
+- Keep images completely inside their cell.
+- Keep text below the image.
+- Avoid overlap with quantities, units, descriptions, prices, and totals.
+- Preserve the existing row borders.
+- Keep row boundaries correct.
+- Support multiple quotation pages.
+- Keep totals after the final line.
+- Never cut images when a row moves to a new page.
+- Do not split a quotation row between pages.
+- Continue to repeat table headers using the existing pagination architecture.
+
+For quotations without images, preserve the existing row layout as closely as possible.
+
+For quotations with images, allow only the relevant rows to become taller.
+
+---
+
+# PART 12 — PRESERVE QUOTATION EDITING
+
+The quotation editing feature is already part of branch `po`.
+
+Do not break it.
+
+When opening:
+
+`/dashboard/quotes/[id]/edit`
+
+The user must see:
+
+- Existing brand names.
+- Existing image previews.
+- Existing item descriptions.
+- Existing quantities.
+- Existing prices.
+- Existing discounts.
+- Existing supplier snapshots.
+
+The user must be able to:
+
+- Edit the brand name.
+- Upload an image if none exists.
+- Replace the existing image.
+- Remove the image.
+- Save the quotation while preserving unchanged image URLs.
+
+After saving, the same quotation UUID and internal reference must remain.
+
+A regenerated PDF must use the latest saved brand name and image.
+
+Do not create a duplicate quotation.
+
+Do not overwrite existing images in Blob with the same pathname.
+
+Use unique Blob objects.
+
+Do not automatically delete a Blob object when a user removes it from a draft quotation. It may be referenced by an existing historical document.
+
+---
+
+# PART 13 — MOBILE RESPONSIVENESS
+
+The quotation wizard is already being optimized for mobile.
+
+Ensure the new brand and image controls work at:
+
+- 320px width.
+- 375px width.
+- 390px width.
+- 430px width.
+- Tablet.
+- Desktop.
+
+Requirements:
+
+- The brand input uses full available width.
+- The upload button is easy to tap.
+- The image preview scales without overflow.
+- The replace and remove controls are accessible.
+- Uploading indicators remain visible.
+- Each quotation line remains readable.
+- No horizontal page overflow.
+- The mobile sticky financial summary continues working.
+
+Do not redesign the entire quotation wizard.
+
+---
+
+# PART 14 — TESTING REQUIREMENTS
+
+Test the complete flow with the real development Blob store and actual development database.
+
+Do not modify production quotations.
+
+## Test 1 — Brand text only
+
+Create a quotation line with:
+
+`KING TONY`
+
+Do not upload an image.
+
+Save and generate its PDF.
+
+Expected result: BRAND cell displays `KING TONY`.
+
+## Test 2 — Image only
+
+Create a quotation line with no brand text.
+
+Upload a PNG image.
+
+Save and generate its PDF.
+
+Expected result: BRAND cell displays the image without a text label.
+
+## Test 3 — Image and brand
+
+Create a line with:
+
+Brand: `KING TONY`
+
+Image: a product photograph.
+
+Expected result: image above the brand text in the BRAND column.
+
+## Test 4 — No brand and no image
+
+Create a normal quotation line without brand values.
+
+Expected result: old PDF appearance is preserved.
+
+## Test 5 — Catalogue prefill
+
+Select an item with an existing brand in the catalogue.
+
+Expected result:
+
+- Brand name is automatically populated.
+- The user can edit the text.
+- No image is automatically uploaded.
+
+## Test 6 — Editing
+
+Open an existing eligible draft quotation containing brand snapshots and an uploaded image.
+
+Change only the quantity and save.
+
+Expected result:
+
+- Brand text remains unchanged.
+- The same image URL remains unchanged.
+- The PDF still contains the image.
+
+Then replace the image.
+
+Expected result: the PDF uses the new image.
+
+Then remove the image.
+
+Expected result: the image disappears, but any remaining brand text is preserved.
+
+## Test 7 — Upload security
+
+Verify:
+
+- SUPER_ADMIN can upload.
+- ADMIN can upload.
+- PRICE_COLLECTOR cannot upload.
+- Unauthorized requests are rejected.
+- Arbitrary image URLs are rejected.
+- Unsupported MIME types are rejected.
+- Oversized images are rejected.
+- Missing Blob token produces a clear error.
+- No Blob secret is returned to the browser.
+
+## Test 8 — PDF layout
+
+Generate a quotation with:
+
+- No image.
+- One image.
+- Several images.
+- Image plus long brand name.
+- Image plus multi-line description.
+- Enough rows to create multiple pages.
+
+Render the generated PDF to PNG and inspect the actual layout.
+
+Verify:
+
+- No image stretching.
+- No clipped brand names.
+- No overlapping rows.
+- No broken borders.
+- No misplaced totals.
+- No pagination errors.
+- No changes to the existing MIS SARL header and footer.
+
+## Test 9 — Existing PDF regression
+
+Generate a quotation that has only text brands and no images.
+
+Compare it with the current approved PDF template.
+
+The existing visual layout must remain unchanged as closely as possible.
+
+---
+
+# PART 15 — ENVIRONMENT AND MIGRATION SAFETY
+
+The Blob store and `@vercel/blob` package already exist.
+
+Do not reinstall packages unnecessarily.
+
+Use the existing:
+
+`BLOB_READ_WRITE_TOKEN`
+
+`BLOB_STORE_ID`
+
+The token must remain server-only.
+
+Do not commit environment files.
+
+Do not replace `.env.local`.
+
+Do not reset Neon.
+
+Do not run production migrations automatically.
+
+Create the new additive migration and report the exact manual migration command.
+
+Preserve the current custom Neon DNS/IP resolution and TLS SNI implementation in `lib/db.ts`.
+
+Do not use mock storage when the real Blob configuration is missing.
+
+Do not introduce mock PDF image data.
+
+---
+
+# PART 16 — QUALITY GATES
+
+Run:
+
+`npx tsc --noEmit`
+
+`npm run build`
+
+Also run lint if available:
+
+`npm run lint`
+
+Verify the final Git diff.
+
+Do not claim an image upload worked unless you actually uploaded an image to the development Blob store.
+
+Do not claim a PDF is correct without generating and visually inspecting it.
+
+Do not claim the database migration succeeded unless it was executed against the intended development database.
+
+---
+
+# FINAL ACCEPTANCE CRITERIA
+
+The MIS SARL quotation form must allow the user to add an optional brand name and an optional product/brand image on every individual quotation line.
+
+The uploaded image must be stored in the existing Vercel Blob store.
+
+The image URL and brand name must be persisted in Neon as quotation line snapshots.
+
+The same snapshot must survive quotation editing.
+
+The existing quotation PDF generator must display:
+
+- No brand and no image.
+- Brand text only.
+- Image only.
+- Image and brand text together.
+
+The PDF must remain visually faithful to the supplied MIS SARL reference document.
+
+No brand library, catalogue redesign, new image module, or unnecessary feature must be introduced.
+
+**The feature is complete only when the entire flow works end-to-end:**
+
+`Quotation Wizard → Image Upload → Vercel Blob → Neon Snapshot → Quotation PDF`
+
+At the end, provide a detailed report containing:
+
+1. Files created.
+2. Files modified.
+3. Database migration details.
+4. Upload API endpoint.
+5. Blob storage verification.
+6. How brand snapshots are stored.
+7. How quotation editing preserves uploaded images.
+8. PDF image rendering and row-height implementation.
+9. Actual tests executed.
+10. TypeScript and build results.
+11. Any remaining manual steps.
+
+Do not stop after implementing the upload button. Complete the database persistence, quotation editing, and PDF rendering as well.

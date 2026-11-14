@@ -176,6 +176,7 @@ export interface MockQuotationLine {
   quotation_id: string;
   item_id: string | null;
   brand: string | null;
+  brand_image_url_snapshot?: string | null;
   supplier_offer_id: string | null;
   line_number: number;
   description: string;

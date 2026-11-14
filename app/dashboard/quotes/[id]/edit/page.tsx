@@ -29,7 +29,7 @@ export default async function EditQuotationPage({
         <div>
           <h2 className="text-lg font-black text-foreground">Devis introuvable</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Le devis demandé n'existe pas ou a été supprimé.
+            Le devis demandé n&apos;existe pas ou a été supprimé.
           </p>
         </div>
         <Link
@@ -82,7 +82,7 @@ export default async function EditQuotationPage({
             Modifier le Devis / Proforma
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Modification de <span className="font-mono font-bold text-foreground">{quotation.internalReference}</span> pour {quotation.clientName}. La référence et l'historique restent préservés.
+            Modification de <span className="font-mono font-bold text-foreground">{quotation.internalReference}</span> pour {quotation.clientName}. La référence et l&apos;historique restent préservés.
           </p>
         </div>
       </div>

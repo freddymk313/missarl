@@ -3,7 +3,14 @@
 // Dispatches queries to in-memory MockDatabase when real DB is offline/unconfigured.
 // ============================================================================
 
-import { mockDb, MockClient, MockOrder, MockDeliveryNote, MockInvoice } from "./mock-db";
+import {
+  mockDb,
+  MockClient,
+  MockOrder,
+  MockDeliveryNote,
+  MockInvoice,
+  MockQuotation,
+} from "./mock-db";
 
 export async function executeMockSql(
   queryText: string,
@@ -609,31 +616,184 @@ export async function executeMockSql(
     ];
   }
 
+  if (lowerQ.startsWith("insert into quotations")) {
+    const hasDefaultComm = lowerQ.includes("default_commission_percent");
+    const newQuote: MockQuotation = {
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      client_id: values[0] as string,
+      doc_type: (values[1] as "QUOTATION" | "PROFORMA") || "QUOTATION",
+      client_rfq_number: (values[2] as string) || null,
+      internal_reference: values[3] as string,
+      sequence_number: Number(values[4]) || 1,
+      year: Number(values[5]) || new Date().getFullYear(),
+      document_date: new Date().toISOString().split("T")[0],
+      validity_date: (values[6] as string) || new Date().toISOString().split("T")[0],
+      status: "DRAFT",
+      currency: "USD",
+      default_commission_percent: hasDefaultComm ? Number(values[7] || 0) : 0,
+      subtotal: Number(values[hasDefaultComm ? 8 : 7] || 0),
+      vat_rate: Number(values[hasDefaultComm ? 9 : 8] || 16),
+      vat_amount: Number(values[hasDefaultComm ? 10 : 9] || 0),
+      total: Number(values[hasDefaultComm ? 11 : 10] || 0),
+      payment_terms: (values[hasDefaultComm ? 12 : 11] as string) || null,
+      delivery_lead_time: (values[hasDefaultComm ? 13 : 12] as string) || null,
+      notes: (values[hasDefaultComm ? 14 : 13] as string) || null,
+      rejection_reason: null,
+      cancellation_reason: null,
+      created_by: values[hasDefaultComm ? 15 : 14] as string,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    mockDb.quotations.unshift(newQuote);
+    return [{ id: newQuote.id }];
+  }
+
+  if (lowerQ.startsWith("update quotations set") && lowerQ.includes("cancellation_reason =")) {
+    const status = values[0] as MockQuotation["status"];
+    const reason = (values[1] as string | null) || null;
+    const id = values[3] as string;
+    const q = mockDb.quotations.find((qt) => qt.id === id);
+    if (q) {
+      q.status = status;
+      if (reason !== null) q.cancellation_reason = reason;
+      q.updated_at = new Date().toISOString();
+    }
+    return [];
+  }
+
+  if (lowerQ.startsWith("update quotations set")) {
+    const hasDefaultComm = lowerQ.includes("default_commission_percent");
+    const docType = (values[0] as "QUOTATION" | "PROFORMA" | null) || null;
+    const clientRfq = (values[1] as string | null) || null;
+    const validityDate = values[2] as string;
+    const status = values[3] as MockQuotation["status"];
+    let idx = 4;
+    const defaultComm = hasDefaultComm ? Number(values[idx++] || 0) : undefined;
+    const subtotal = Number(values[idx++]);
+    const vatRate = Number(values[idx++]);
+    const vatAmount = Number(values[idx++]);
+    const total = Number(values[idx++]);
+    const paymentTerms = (values[idx++] as string | null) || null;
+    const deliveryLeadTime = (values[idx++] as string | null) || null;
+    const notes = (values[idx++] as string | null) || null;
+    idx++; // updated_by
+    const quotationId = values[idx] as string;
+
+    const q = mockDb.quotations.find((qt) => qt.id === quotationId);
+    if (q) {
+      if (docType) q.doc_type = docType;
+      q.client_rfq_number = clientRfq;
+      q.validity_date = validityDate;
+      q.status = status;
+      if (defaultComm !== undefined) q.default_commission_percent = defaultComm;
+      q.subtotal = subtotal;
+      q.vat_rate = vatRate;
+      q.vat_amount = vatAmount;
+      q.total = total;
+      q.payment_terms = paymentTerms;
+      q.delivery_lead_time = deliveryLeadTime;
+      q.notes = notes;
+      q.updated_at = new Date().toISOString();
+    }
+    return [];
+  }
+
+  if (lowerQ.startsWith("delete from quotation_items where quotation_id =")) {
+    const quotationId = values[0] as string;
+    mockDb.quotationLines = mockDb.quotationLines.filter(
+      (l) => l.quotation_id !== quotationId
+    );
+    return [];
+  }
+
+  if (lowerQ.startsWith("insert into quotation_items")) {
+    const hasBrandSnapshots = lowerQ.includes("brand_snapshot");
+    const hasSupplierSnapshots = lowerQ.includes("supplier_offer_id");
+    let idx = 0;
+    const quotationId = values[idx++] as string;
+    const itemId = (values[idx++] as string) || null;
+    const lineNumber = Number(values[idx++]);
+    const description = values[idx++] as string;
+    const unit = values[idx++] as string;
+    const quantity = Number(values[idx++]);
+    const unitPrice = Number(values[idx++]);
+    const discountPercent = Number(values[idx++] || 0);
+    const lineSubtotal = Number(values[idx++]);
+    const brand = hasBrandSnapshots ? ((values[idx++] as string | null) ?? null) : null;
+    const brandImageUrl = hasBrandSnapshots ? ((values[idx++] as string | null) || null) : null;
+    const supplierOfferId = hasSupplierSnapshots ? ((values[idx++] as string) || null) : null;
+    const supplierPriceSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+    const supplierCurrencySnapshot = hasSupplierSnapshots ? ((values[idx++] as string) || null) : null;
+    const supplierVatIncludedSnapshot = hasSupplierSnapshots ? (values[idx++] as boolean | null) : null;
+    const supplierVatRateSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+    const exchangeRateSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+    const baseCostUsdSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+    const commissionPercentSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+    const commissionAmountSnapshot = hasSupplierSnapshots && values[idx] != null ? Number(values[idx++]) : (hasSupplierSnapshots ? (idx++, null) : null);
+
+    const newLine = {
+      id: `ql-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      quotation_id: quotationId,
+      item_id: itemId,
+      brand,
+      brand_image_url_snapshot: brandImageUrl,
+      supplier_offer_id: supplierOfferId,
+      line_number: lineNumber,
+      description,
+      unit,
+      quantity,
+      unit_price: unitPrice,
+      discount_percent: discountPercent,
+      line_subtotal: lineSubtotal,
+      supplier_price_snapshot: supplierPriceSnapshot,
+      supplier_currency_snapshot: supplierCurrencySnapshot,
+      supplier_vat_included_snapshot: supplierVatIncludedSnapshot,
+      supplier_vat_rate_snapshot: supplierVatRateSnapshot,
+      exchange_rate_snapshot: exchangeRateSnapshot,
+      base_cost_usd_snapshot: baseCostUsdSnapshot,
+      commission_percent_snapshot: commissionPercentSnapshot,
+      commission_amount_snapshot: commissionAmountSnapshot,
+    };
+    mockDb.quotationLines.push(newLine);
+    return [{ id: newLine.id }];
+  }
+
   if (lowerQ.includes("from quotation_items")) {
     const quoteId = values[0] as string;
     return mockDb.quotationLines
       .filter((l) => l.quotation_id === quoteId)
-      .map((l) => ({
-        id: l.id,
-        itemId: l.item_id,
-        brand: l.brand,
-        supplierOfferId: l.supplier_offer_id,
-        lineNumber: l.line_number,
-        description: l.description,
-        unit: l.unit,
-        quantity: l.quantity,
-        unitPrice: l.unit_price,
-        discountPercent: l.discount_percent,
-        lineSubtotal: l.line_subtotal,
-        supplierPriceSnapshot: l.supplier_price_snapshot,
-        supplierCurrencySnapshot: l.supplier_currency_snapshot,
-        supplierVatIncludedSnapshot: l.supplier_vat_included_snapshot,
-        supplierVatRateSnapshot: l.supplier_vat_rate_snapshot,
-        exchangeRateSnapshot: l.exchange_rate_snapshot,
-        baseCostUsdSnapshot: l.base_cost_usd_snapshot,
-        commissionPercent: l.commission_percent_snapshot,
-        commissionAmount: l.commission_amount_snapshot,
-      }));
+      .sort((a, b) => a.line_number - b.line_number)
+      .map((l) => {
+        let resolvedBrand: string | null = l.brand;
+        if (resolvedBrand === null && l.item_id) {
+          const it = mockDb.items.find((item) => item.id === l.item_id);
+          resolvedBrand = it?.brand_name?.trim() || null;
+        } else if (resolvedBrand === "") {
+          resolvedBrand = null;
+        }
+        return {
+          id: l.id,
+          itemId: l.item_id,
+          brand: resolvedBrand,
+          brandImageUrl: l.brand_image_url_snapshot ?? null,
+          supplierOfferId: l.supplier_offer_id,
+          lineNumber: l.line_number,
+          description: l.description,
+          unit: l.unit,
+          quantity: l.quantity,
+          unitPrice: l.unit_price,
+          discountPercent: l.discount_percent,
+          lineSubtotal: l.line_subtotal,
+          supplierPriceSnapshot: l.supplier_price_snapshot,
+          supplierCurrencySnapshot: l.supplier_currency_snapshot,
+          supplierVatIncludedSnapshot: l.supplier_vat_included_snapshot,
+          supplierVatRateSnapshot: l.supplier_vat_rate_snapshot,
+          exchangeRateSnapshot: l.exchange_rate_snapshot,
+          baseCostUsdSnapshot: l.base_cost_usd_snapshot,
+          commissionPercentSnapshot: l.commission_percent_snapshot,
+          commissionAmountSnapshot: l.commission_amount_snapshot,
+        };
+      });
   }
 
   if (lowerQ.includes("from quotations")) {
@@ -802,6 +962,14 @@ export async function executeMockSql(
       createdAt: o.created_at,
       updatedAt: o.updated_at,
     }];
+  }
+
+  if (lowerQ.includes("from orders where quotation_id =")) {
+    const qId = values[0] as string;
+    return mockDb.orders
+      .filter((o) => o.quotation_id === qId)
+      .slice(0, 1)
+      .map((o) => ({ id: o.id }));
   }
 
   if (lowerQ.includes("from orders")) {
@@ -1163,6 +1331,14 @@ export async function executeMockSql(
       createdAt: inv.created_at,
       updatedAt: inv.updated_at,
     }];
+  }
+
+  if (lowerQ.includes("from invoices where quotation_id =")) {
+    const qId = values[0] as string;
+    return mockDb.invoices
+      .filter((i) => i.quotation_id === qId)
+      .slice(0, 1)
+      .map((i) => ({ id: i.id }));
   }
 
   if (lowerQ.includes("from invoices")) {

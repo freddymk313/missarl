@@ -9,10 +9,11 @@ import {
   StandardFonts,
   rgb,
   PDFFont,
+  PDFImage,
   PDFPage,
 } from "pdf-lib";
 import type { RGB } from "pdf-lib";
-import type { QuotationPdfData } from "./quotation-data";
+import type { QuotationPdfData, QuotationLineForPdf } from "./quotation-data";
 
 // ── Colors matching RFQ-KICO-14425 OQ exactly ─────────────────────────────────
 const BLACK: RGB = rgb(0, 0, 0);
@@ -130,6 +131,77 @@ function wrapText(
     }
   }
   return resultLines;
+}
+
+/**
+ * Wraps brand text into lines that do not exceed maxWidth points,
+ * breaking overly long single tokens cleanly so they never cross cell borders.
+ */
+function wrapBrandText(
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const initial = wrapText(text, font, fontSize, maxWidth);
+  const safeLines: string[] = [];
+  for (const line of initial) {
+    if (font.widthOfTextAtSize(line, fontSize) <= maxWidth) {
+      safeLines.push(line);
+      continue;
+    }
+    let chunk = "";
+    for (const ch of line) {
+      const candidate = chunk + ch;
+      if (chunk && font.widthOfTextAtSize(candidate, fontSize) > maxWidth) {
+        safeLines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk = candidate;
+      }
+    }
+    if (chunk) safeLines.push(chunk);
+  }
+  return safeLines.length > 0 ? safeLines : [""];
+}
+
+async function embedQuotationBrandImage(
+  doc: PDFDocument,
+  line: QuotationLineForPdf
+): Promise<PDFImage | null> {
+  if (!line.brandImageBytes || line.brandImageBytes.length === 0) return null;
+  const bytes = line.brandImageBytes;
+  if (line.brandImageMimeType === "image/png") {
+    try {
+      return await doc.embedPng(bytes);
+    } catch {
+      try {
+        return await doc.embedJpg(bytes);
+      } catch {
+        return null;
+      }
+    }
+  }
+  if (line.brandImageMimeType === "image/jpeg") {
+    try {
+      return await doc.embedJpg(bytes);
+    } catch {
+      try {
+        return await doc.embedPng(bytes);
+      } catch {
+        return null;
+      }
+    }
+  }
+  try {
+    return await doc.embedPng(bytes);
+  } catch {
+    try {
+      return await doc.embedJpg(bytes);
+    } catch {
+      return null;
+    }
+  }
 }
 
 export async function generateQuotationPdf(
@@ -421,6 +493,9 @@ export async function generateQuotationPdf(
   const PAGE_CONT_TOP_Y = 787.32;
   const TOTALS_SECTION_HEIGHT = 18 * 3 + 40; // 3 rows of 18 pt + delivery terms
 
+  const BRAND_IMG_MAX_W = COL_W.brand - 12; // 117.75 pt
+  const BRAND_IMG_MAX_H = 48.0; // max height in pt
+
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
 
@@ -432,13 +507,58 @@ export async function generateQuotationPdf(
       COL_W.desc - 4
     );
 
-    // Exact row height calculation matching reference PDF:
+    // Exact description height calculation matching reference PDF:
     // 1 line = 16.0 pt, 2 lines = 24.6 pt, 3 lines = 34.5 pt, 4 lines = 41.3 pt
-    const lineCount = Math.max(1, descLines.length);
-    const rowHeight =
-      lineCount === 1
+    const descLineCount = Math.max(1, descLines.length);
+    const descHeight =
+      descLineCount === 1
         ? 16.0
-        : Math.max(16.0, (lineCount - 1) * 9.84 + 14.8);
+        : Math.max(16.0, (descLineCount - 1) * 9.84 + 14.8);
+
+    // Embed optional brand/product image & compute BRAND cell visual height
+    const brandText = line.brand?.trim() ? line.brand.trim() : null;
+    const embeddedBrandImg = await embedQuotationBrandImage(doc, line);
+
+    let drawImgW = 0;
+    let drawImgH = 0;
+    if (embeddedBrandImg && embeddedBrandImg.width > 0 && embeddedBrandImg.height > 0) {
+      const scale = Math.min(
+        BRAND_IMG_MAX_W / embeddedBrandImg.width,
+        BRAND_IMG_MAX_H / embeddedBrandImg.height,
+        2
+      );
+      drawImgW = embeddedBrandImg.width * scale;
+      drawImgH = embeddedBrandImg.height * scale;
+    }
+
+    const brandLines = brandText
+      ? wrapBrandText(
+          brandText,
+          fontRegular,
+          8.04,
+          embeddedBrandImg ? COL_W.brand - 8 : COL_W.brand - 6
+        )
+      : [];
+
+    let brandVisualHeight = 16.0;
+    if (embeddedBrandImg && brandLines.length > 0) {
+      // Case D: Image + wrapped brand text centered below image
+      brandVisualHeight = Math.max(
+        16.0,
+        drawImgH + 20.5 + (brandLines.length - 1) * 9.84
+      );
+    } else if (embeddedBrandImg) {
+      // Case C: Image only
+      brandVisualHeight = Math.max(16.0, drawImgH + 9.0);
+    } else if (brandLines.length > 0) {
+      // Case B: Brand text only
+      brandVisualHeight =
+        brandLines.length === 1
+          ? 16.0
+          : Math.max(16.0, (brandLines.length - 1) * 9.84 + 14.8);
+    }
+
+    const rowHeight = Math.max(descHeight, brandVisualHeight);
 
     // Check pagination requirement
     const isLastItem = i === data.lines.length - 1;
@@ -487,7 +607,7 @@ export async function generateQuotationPdf(
     });
 
     // 2. Draw Cell Texts (font size 8.04):
-    // Vertical alignment: aligned with bottom line of description
+    // Vertical alignment: aligned with bottom line of single-line row / consistent base offset
     const textBaseY = rowBottom + 4.5;
 
     // Column 1: ITEM (centered)
@@ -501,14 +621,43 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 2: BRAND (left-aligned)
-    if (line.brand) {
-      const brandLines = wrapText(
-        line.brand,
-        fontRegular,
-        8.04,
-        COL_W.brand - 4
-      );
+    // Column 2: BRAND (4 cases: empty / text only / image only / image + text)
+    if (embeddedBrandImg && brandLines.length > 0) {
+      // Case D: Image centered near top, wrapped brand text centered below image
+      const imgX = COL_X.brand + (COL_W.brand - drawImgW) / 2;
+      const imgY = rowTop - 4.5 - drawImgH;
+      currentPage.drawImage(embeddedBrandImg, {
+        x: imgX,
+        y: imgY,
+        width: drawImgW,
+        height: drawImgH,
+      });
+
+      let bY = imgY - 11.0;
+      for (const bl of brandLines) {
+        const blW = fontRegular.widthOfTextAtSize(bl, 8.04);
+        const blX = COL_X.brand + (COL_W.brand - blW) / 2;
+        currentPage.drawText(bl, {
+          x: blX,
+          y: bY,
+          size: 8.04,
+          font: fontRegular,
+          color: BLACK,
+        });
+        bY -= 9.84;
+      }
+    } else if (embeddedBrandImg) {
+      // Case C: Image only (centered horizontally and vertically)
+      const imgX = COL_X.brand + (COL_W.brand - drawImgW) / 2;
+      const imgY = rowBottom + (rowHeight - drawImgH) / 2;
+      currentPage.drawImage(embeddedBrandImg, {
+        x: imgX,
+        y: imgY,
+        width: drawImgW,
+        height: drawImgH,
+      });
+    } else if (brandLines.length > 0) {
+      // Case B: Text only (left-aligned, matches reference template)
       let bY = rowTop - 10.3;
       for (const bl of brandLines) {
         currentPage.drawText(bl, {

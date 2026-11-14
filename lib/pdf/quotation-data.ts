@@ -6,6 +6,12 @@
 
 import { getQuotationById, QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
 import { siteConfig } from "@/app/config/site";
+import {
+  MAX_QUOTATION_IMAGE_BYTES,
+  detectImageFormatFromBytes,
+  validateQuotationBlobImageUrl,
+  type AllowedQuotationImageMimeType,
+} from "@/lib/blob";
 
 export interface CompanyInfo {
   name: string;
@@ -32,6 +38,8 @@ export interface ClientInfo {
 export interface QuotationLineForPdf {
   lineNumber: number;
   brand?: string | null;
+  brandImageBytes?: Uint8Array | null;
+  brandImageMimeType?: AllowedQuotationImageMimeType | null;
   description: string;
   unit: string;
   quantity: number;
@@ -60,6 +68,65 @@ export interface QuotationPdfData {
   vatAmount: number;
   total: number;
   createdByName: string | null;
+}
+
+async function fetchQuotationLineImage(
+  rawUrl: string | null | undefined
+): Promise<{
+  bytes: Uint8Array;
+  mimeType: AllowedQuotationImageMimeType;
+} | null> {
+  if (!rawUrl || !rawUrl.trim()) return null;
+
+  const urlCheck = validateQuotationBlobImageUrl(rawUrl);
+  if (!urlCheck.valid) {
+    console.warn("[Quotation PDF] Image URL rejected:", urlCheck.error);
+    return null;
+  }
+
+  try {
+    const res = await fetch(urlCheck.url, {
+      method: "GET",
+      redirect: "error",
+      signal: AbortSignal.timeout(10000),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.warn(`[Quotation PDF] Image fetch HTTP ${res.status}`);
+      return null;
+    }
+
+    const contentLengthHeader = res.headers.get("content-length");
+    if (contentLengthHeader) {
+      const declaredSize = Number(contentLengthHeader);
+      if (Number.isFinite(declaredSize) && declaredSize > MAX_QUOTATION_IMAGE_BYTES) {
+        console.warn("[Quotation PDF] Image exceeds max allowed size via Content-Length.");
+        return null;
+      }
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_QUOTATION_IMAGE_BYTES) {
+      console.warn("[Quotation PDF] Downloaded image size invalid:", bytes.byteLength);
+      return null;
+    }
+
+    const detectedMime = detectImageFormatFromBytes(bytes);
+    if (!detectedMime) {
+      console.warn("[Quotation PDF] Downloaded bytes are not a valid JPEG or PNG.");
+      return null;
+    }
+
+    return { bytes, mimeType: detectedMime };
+  } catch (err) {
+    console.warn(
+      "[Quotation PDF] Failed to fetch line brand image:",
+      err instanceof Error ? err.message : "Unknown error"
+    );
+    return null;
+  }
 }
 
 /**
@@ -101,17 +168,25 @@ export async function getQuotationPdfData(
   };
 
   // Map line items — snapshot values only, never supplier data
-  const lines: QuotationLineForPdf[] = (record.items ?? []).map(
-    (item: QuotationLineItem): QuotationLineForPdf => ({
-      lineNumber: item.lineNumber,
-      brand: item.brand ?? null,
-      description: item.description,
-      unit: item.unit,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice, // unit_price_snapshot
-      discountPercent: item.discountPercent ?? 0,
-      lineSubtotal: item.lineSubtotal,
-    })
+  const lines: QuotationLineForPdf[] = await Promise.all(
+    (record.items ?? []).map(
+      async (item: QuotationLineItem): Promise<QuotationLineForPdf> => {
+        const fetchedImage = await fetchQuotationLineImage(item.brandImageUrl);
+        const trimmedBrand = item.brand?.trim() ? item.brand.trim() : null;
+        return {
+          lineNumber: item.lineNumber,
+          brand: trimmedBrand,
+          brandImageBytes: fetchedImage?.bytes ?? null,
+          brandImageMimeType: fetchedImage?.mimeType ?? null,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice, // unit_price_snapshot
+          discountPercent: item.discountPercent ?? 0,
+          lineSubtotal: item.lineSubtotal,
+        };
+      }
+    )
   );
 
   const rec = record as unknown as Record<string, unknown>;
