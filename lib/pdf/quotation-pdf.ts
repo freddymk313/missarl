@@ -513,8 +513,8 @@ export async function generateQuotationPdf(
   const PAGE_CONT_TOP_Y = 787.32;
   const TOTALS_SECTION_HEIGHT = 18 * 3 + 40; // 3 rows of 18 pt + delivery terms
 
-  const BRAND_IMG_MAX_W = COL_W.brand - 8; // 121.75 pt - well-contained inside column borders
-  const BRAND_IMG_MAX_H = 150.0; // large and clear like reference RFQ-CHEMAF-2000002358 OQ
+  const BRAND_IMG_MAX_W = COL_W.brand - 6; // 123.75 pt - well-contained with 3 pt margin on each side
+  const BRAND_IMG_MAX_H = 160.0; // matching reference RFQ-CHEMAF-2000002358 OQ (where brand image reaches 162 pt)
 
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
@@ -544,8 +544,7 @@ export async function generateQuotationPdf(
     if (embeddedBrandImg && embeddedBrandImg.width > 0 && embeddedBrandImg.height > 0) {
       const scale = Math.min(
         BRAND_IMG_MAX_W / embeddedBrandImg.width,
-        BRAND_IMG_MAX_H / embeddedBrandImg.height,
-        1
+        BRAND_IMG_MAX_H / embeddedBrandImg.height
       );
       drawImgW = embeddedBrandImg.width * scale;
       drawImgH = embeddedBrandImg.height * scale;
@@ -720,17 +719,17 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 5: DESCRIPTIONS (top-aligned, line spacing 9.84 pt)
-    let dY = rowTop - 10.3;
-    for (const dl of descLines) {
+    // Column 5: DESCRIPTIONS (bottom-aligned with other columns, baseline of bottom line = textBaseY)
+    for (let idx = 0; idx < descLines.length; idx++) {
+      const dl = descLines[idx];
+      const lineY = textBaseY + (descLines.length - 1 - idx) * 9.84;
       currentPage.drawText(dl, {
         x: COL_X.desc + 2,
-        y: dY,
+        y: lineY,
         size: 8.04,
         font: fontRegular,
         color: BLACK,
       });
-      dY -= 9.84;
     }
 
     // Column 6: Unit Price (right-aligned)

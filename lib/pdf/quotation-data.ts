@@ -85,49 +85,55 @@ export async function fetchQuotationLineImage(
     return null;
   }
 
-  try {
-    const res = await fetch(urlCheck.url, {
-      method: "GET",
-      redirect: "follow",
-      signal: AbortSignal.timeout(10000),
-      cache: "no-store",
-    });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(urlCheck.url, {
+        method: "GET",
+        redirect: "follow",
+        signal: AbortSignal.timeout(30000),
+        cache: "no-store",
+      });
 
-    if (!res.ok) {
-      console.warn(`[Quotation PDF Line ${lineNumber}] Image fetch failed with HTTP ${res.status} (${res.statusText})`);
-      return null;
-    }
+      if (!res.ok) {
+        console.warn(`[Quotation PDF Line ${lineNumber}] Image fetch failed with HTTP ${res.status} (${res.statusText})`);
+        return null;
+      }
 
-    const contentLengthHeader = res.headers.get("content-length");
-    if (contentLengthHeader) {
-      const declaredSize = Number(contentLengthHeader);
-      if (Number.isFinite(declaredSize) && declaredSize > MAX_QUOTATION_IMAGE_BYTES) {
-        console.warn(`[Quotation PDF Line ${lineNumber}] Image exceeds max allowed size via Content-Length (${declaredSize} bytes).`);
+      const contentLengthHeader = res.headers.get("content-length");
+      if (contentLengthHeader) {
+        const declaredSize = Number(contentLengthHeader);
+        if (Number.isFinite(declaredSize) && declaredSize > MAX_QUOTATION_IMAGE_BYTES) {
+          console.warn(`[Quotation PDF Line ${lineNumber}] Image exceeds max allowed size via Content-Length (${declaredSize} bytes).`);
+          return null;
+        }
+      }
+
+      const arrayBuffer = await res.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      if (bytes.byteLength === 0 || bytes.byteLength > MAX_QUOTATION_IMAGE_BYTES) {
+        console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded image size invalid (${bytes.byteLength} bytes).`);
+        return null;
+      }
+
+      const detectedMime = detectImageFormatFromBytes(bytes);
+      if (!detectedMime) {
+        console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded bytes failed JPEG/PNG magic signature check.`);
+        return null;
+      }
+
+      return { bytes, mimeType: detectedMime };
+    } catch (err) {
+      if (attempt === 2) {
+        console.warn(
+          `[Quotation PDF Line ${lineNumber}] Failed to fetch line brand image after 2 attempts:`,
+          err instanceof Error ? err.message : "Unknown error"
+        );
         return null;
       }
     }
-
-    const arrayBuffer = await res.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    if (bytes.byteLength === 0 || bytes.byteLength > MAX_QUOTATION_IMAGE_BYTES) {
-      console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded image size invalid (${bytes.byteLength} bytes).`);
-      return null;
-    }
-
-    const detectedMime = detectImageFormatFromBytes(bytes);
-    if (!detectedMime) {
-      console.warn(`[Quotation PDF Line ${lineNumber}] Downloaded bytes failed JPEG/PNG magic signature check.`);
-      return null;
-    }
-
-    return { bytes, mimeType: detectedMime };
-  } catch (err) {
-    console.warn(
-      `[Quotation PDF Line ${lineNumber}] Failed to fetch line brand image:`,
-      err instanceof Error ? err.message : "Unknown error"
-    );
-    return null;
   }
+
+  return null;
 }
 
 /**
