@@ -99,7 +99,7 @@ export function PageHeader({
                 className={cn(
                   "relative pb-2.5 transition-colors whitespace-nowrap outline-none cursor-pointer",
                   isActive
-                    ? "text-primary font-black after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-accent"
+                    ? "text-primary font-black after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
