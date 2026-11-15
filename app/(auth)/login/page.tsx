@@ -2,14 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Image from "next/image";
-import {
-  Lock,
-  Mail,
-  AlertCircle,
-  Loader2,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Lock, Mail, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import { siteConfig } from "@/app/config/site";
 import { loginAction } from "@/actions/auth";
 
@@ -205,7 +198,7 @@ export default function LoginPage() {
 
         {/* Bloc 4 : Triangle industriel & étoile/engrenage or */}
         <div className="relative bg-primary p-8 flex flex-col justify-between border-t border-white/5">
-          <div className="w-0 h-0 border-l-[24px] border-l-transparent border-r-[24px] border-r-transparent border-b-[38px] border-b-accent/90" />
+          <div className="w-0 h-0 border-l-24 border-l-transparent border-r-24 border-r-transparent border-b-38 border-b-accent/90" />
           <div className="self-end">
             <svg
               viewBox="0 0 100 100"
@@ -260,7 +253,7 @@ export default function LoginPage() {
 
         {/* Bloc 8 : Quart de cercle sombre & lignes */}
         <div className="relative bg-navy-dark overflow-hidden flex items-end justify-end p-6 border-l border-white/5">
-          <div className="absolute -bottom-16 -right-16 size-56 rounded-full border-[18px] border-primary" />
+          <div className="absolute -bottom-16 -right-16 size-56 rounded-full border-18 border-primary" />
           <div className="relative z-10 text-right">
             <p className="text-[10px] font-mono text-white/50">
               {/* Lubumbashi · Haut-Katanga */}
@@ -273,10 +266,7 @@ export default function LoginPage() {
           <div className="w-32 h-16 rounded-b-full bg-navy-dark/70 -mt-8" />
           <div className="grid grid-cols-5 gap-2">
             {Array.from({ length: 20 }).map((_, i) => (
-              <span
-                key={i}
-                className="size-1.5 rounded-full bg-accent/80"
-              />
+              <span key={i} className="size-1.5 rounded-full bg-accent/80" />
             ))}
           </div>
         </div>

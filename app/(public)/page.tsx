@@ -215,7 +215,7 @@ export default function Home() {
       </section>
 
       <section className="grid lg:grid-cols-2">
-        <div className="rounded-none image-frame-partner min-h-105">
+        <div className="w-full max-w-full rounded-none image-frame-partner lg:aspect-auto lg:h-full lg:min-h-105">
           <ImageWithFallback
             src={imageRegistry.transformer.url}
             alt={imageRegistry.transformer.alt}

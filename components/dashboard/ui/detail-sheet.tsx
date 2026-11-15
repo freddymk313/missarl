@@ -137,7 +137,7 @@ export function DetailSheet({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="space-y-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <SheetTitle className="text-lg font-black tracking-tight text-primary break-words">
+                <SheetTitle className="text-lg font-black tracking-tight text-primary wrap-break-word">
                   {title}
                 </SheetTitle>
                 {badge}

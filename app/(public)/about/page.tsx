@@ -56,7 +56,7 @@ export default function AboutPage() {
 
       {/* Split Vision & Mission (Même style que la Homepage) */}
       <section className="grid lg:grid-cols-2">
-        <div className="image-frame min-h-[440px] rounded-none">
+        <div className="w-full max-w-full rounded-none image-frame lg:aspect-auto lg:h-full lg:min-h-110">
           <ImageWithFallback
             src={imageRegistry.transformer.url}
             alt={imageRegistry.transformer.alt}

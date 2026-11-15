@@ -267,12 +267,16 @@ select {
   z-index: 1;
 }
 .image-frame {
+  width: 100%;
+  max-width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 12px;
   background: var(--secondary);
 }
 .image-frame-partner {
+  width: 100%;
+  max-width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   background: var(--secondary);
