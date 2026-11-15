@@ -1477,7 +1477,7 @@ export function QuotationWizard({
         </div>
 
         {/* Right Column (4 cols): Sticky Financial Recap */}
-        <div className="lg:col-span-4 lg:sticky lg:top-4 self-start">
+        <div className="lg:col-span-4 lg:sticky lg:-top-2.5 self-start">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5 max-h-[calc(100dvh-5rem)] overflow-y-auto">
             <h3 className="text-sm font-black text-primary flex items-center gap-2 pb-3 border-b border-border">
               <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">

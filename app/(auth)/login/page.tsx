@@ -31,7 +31,7 @@ export default function LoginPage() {
                 width={1200}
                 height={400}
                 priority
-                className="h-14 w-auto object-contain"
+                className="h-18 sm:h-22 w-auto object-contain"
               />
             </div>
 
@@ -219,13 +219,13 @@ export default function LoginPage() {
         {/* Bloc 5 : Centre identitaire MIS SARL */}
         <div className="relative bg-navy-dark/95 p-8 flex flex-col justify-center items-start border border-white/10">
           <span className="text-[10px] font-black uppercase tracking-widest text-accent mb-2">
-            MIS SARL · RDC
+            {/* MIS SARL · RDC */}
           </span>
           <h2 className="text-lg xl:text-xl font-black text-white leading-snug">
-            Ingénierie &amp; Fourniture Industrielle
+            {/* Ingénierie &amp; Fourniture Industrielle */}
           </h2>
           <p className="text-[11px] text-white/65 mt-2 leading-relaxed">
-            Gestion des cotations minières, commandes et suivi financier.
+            {/* Gestion des cotations minières, commandes et suivi financier. */}
           </p>
           <div className="flex gap-2 mt-5">
             <span className="size-2.5 rounded-full bg-accent" />
@@ -263,7 +263,7 @@ export default function LoginPage() {
           <div className="absolute -bottom-16 -right-16 size-56 rounded-full border-[18px] border-primary" />
           <div className="relative z-10 text-right">
             <p className="text-[10px] font-mono text-white/50">
-              Lubumbashi · Haut-Katanga
+              {/* Lubumbashi · Haut-Katanga */}
             </p>
           </div>
         </div>
