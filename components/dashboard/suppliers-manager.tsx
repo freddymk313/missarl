@@ -173,7 +173,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
             setFormError("");
             setIsCreateModalOpen(true);
           }}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-center bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="size-4" /> Nouveau Fournisseur
         </button>
@@ -259,7 +259,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
                 <button
                   type="button"
                   onClick={() => openEditModal(supplier)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary hover:text-primary transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary hover:text-primary transition-colors cursor-pointer"
                 >
                   <Pencil className="size-3.5" />
                   Modifier
@@ -270,7 +270,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
                     setDeleteError("");
                     setDeletingSupplier(supplier);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors cursor-pointer"
                 >
                   <Trash2 className="size-3.5" />
                   Supprimer
@@ -301,7 +301,7 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
                 name="code"
                 required
                 placeholder="FOURN-ATL"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div className="sm:col-span-2">
@@ -310,41 +310,41 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
                 name="name"
                 required
                 placeholder="Atlas Mining Supplies..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
-              <input name="country" placeholder="RDC, Afrique du Sud..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input name="country" placeholder="RDC, Afrique du Sud..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
-              <input name="contactPerson" placeholder="Directeur commercial..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input name="contactPerson" placeholder="Directeur commercial..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Téléphone</label>
-              <input name="phone" placeholder="+27 ... ou +243 ..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input name="phone" placeholder="+27 ... ou +243 ..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground">Email commercial</label>
-              <input name="email" type="email" placeholder="sales@fournisseur.com" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input name="email" type="email" placeholder="sales@fournisseur.com" className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
-            <input name="address" placeholder="Ville, Province, Pays..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            <input name="address" placeholder="Ville, Province, Pays..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
           </div>
           <div>
             <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
             <textarea name="notes" rows={2} placeholder="Pièces d'usure, robinetterie industrielle..." className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 resize-none" />
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
-            <button type="button" onClick={() => setIsCreateModalOpen(false)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
-            <button type="submit" disabled={isSubmitting} className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+            <button type="button" onClick={() => setIsCreateModalOpen(false)} className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               {isSubmitting ? "Enregistrement..." : "Créer le fournisseur"}
             </button>
@@ -369,36 +369,36 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Code *</label>
-              <input value={editCode} onChange={(e) => setEditCode(e.target.value)} required placeholder="FOURN-ATL" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editCode} onChange={(e) => setEditCode(e.target.value)} required placeholder="FOURN-ATL" className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-foreground">Raison Sociale *</label>
-              <input value={editName} onChange={(e) => setEditName(e.target.value)} required placeholder="Atlas Mining Supplies..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} required placeholder="Atlas Mining Supplies..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Pays d&apos;origine</label>
-              <input value={editCountry} onChange={(e) => setEditCountry(e.target.value)} placeholder="RDC, Afrique du Sud..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editCountry} onChange={(e) => setEditCountry(e.target.value)} placeholder="RDC, Afrique du Sud..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground">Contact / Représentant</label>
-              <input value={editContactPerson} onChange={(e) => setEditContactPerson(e.target.value)} placeholder="Directeur commercial..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editContactPerson} onChange={(e) => setEditContactPerson(e.target.value)} placeholder="Directeur commercial..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Téléphone</label>
-              <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+27 ... ou +243 ..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+27 ... ou +243 ..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
             <div>
               <label className="block text-xs font-bold text-foreground">Email commercial</label>
-              <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email" placeholder="sales@fournisseur.com" className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+              <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} type="email" placeholder="sales@fournisseur.com" className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-bold text-foreground">Adresse / Siège</label>
-            <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="Ville, Province, Pays..." className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
+            <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="Ville, Province, Pays..." className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1" />
           </div>
           <div>
             <label className="block text-xs font-bold text-foreground">Spécialité / Notes techniques</label>
@@ -406,14 +406,14 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
           </div>
           <div>
             <label className="block text-xs font-bold text-foreground">Statut du partenaire *</label>
-            <select value={editIsActive ? "true" : "false"} onChange={(e) => setEditIsActive(e.target.value === "true")} className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1">
+            <select value={editIsActive ? "true" : "false"} onChange={(e) => setEditIsActive(e.target.value === "true")} className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1">
               <option value="true">Actif (Partenaire régulier)</option>
               <option value="false">Inactif (Partenaire suspendu / archivé)</option>
             </select>
           </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
-            <button type="button" onClick={() => setEditingSupplier(null)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
-            <button type="submit" disabled={isSubmitting} className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+            <button type="button" onClick={() => setEditingSupplier(null)} className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+            <button type="submit" disabled={isSubmitting} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
             </button>
@@ -446,8 +446,8 @@ export function SuppliersManager({ initialSuppliers }: SuppliersManagerProps) {
           </p>
         </div>
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4 mt-3 border-t border-border">
-          <button type="button" onClick={() => setDeletingSupplier(null)} className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
-          <button type="button" disabled={isSubmitting} onClick={handleDeleteConfirm} className="h-10 px-5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
+          <button type="button" onClick={() => setDeletingSupplier(null)} className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors">Annuler</button>
+          <button type="button" disabled={isSubmitting} onClick={handleDeleteConfirm} className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5">
             {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
             {isSubmitting ? "Suppression..." : "Supprimer définitivement"}
           </button>

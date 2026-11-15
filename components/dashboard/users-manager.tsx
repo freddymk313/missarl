@@ -146,17 +146,17 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
 
   return (
     <div className="space-y-6">
-      {/* Top Banner / En-tête de contrôle élégant */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-5 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-secondary border border-border text-primary shrink-0">
-            <Users className="size-5" />
-          </div>
+      {/* Top Controls Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
+        <div className="flex items-center gap-2.5">
+          {/* <span className="inline-flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+            <Users className="size-4" />
+          </span> */}
           <div>
             <p className="text-xs font-bold text-foreground">
               {users.length} compte(s) utilisateur(s) configuré(s)
             </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-[11px] text-muted-foreground">
               Seul le Super Administrateur peut créer, modifier ou supprimer des accès internes.
             </p>
           </div>
@@ -167,7 +167,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
             setFormError("");
             setIsCreateModalOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="size-4" /> Nouvel Utilisateur
         </button>
@@ -249,7 +249,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                             title={u.isActive ? "Désactiver le compte" : "Activer le compte"}
                             className={`inline-flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border ${
                               u.isActive
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20"
+                                ? "bg-accent/20 text-accent-foreground border-accent/40 hover:bg-accent/30"
                                 : "bg-success/15 text-success border-success/30 hover:bg-success/25"
                             }`}
                           >
@@ -345,7 +345,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                     onClick={() => handleToggleActive(u.id, u.isActive)}
                     className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold transition-colors border ${
                       u.isActive
-                        ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                        ? "bg-accent/20 text-accent-foreground border-accent/40"
                         : "bg-success/15 text-success border-success/30"
                     }`}
                   >
@@ -390,7 +390,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
               name="fullName"
               required
               placeholder="ex: Jean Ilunga"
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -401,7 +401,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
               type="email"
               required
               placeholder="nom@missarl.com"
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -413,7 +413,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
               required
               minLength={6}
               placeholder="•••••••• (min 6 caractères)"
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -423,7 +423,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
               name="role"
               required
               defaultValue="ADMIN"
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             >
               <option value="ADMIN">Admin Commercial (Devis, Commandes, Factures)</option>
               <option value="PRICE_COLLECTOR">Collecteur de Prix (Catalogue et Tarifs uniquement)</option>
@@ -435,14 +435,14 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
-              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               {isSubmitting ? "Création..." : "Créer le compte"}
@@ -474,7 +474,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                 onChange={(e) => setEditFullName(e.target.value)}
                 required
                 placeholder="ex: Jean Ilunga"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
 
@@ -486,7 +486,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                 type="email"
                 required
                 placeholder="nom@missarl.com"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
 
@@ -503,7 +503,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value as UserRole)}
                   required
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 >
                   <option value="ADMIN">Admin Commercial (Devis, Commandes, Factures)</option>
                   <option value="PRICE_COLLECTOR">Collecteur de Prix (Catalogue et Tarifs uniquement)</option>
@@ -519,7 +519,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                 <select
                   value={editIsActive ? "true" : "false"}
                   onChange={(e) => setEditIsActive(e.target.value === "true")}
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 >
                   <option value="true">Actif (Accès autorisé)</option>
                   <option value="false">Désactivé (Accès bloqué)</option>
@@ -539,7 +539,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                 onChange={(e) => setEditPassword(e.target.value)}
                 minLength={6}
                 placeholder="Laisser vide pour ne pas modifier"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1.5"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1.5"
               />
               <p className="mt-1 text-[10px] text-muted-foreground">
                 Remplir ce champ uniquement pour réinitialiser le mot de passe (minimum 6 caractères).
@@ -550,14 +550,14 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
               <button
                 type="button"
                 onClick={() => setEditingUser(null)}
-                className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+                className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
               >
                 {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
                 {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
@@ -597,7 +597,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
           <button
             type="button"
             onClick={() => setDeletingUser(null)}
-            className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+            className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
           >
             Annuler
           </button>
@@ -605,7 +605,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
             type="button"
             disabled={isSubmitting}
             onClick={handleDeleteConfirm}
-            className="h-10 px-5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
           >
             {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
             {isSubmitting ? "Suppression..." : "Supprimer définitivement"}

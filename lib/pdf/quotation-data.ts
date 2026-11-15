@@ -9,6 +9,8 @@ import { siteConfig } from "@/app/config/site";
 import {
   MAX_QUOTATION_IMAGE_BYTES,
   detectImageFormatFromBytes,
+  extractMockBlobPathname,
+  getMockBlob,
   validateQuotationBlobImageUrl,
   type AllowedQuotationImageMimeType,
 } from "@/lib/blob";
@@ -83,6 +85,16 @@ export async function fetchQuotationLineImage(
   if (!urlCheck.valid) {
     console.warn(`[Quotation PDF Line ${lineNumber}] Image URL validation rejected:`, urlCheck.error);
     return null;
+  }
+
+  const mockPathname = extractMockBlobPathname(urlCheck.url);
+  if (mockPathname) {
+    const entry = getMockBlob(mockPathname);
+    if (!entry) {
+      console.warn(`[Quotation PDF Line ${lineNumber}] In-memory mock image not found:`, mockPathname);
+      return null;
+    }
+    return { bytes: entry.bytes, mimeType: entry.contentType };
   }
 
   for (let attempt = 1; attempt <= 2; attempt++) {

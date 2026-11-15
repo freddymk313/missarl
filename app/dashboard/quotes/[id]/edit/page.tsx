@@ -3,7 +3,8 @@ import { getClients } from "@/lib/db/clients";
 import { getItems } from "@/lib/db/items";
 import { getQuotationById, checkQuotationEligibility } from "@/lib/db/quotations";
 import { QuotationWizard } from "@/components/dashboard/quotation-wizard";
-import { ArrowLeft, AlertCircle, ShieldAlert } from "lucide-react";
+import { PageHeader } from "@/components/dashboard/ui/page-header";
+import { ArrowLeft, AlertCircle, ShieldAlert, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
 export default async function EditQuotationPage({
@@ -46,18 +47,18 @@ export default async function EditQuotationPage({
 
   if (!eligibility.eligible) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl border border-amber-300/40 bg-amber-50/50 dark:bg-amber-950/20 shadow-xs text-center space-y-4">
-        <div className="size-12 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 flex items-center justify-center mx-auto">
+      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl border border-warning/30 bg-warning/10 shadow-xs text-center space-y-4">
+        <div className="size-12 rounded-full bg-warning/20 text-warning flex items-center justify-center mx-auto">
           <ShieldAlert className="size-6" />
         </div>
         <div>
-          <h2 className="text-lg font-black text-amber-900 dark:text-amber-200">
+          <h2 className="text-lg font-black text-foreground">
             Modification non autorisée
           </h2>
           <p className="text-xs font-mono font-bold text-muted-foreground mt-1">
             {quotation.internalReference} — Statut: {quotation.status}
           </p>
-          <p className="text-xs text-amber-800 dark:text-amber-300 mt-2 max-w-md mx-auto">
+          <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto">
             {eligibility.reason}
           </p>
         </div>
@@ -75,17 +76,11 @@ export default async function EditQuotationPage({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-            Modifier le Devis / Proforma
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Modification de <span className="font-mono font-bold text-foreground">{quotation.internalReference}</span> pour {quotation.clientName}. La référence et l&apos;historique restent préservés.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        icon={FileSpreadsheet}
+        title="Modifier le Devis / Proforma"
+        description={`Modification de ${quotation.internalReference} pour ${quotation.clientName}. La référence et l'historique restent préservés.`}
+      />
 
       <QuotationWizard
         mode="edit"

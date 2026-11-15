@@ -41,6 +41,7 @@ import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
+import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD } from "@/lib/formatters";
 import {
   Dialog,
@@ -390,42 +391,44 @@ export function OrdersManager({
   return (
     <div className="space-y-6">
       {/* Top Stat Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Orders (PO)
-          </p>
-          <p className="text-xl font-black text-primary mt-1">{orders.length}</p>
-        </div>
-        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Pending Deliveries
-          </p>
-          <p className="text-xl font-black text-primary mt-1">{activeOrders.length}</p>
-        </div>
-        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Completed (Delivered)
-          </p>
-          <p className="text-xl font-black text-success mt-1">
-            {orders.filter((o) => o.status === "COMPLETED").length}
-          </p>
-        </div>
-        <div className="p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Ordered Volume
-          </p>
-          <p className="text-xl font-black text-primary font-mono mt-1">
-            {formatUSD(totalAmount)}
-          </p>
-        </div>
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <StatTile
+          label="Total Orders (PO)"
+          value={orders.length}
+          icon={ShoppingCart}
+          tone="primary"
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Pending Deliveries"
+          value={activeOrders.length}
+          icon={Truck}
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Completed (Delivered)"
+          value={orders.filter((o) => o.status === "COMPLETED").length}
+          icon={CheckCircle2}
+          tone="success"
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Total Ordered Volume"
+          value={formatUSD(totalAmount)}
+          icon={Receipt}
+          tone="primary"
+        /></div>
       </div>
 
       {/* Ongoing Delivery Cards */}
       {activeOrders.length > 0 && (
         <div className="space-y-3">
-          <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Truck className="size-3.5 text-primary" /> Active Orders & Fulfillment in Progress
+          <h2 className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-2">
+            <Truck className="size-3.5 text-primary" /> Active Orders &amp; Fulfillment in Progress
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {activeOrders.slice(0, 3).map((ord) => (
@@ -472,8 +475,8 @@ export function OrdersManager({
       )}
 
       {/* Track Orders Filter & Search Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
-        <div className="flex flex-1 items-center gap-3 max-w-xl">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
+        <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-3 max-w-2xl">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -506,7 +509,7 @@ export function OrdersManager({
             setIsModalOpen(true);
             setFormError("");
           }}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-center bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="size-4" /> Record Purchase Order (PO)
         </button>
@@ -800,7 +803,7 @@ export function OrdersManager({
                   {deliveryNotes.map((bl) => (
                     <div
                       key={bl.id}
-                      className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-2xs"
+                      className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -1107,7 +1110,7 @@ export function OrdersManager({
                                         [it.id!]: isNaN(val) ? 0 : Math.min(val, it.quantity),
                                       }));
                                     }}
-                                    className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                    className="h-9 w-20 rounded-xl border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
                                   />
                                 </td>
                                 <td className="p-2.5 text-right font-mono font-bold text-primary">
@@ -1165,14 +1168,14 @@ export function OrdersManager({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || acceptedLines.length === 0}
-                  className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? "Creating..." : "Create Purchase Order"}
                 </button>
@@ -1185,12 +1188,12 @@ export function OrdersManager({
       <Dialog open={isDeliveryModalOpen} onOpenChange={(open) => { if (!open) setIsDeliveryModalOpen(false); }}>
         <DialogContent
           showCloseButton={false}
-          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6"
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl border-border"
         >
           <DialogHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="text-base font-extrabold text-primary flex items-center gap-2">
+                <DialogTitle className="text-base font-black text-primary flex items-center gap-2">
                   <PackageCheck className="size-5" /> Prepare Delivery Note (BL)
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -1367,7 +1370,7 @@ export function OrdersManager({
                                       [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
                                     }));
                                   }}
-                                  className="h-8 w-24 rounded-lg border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                  className="h-9 w-24 rounded-xl border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
                                 />
                               </td>
                               <td className="p-2.5">
@@ -1379,7 +1382,7 @@ export function OrdersManager({
                                   onChange={(e) =>
                                     setBatchObservations((prev) => ({ ...prev, [it.id]: e.target.value }))
                                   }
-                                  className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                  className="h-9 w-full rounded-xl border border-border bg-card px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
                                 />
                               </td>
                             </tr>
@@ -1404,7 +1407,7 @@ export function OrdersManager({
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-3 border-t border-border">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3 border-t border-border">
                   <button
                     type="button"
                     onClick={() => setIsDeliveryModalOpen(false)}

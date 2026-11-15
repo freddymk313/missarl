@@ -7,9 +7,11 @@ import {
   Database,
   FileCheck,
   Landmark,
+  Settings,
 } from "lucide-react";
 import { formatFrenchDate } from "@/lib/formatters";
 import { ExchangeRatesCard } from "@/components/dashboard/exchange-rates-card";
+import { PageHeader } from "@/components/dashboard/ui/page-header";
 
 interface MigrationRow {
   version: string;
@@ -31,24 +33,17 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-xs">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
-            System Settings
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Financial rules, exchange rates, Neon PostgreSQL database status, and audit log.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="System Settings"
+        description="Financial rules, exchange rates, Neon PostgreSQL database status, and audit log."
+      />
 
       {/* Grid: Financial Rules & Exchange Rates */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Financial Rules & Fiscal Identity */}
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
           <h3 className="text-sm font-black text-primary flex items-center gap-2">
-            <Landmark className="size-4 text-primary" /> Financial Rules &amp;
+            <Landmark className="size-4 text-accent" /> Financial Rules &amp;
             Fiscal Identity
           </h3>
 
@@ -108,7 +103,7 @@ export default async function SettingsPage() {
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <h3 className="text-sm font-black text-primary flex items-center gap-2">
-            <Database className="size-4 text-primary" /> Neon PostgreSQL
+            <Database className="size-4 text-accent" /> Neon PostgreSQL
             Database
           </h3>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-0.5 text-[10px] font-bold text-success">
@@ -138,7 +133,7 @@ export default async function SettingsPage() {
                   className="flex items-center justify-between rounded-xl bg-secondary/40 px-3 py-2 border border-border/60"
                 >
                   <span
-                    className="font-bold text-primary truncate max-w-[200px]"
+                    className="font-bold text-primary truncate max-w-50"
                     title={m.name}
                   >
                     {m.name}
@@ -157,8 +152,7 @@ export default async function SettingsPage() {
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <h3 className="text-sm font-black text-primary flex items-center gap-2">
-            <FileCheck className="size-4 text-primary" /> Audit Log — Recent
-            Operations
+            <FileCheck className="size-4 text-accent" /> Audit Log
           </h3>
           <span className="text-[11px] text-muted-foreground">
             Last 10 recorded events

@@ -179,7 +179,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             setFormError("");
             setIsCreateModalOpen(true);
           }}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-center bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="size-4" /> Nouveau Client
         </button>
@@ -249,38 +249,36 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-row gap-2.5 mt-5 pt-3 border-t border-border/80">
-  {/* Bouton Voir */}
-  <Link
-    href={`/dashboard/clients/${client.id}`}
-    className="inline-flex w-full items-center justify-center gap-2 h-9 rounded-xl bg-secondary/80 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-  >
-    Voir <ArrowRight className="size-3.5" />
-  </Link>
+              <div className="flex flex-col gap-2 mt-5 pt-3 border-t border-border/80">
+                <Link
+                  href={`/dashboard/clients/${client.id}`}
+                  className="inline-flex w-full items-center justify-center gap-2 h-9 rounded-xl bg-secondary/80 border border-border/80 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  Voir <ArrowRight className="size-3.5" />
+                </Link>
 
-  {/* Ligne des boutons Modifier et Supprimer à hauteurs égales */}
-  {/* <div className="flex items-center gap-2"> */}
-    <button
-      type="button"
-      onClick={() => openEditModal(client)}
-      className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary hover:text-primary transition-colors cursor-pointer"
-    >
-      <Pencil className="size-3.5" />
-      Modifier
-    </button>
-    <button
-      type="button"
-      onClick={() => {
-        setDeleteError("");
-        setDeletingClient(client);
-      }}
-      className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors cursor-pointer"
-    >
-      <Trash2 className="size-3.5" />
-      Supprimer
-    </button>
-  {/* </div> */}
-</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(client)}
+                    className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <Pencil className="size-3.5" />
+                    Modifier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError("");
+                      setDeletingClient(client);
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl border border-destructive/20 bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Supprimer
+                  </button>
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -307,7 +305,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 name="code"
                 required
                 placeholder="CLI-KCC"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div className="sm:col-span-2">
@@ -316,7 +314,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 name="name"
                 required
                 placeholder="Kamoto Copper Company..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -327,7 +325,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <input
                 name="contactPerson"
                 placeholder="Directeur des achats..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div>
@@ -335,7 +333,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <input
                 name="taxId"
                 placeholder="A09123456Z"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -346,7 +344,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <input
                 name="phone"
                 placeholder="+243 ..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div>
@@ -355,7 +353,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 name="email"
                 type="email"
                 placeholder="achats@client.com"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -365,7 +363,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             <input
               name="billingAddress"
               placeholder="Commune, Ville, Province..."
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -374,7 +372,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             <input
               name="deliveryAddress"
               placeholder="Site minier, Magasin central, Kolwezi..."
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -384,7 +382,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <select
                 name="paymentTerms"
                 defaultValue="30_DAYS"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="COMPTANT">Paiement Comptant</option>
                 <option value="30_DAYS">30 jours net</option>
@@ -397,7 +395,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <select
                 name="currency"
                 defaultValue="USD"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="USD">USD ($)</option>
                 <option value="CDF">CDF (FC)</option>
@@ -409,14 +407,14 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(false)}
-              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               {isSubmitting ? "Création en cours..." : "Enregistrer le client"}
@@ -448,7 +446,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 onChange={(e) => setEditCode(e.target.value)}
                 required
                 placeholder="CLI-KCC"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono uppercase text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div className="sm:col-span-2">
@@ -458,7 +456,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 onChange={(e) => setEditName(e.target.value)}
                 required
                 placeholder="Kamoto Copper Company..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -470,7 +468,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 value={editContactPerson}
                 onChange={(e) => setEditContactPerson(e.target.value)}
                 placeholder="Directeur des achats..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div>
@@ -479,7 +477,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 value={editTaxId}
                 onChange={(e) => setEditTaxId(e.target.value)}
                 placeholder="A09123456Z"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -491,7 +489,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 value={editPhone}
                 onChange={(e) => setEditPhone(e.target.value)}
                 placeholder="+243 ..."
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
             <div>
@@ -501,7 +499,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
                 onChange={(e) => setEditEmail(e.target.value)}
                 type="email"
                 placeholder="achats@client.com"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -512,7 +510,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               value={editBillingAddress}
               onChange={(e) => setEditBillingAddress(e.target.value)}
               placeholder="Commune, Ville, Province..."
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -522,7 +520,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               value={editDeliveryAddress}
               onChange={(e) => setEditDeliveryAddress(e.target.value)}
               placeholder="Site minier, Magasin central, Kolwezi..."
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -532,7 +530,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <select
                 value={editPaymentTerms}
                 onChange={(e) => setEditPaymentTerms(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="COMPTANT">Paiement Comptant</option>
                 <option value="30_DAYS">30 jours net</option>
@@ -545,7 +543,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <select
                 value={editCurrency}
                 onChange={(e) => setEditCurrency(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="USD">USD ($)</option>
                 <option value="CDF">CDF (FC)</option>
@@ -556,7 +554,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
               <select
                 value={editIsActive ? "true" : "false"}
                 onChange={(e) => setEditIsActive(e.target.value === "true")}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="true">Actif</option>
                 <option value="false">Inactif (Suspendu)</option>
@@ -568,14 +566,14 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             <button
               type="button"
               onClick={() => setEditingClient(null)}
-              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
@@ -614,7 +612,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
           <button
             type="button"
             onClick={() => setDeletingClient(null)}
-            className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+            className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
           >
             Annuler
           </button>
@@ -622,7 +620,7 @@ export function ClientsManager({ initialClients }: ClientsManagerProps) {
             type="button"
             disabled={isSubmitting}
             onClick={handleDeleteConfirm}
-            className="h-10 px-5 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
           >
             {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
             {isSubmitting ? "Suppression..." : "Supprimer définitivement"}

@@ -93,7 +93,7 @@ export function ExchangeRatesCard({
     <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 border-b border-border pb-3">
         <h3 className="text-sm font-black text-primary flex items-center gap-2">
-          <DollarSign className="size-4 text-primary" /> Taux de Change & Devises
+          <DollarSign className="size-4 text-accent" /> Taux de Change & Devises
         </h3>
         <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase">
           Devise pivot : USD ($)
@@ -161,7 +161,7 @@ export function ExchangeRatesCard({
                       <button
                         type="button"
                         onClick={() => handleStartEdit(c.code)}
-                        className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-secondary cursor-pointer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary transition-colors cursor-pointer"
                         title="Modifier le taux"
                       >
                         <Edit2 className="size-3.5" />
@@ -174,7 +174,7 @@ export function ExchangeRatesCard({
                       type="button"
                       disabled={isPending}
                       onClick={() => handleSave(c.code)}
-                      className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer disabled:opacity-50"
+                      className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50"
                       title="Enregistrer"
                     >
                       {isPending ? (
@@ -187,7 +187,7 @@ export function ExchangeRatesCard({
                       type="button"
                       disabled={isPending}
                       onClick={handleCancel}
-                      className="p-1 rounded text-muted-foreground hover:bg-secondary cursor-pointer"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary transition-colors cursor-pointer"
                       title="Annuler"
                     >
                       <X className="size-3.5" />
@@ -210,7 +210,7 @@ export function ExchangeRatesCard({
                         placeholder={`ex: ${c.code === "CDF" ? "2850" : "18.5"}`}
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                       />
                       <span className="text-[11px] font-mono font-bold text-muted-foreground">
                         {c.code}
@@ -226,7 +226,7 @@ export function ExchangeRatesCard({
                       placeholder="ex: BCC officiel ou Marché"
                       value={noteValue}
                       onChange={(e) => setNoteValue(e.target.value)}
-                      className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>

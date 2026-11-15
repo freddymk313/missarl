@@ -1,9 +1,9 @@
 // ============================================================================
-// Vercel Blob Helpers & SSRF-Safe URL Validation for Quotation Line Images
-// Server-side only — never import or expose tokens in client components.
+// In-Memory Blob Stub & URL Validation for Quotation Line Images
+// Replaces @vercel/blob with an in-memory Map store for AI Studio preview.
 // ============================================================================
 
-export const MAX_QUOTATION_IMAGE_BYTES = 4 * 1024 * 1024; // 4 MB (< Vercel 4.5 MB limit)
+export const MAX_QUOTATION_IMAGE_BYTES = 4 * 1024 * 1024; // 4 MB
 
 export const ALLOWED_QUOTATION_IMAGE_MIME_TYPES = [
   "image/jpeg",
@@ -14,6 +14,68 @@ export type AllowedQuotationImageMimeType =
   (typeof ALLOWED_QUOTATION_IMAGE_MIME_TYPES)[number];
 
 export const QUOTATION_IMAGE_PATH_PREFIX = "quotation-line-images/";
+export const LOCAL_QUOTATION_IMAGE_ENDPOINT = "/api/quotations/line-image";
+
+export interface MockBlobEntry {
+  bytes: Uint8Array;
+  contentType: AllowedQuotationImageMimeType;
+}
+
+const globalForBlob = globalThis as typeof globalThis & {
+  __misMockBlobStore?: Map<string, MockBlobEntry>;
+};
+
+const mockBlobStore: Map<string, MockBlobEntry> =
+  globalForBlob.__misMockBlobStore ?? new Map<string, MockBlobEntry>();
+
+if (!globalForBlob.__misMockBlobStore) {
+  globalForBlob.__misMockBlobStore = mockBlobStore;
+}
+
+export function putMockBlob(
+  pathname: string,
+  bytes: Uint8Array,
+  contentType: AllowedQuotationImageMimeType
+): { url: string; pathname: string; contentType: AllowedQuotationImageMimeType } {
+  mockBlobStore.set(pathname, { bytes: new Uint8Array(bytes), contentType });
+  return {
+    url: `${LOCAL_QUOTATION_IMAGE_ENDPOINT}?path=${encodeURIComponent(pathname)}`,
+    pathname,
+    contentType,
+  };
+}
+
+export function getMockBlob(pathname: string): MockBlobEntry | null {
+  return mockBlobStore.get(pathname) ?? null;
+}
+
+export function extractMockBlobPathname(rawUrl: string): string | null {
+  const trimmed = rawUrl.trim();
+  if (!trimmed.startsWith(LOCAL_QUOTATION_IMAGE_ENDPOINT)) {
+    return null;
+  }
+  try {
+    const parsed = new URL(trimmed, "http://localhost");
+    if (parsed.pathname !== LOCAL_QUOTATION_IMAGE_ENDPOINT) {
+      return null;
+    }
+    const pathParam = parsed.searchParams.get("path");
+    if (!pathParam || !pathParam.startsWith(QUOTATION_IMAGE_PATH_PREFIX)) {
+      return null;
+    }
+    const lowerPath = pathParam.toLowerCase();
+    if (
+      !lowerPath.endsWith(".png") &&
+      !lowerPath.endsWith(".jpg") &&
+      !lowerPath.endsWith(".jpeg")
+    ) {
+      return null;
+    }
+    return pathParam;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Strips optional surrounding quotes and whitespace from an environment string.
@@ -32,16 +94,13 @@ function cleanEnvString(val?: string | null): string | null {
 
 /**
  * Reads BLOB_READ_WRITE_TOKEN from server environment.
- * Never logs or exposes the token.
  */
 export function getBlobReadWriteToken(): string | null {
   return cleanEnvString(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
 /**
- * Extracts and normalizes the configured Vercel Blob store ID.
- * Checks BLOB_STORE_ID first (stripping optional quotes and "store_" prefix),
- * then falls back to parsing the storeId segment from BLOB_READ_WRITE_TOKEN.
+ * Extracts and normalizes the configured Blob store ID.
  */
 export function getConfiguredBlobStoreId(): string | null {
   const rawStoreId = cleanEnvString(process.env.BLOB_STORE_ID);
@@ -55,7 +114,6 @@ export function getConfiguredBlobStoreId(): string | null {
 
   const token = getBlobReadWriteToken();
   if (token) {
-    // Vercel Blob RW token format: vercel_blob_rw_<storeId>_<secret>
     const parts = token.split("_");
     if (parts.length >= 4 && parts[0] === "vercel" && parts[1] === "blob" && parts[2] === "rw") {
       let storeId = parts[3]?.trim();
@@ -69,19 +127,12 @@ export function getConfiguredBlobStoreId(): string | null {
   return null;
 }
 
-/**
- * Returns the exact public Vercel Blob hostname for the configured store.
- */
 export function getExpectedBlobHostname(): string | null {
   const storeId = getConfiguredBlobStoreId();
   if (!storeId) return null;
   return `${storeId.toLowerCase()}.public.blob.vercel-storage.com`;
 }
 
-/**
- * Checks whether a given hostname matches the configured public Vercel Blob store.
- * Supports both bare store ID and optional "store_" prefix.
- */
 export function isAllowedBlobHostname(hostname: string): boolean {
   const storeId = getConfiguredBlobStoreId();
   if (!storeId) return false;
@@ -122,9 +173,8 @@ export function detectImageFormatFromBytes(
 }
 
 /**
- * Validates that a quotation line image URL is a safe HTTPS URL belonging
- * exclusively to the configured public Vercel Blob store and upload path prefix.
- * Prevents SSRF, data:/blob: URLs, and arbitrary external hosts.
+ * Validates that a quotation line image URL is either a valid local mock blob
+ * endpoint URL or an allowed HTTPS blob URL.
  */
 export function validateQuotationBlobImageUrl(
   rawUrl: string
@@ -132,6 +182,14 @@ export function validateQuotationBlobImageUrl(
   const trimmed = rawUrl.trim();
   if (!trimmed) {
     return { valid: false, error: "URL d'image vide." };
+  }
+
+  const mockPathname = extractMockBlobPathname(trimmed);
+  if (mockPathname) {
+    return {
+      valid: true,
+      url: `${LOCAL_QUOTATION_IMAGE_ENDPOINT}?path=${encodeURIComponent(mockPathname)}`,
+    };
   }
 
   const lower = trimmed.toLowerCase();
@@ -169,19 +227,19 @@ export function validateQuotationBlobImageUrl(
     if (!expectedHost) {
       return {
         valid: false,
-        error: "Configuration Vercel Blob manquante sur le serveur.",
+        error: "URL d'image non autorisée.",
       };
     }
     return {
       valid: false,
-      error: `L'hôte de l'image (${parsed.hostname}) n'appartient pas au stockage Vercel Blob configuré (${expectedHost}).`,
+      error: `L'hôte de l'image (${parsed.hostname}) n'appartient pas au stockage configuré (${expectedHost}).`,
     };
   }
 
   if (!parsed.pathname.startsWith(`/${QUOTATION_IMAGE_PATH_PREFIX}`)) {
     return {
       valid: false,
-      error: "Chemin d'image Vercel Blob non autorisé.",
+      error: "Chemin d'image non autorisé.",
     };
   }
 

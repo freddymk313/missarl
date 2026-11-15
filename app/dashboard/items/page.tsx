@@ -10,7 +10,9 @@ import {
 } from "@/lib/db/items";
 import { getSuppliers } from "@/lib/db/suppliers";
 import { getClients } from "@/lib/db/clients";
+import { Package } from "lucide-react";
 import { ArticlesManager } from "@/components/dashboard/articles-manager";
+import { PageHeader } from "@/components/dashboard/ui/page-header";
 
 export default async function ItemsPage() {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN", "PRICE_COLLECTOR"]);
@@ -39,19 +41,10 @@ export default async function ItemsPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Items & Sourcing Catalog
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Multi-code product database (client codes, MPN, supplier codes) with buy-on-demand supplier pricing.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Items & Sourcing Catalog"
+        description="Multi-code product database (client codes, MPN, supplier codes) with buy-on-demand supplier pricing."
+      />
 
       <ArticlesManager
         initialItems={items}

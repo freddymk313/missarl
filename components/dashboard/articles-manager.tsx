@@ -18,6 +18,7 @@ import {
   Building2,
   Hash,
   Barcode,
+  Layers,
 } from "lucide-react";
 import {
   ItemRecord,
@@ -43,6 +44,7 @@ import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
+import { StatTile } from "@/components/dashboard/ui/stat-tile";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ interface ArticlesManagerProps {
 function MatchBadgeChip({ badge }: { badge: MatchBadge }) {
   if (badge.type === "CLIENT_CODE") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
         <Building2 className="size-3" />
         {badge.clientName}
       </span>
@@ -72,15 +74,15 @@ function MatchBadgeChip({ badge }: { badge: MatchBadge }) {
   }
   if (badge.type === "MPN") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 text-[10px] font-bold text-violet-600 dark:text-violet-400">
-        <Hash className="size-3" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-secondary border border-border px-2 py-0.5 text-[10px] font-bold text-foreground">
+        <Hash className="size-3 text-primary" />
         Mfr Part No.
       </span>
     );
   }
   if (badge.type === "SUPPLIER_CODE") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
         <Truck className="size-3" />
         {badge.supplierName}
       </span>
@@ -143,13 +145,13 @@ function SpecsEditor({
             placeholder="Key (e.g. Power)"
             value={k}
             onChange={(e) => updateKey(k, e.target.value)}
-            className="h-8 flex-1 rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
           <input
             placeholder="Value (e.g. 132 kW)"
             value={v}
             onChange={(e) => updateVal(k, e.target.value)}
-            className="h-8 flex-1 rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
           <button
             type="button"
@@ -200,7 +202,7 @@ function ClientCodesEditor({
           <select
             value={row.clientId}
             onChange={(e) => update(i, "clientId", e.target.value)}
-            className="h-8 w-40 rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 w-40 rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -212,7 +214,7 @@ function ClientCodesEditor({
             placeholder="Client code (e.g. KI78967)"
             value={row.value}
             onChange={(e) => update(i, "value", e.target.value)}
-            className="h-8 flex-1 rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
           <button
             type="button"
@@ -544,36 +546,35 @@ export function ArticlesManager({
   return (
     <div className="space-y-6">
       {/* KPI Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total Items", value: currentStats.totalItems },
-          { label: "Categories Used", value: currentStats.categoriesUsed },
-          {
-            label: "Suppliers Referenced",
-            value: currentStats.suppliersReferenced,
-          },
-          {
-            label: "Items Without Offer",
-            value: currentStats.itemsWithoutOffer,
-            warn: currentStats.itemsWithoutOffer > 0,
-          },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            className="p-4 rounded-xl border border-border bg-card"
-          >
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
-              {kpi.label}
-            </p>
-            <p
-              className={`text-xl font-black mt-1 ${
-                kpi.warn ? "text-warning" : "text-primary"
-              }`}
-            >
-              {kpi.value}
-            </p>
-          </div>
-        ))}
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <StatTile
+          label="Total Items"
+          value={currentStats.totalItems}
+          icon={Package}
+          tone="primary"
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <StatTile
+          label="Categories Used"
+          value={currentStats.categoriesUsed}
+          icon={Layers}
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Suppliers Referenced"
+          value={currentStats.suppliersReferenced}
+          icon={Truck}
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Items Without Offer"
+          value={currentStats.itemsWithoutOffer}
+          icon={AlertCircle}
+          tone={currentStats.itemsWithoutOffer > 0 ? "warning" : "default"}
+        /></div>
       </div>
 
       {/* Role notice */}
@@ -645,15 +646,15 @@ export function ArticlesManager({
         {canManage && (
           <button
             onClick={openCreate}
-            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center text-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
           >
-            <Plus className="size-4" /> New Item
+            <Plus className="size-4" /> <span>New Item</span>
           </button>
         )}
       </div>
 
       {/* Results Table & Mobile Cards */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -969,7 +970,7 @@ export function ArticlesManager({
                   Coût d&apos;achat fournisseur
                 </span>
               </div>
-              <div className="rounded-xl bg-gold/10 border border-primary/20 p-3 flex flex-col justify-between">
+              <div className="rounded-xl bg-accent/15 border border-accent/40 p-3 flex flex-col justify-between">
                 <div>
                   <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
                     Quoted Price ($)
@@ -980,7 +981,7 @@ export function ArticlesManager({
                       : "—"}
                   </p>
                 </div>
-                <span className="text-[10px] text-primary/70 mt-1">
+                <span className="text-[10px] text-muted-foreground mt-1">
                   Prix devisé au client
                 </span>
               </div>
@@ -1356,8 +1357,8 @@ export function ArticlesManager({
                     </button>
                   </legend>
                   {includeOffer && (
-                    <div className="space-y-3 rounded-xl border border-border bg-secondary/20 p-3">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3 rounded-xl border border-border bg-secondary/20 p-3.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-foreground">
                             Supplier *
@@ -1365,7 +1366,7 @@ export function ArticlesManager({
                           <select
                             value={offerSupplierId}
                             onChange={(e) => setOfferSupplierId(e.target.value)}
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           >
                             {suppliers.map((s) => (
                               <option key={s.id} value={s.id}>
@@ -1384,16 +1385,16 @@ export function ArticlesManager({
                               setOfferSupplierCode(e.target.value)
                             }
                             placeholder="Supplier's own reference"
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-foreground">
                             Currency
                           </label>
-                          <div className="h-8 flex items-center px-2.5 rounded-lg border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
+                          <div className="h-9 flex items-center px-3 rounded-xl border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
                             USD ($)
                           </div>
                         </div>
@@ -1402,7 +1403,7 @@ export function ArticlesManager({
                             Supplier Price ($) *
                           </label>
                           <div className="relative mt-1">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
                               $
                             </span>
                             <input
@@ -1412,7 +1413,7 @@ export function ArticlesManager({
                               value={offerPrice}
                               onChange={(e) => setOfferPrice(e.target.value)}
                               placeholder="0.00"
-                              className="h-8 w-full rounded-lg border border-border bg-card pl-6 pr-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                              className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                             />
                           </div>
                         </div>
@@ -1424,11 +1425,11 @@ export function ArticlesManager({
                             type="date"
                             value={offerDate}
                             onChange={(e) => setOfferDate(e.target.value)}
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           />
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-foreground">
                             Valid Until
@@ -1437,7 +1438,7 @@ export function ArticlesManager({
                             type="date"
                             value={offerValidUntil}
                             onChange={(e) => setOfferValidUntil(e.target.value)}
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           />
                         </div>
                         <div>
@@ -1449,7 +1450,7 @@ export function ArticlesManager({
                             min="0"
                             value={offerLeadTime}
                             onChange={(e) => setOfferLeadTime(e.target.value)}
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           />
                         </div>
                         <div>
@@ -1462,7 +1463,7 @@ export function ArticlesManager({
                             step="0.001"
                             value={offerMinQty}
                             onChange={(e) => setOfferMinQty(e.target.value)}
-                            className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                           />
                         </div>
                       </div>
@@ -1474,7 +1475,7 @@ export function ArticlesManager({
                           value={offerNotes}
                           onChange={(e) => setOfferNotes(e.target.value)}
                           placeholder="e.g. FOB Johannesburg, subject to availability"
-                          className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                          className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
                       </div>
                     </div>
@@ -1583,7 +1584,7 @@ export function ArticlesManager({
                     required
                     value={offerSupplierId}
                     onChange={(e) => setOfferSupplierId(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   >
                     {suppliers.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -1600,7 +1601,7 @@ export function ArticlesManager({
                     value={offerSupplierCode}
                     onChange={(e) => setOfferSupplierCode(e.target.value)}
                     placeholder="Supplier ref"
-                    className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>
               </div>
@@ -1609,7 +1610,7 @@ export function ArticlesManager({
                   <label className="block text-xs font-bold text-foreground">
                     Currency
                   </label>
-                  <div className="h-8 flex items-center px-2.5 rounded-lg border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
+                  <div className="h-9 flex items-center px-3 rounded-xl border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
                     USD ($)
                   </div>
                 </div>
@@ -1618,7 +1619,7 @@ export function ArticlesManager({
                     Supplier Price ($) *
                   </label>
                   <div className="relative mt-1">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
                       $
                     </span>
                     <input
@@ -1629,7 +1630,7 @@ export function ArticlesManager({
                       value={offerPrice}
                       onChange={(e) => setOfferPrice(e.target.value)}
                       placeholder="0.00"
-                      className="h-8 w-full rounded-lg border border-border bg-card pl-6 pr-2 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                      className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                 </div>
@@ -1643,7 +1644,7 @@ export function ArticlesManager({
                     type="date"
                     value={offerDate}
                     onChange={(e) => setOfferDate(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>
                 <div>
@@ -1654,7 +1655,7 @@ export function ArticlesManager({
                     type="date"
                     value={offerValidUntil}
                     onChange={(e) => setOfferValidUntil(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>
                 <div>
@@ -1666,7 +1667,7 @@ export function ArticlesManager({
                     min="0"
                     value={offerLeadTime}
                     onChange={(e) => setOfferLeadTime(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>
               </div>
@@ -1678,7 +1679,7 @@ export function ArticlesManager({
                   value={offerNotes}
                   onChange={(e) => setOfferNotes(e.target.value)}
                   placeholder="Optional note…"
-                  className="h-8 w-full rounded-lg border border-border bg-card px-2 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2 border-t border-border">

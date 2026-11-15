@@ -66,7 +66,7 @@ export function ClientWorkspace({
       </div>
 
       {/* Client Identity Header Card */}
-      <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs">
+      <div className="rounded-2xl border border-border border-l-4 border-l-accent bg-card p-4 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
@@ -129,7 +129,7 @@ export function ClientWorkspace({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatTile
           label="Total Devis Émis"
           value={quotations.length}
@@ -144,21 +144,23 @@ export function ClientWorkspace({
         />
         <StatTile
           label="Total Facturé"
-          value={`$ ${formatUSD(totalInvoiced)}`}
+          value={` ${formatUSD(totalInvoiced)}`}
           icon={Receipt}
+          tone="primary"
           subtext={`${invoices.length} facture(s)`}
         />
         <StatTile
           label="Solde Restant Dû"
-          value={`$ ${formatUSD(totalReceivables)}`}
+          value={` ${formatUSD(totalReceivables)}`}
           icon={CreditCard}
-          trend={totalReceivables > 0 ? "down" : "neutral"}
-          subtext={`$ ${formatUSD(totalPaid)} déjà réglé`}
+          tone={totalReceivables > 0 ? "destructive" : "default"}
+          subtext={` ${formatUSD(totalPaid)} déjà réglé`}
         />
       </div>
 
-      {/* Workspace Underlined Tabs Navigation */}
-      <div className="border-b border-border bg-card rounded-t-2xl px-4 sm:px-6 pt-3 sm:pt-4 flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
+      {/* Workspace Underlined Tabs + Contents */}
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+      <div className="border-b border-border px-4 sm:px-6 pt-3 sm:pt-4 flex gap-4 sm:gap-6 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab("overview")}
@@ -228,7 +230,7 @@ export function ClientWorkspace({
       </div>
 
       {/* Tab Contents */}
-      <div className="rounded-b-2xl border border-t-0 border-border bg-card p-4 sm:p-6 shadow-2xs">
+      <div className="p-4 sm:p-6">
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div className="space-y-6">
@@ -544,13 +546,13 @@ export function ClientWorkspace({
                         <td className="py-3 px-3 font-mono font-bold text-foreground">{tx.reference}</td>
                         <td className="py-3 px-3 text-foreground">{tx.description}</td>
                         <td className="py-3 px-3 text-right font-mono text-foreground">
-                          {tx.debit > 0 ? `$ ${formatUSD(tx.debit)}` : "—"}
+                          {tx.debit > 0 ? ` ${formatUSD(tx.debit)}` : "—"}
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-success font-bold">
-                          {tx.credit > 0 ? `$ ${formatUSD(tx.credit)}` : "—"}
+                          {tx.credit > 0 ? ` ${formatUSD(tx.credit)}` : "—"}
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-black text-foreground">
-                          $ {formatUSD(tx.runningBalance)}
+                           {formatUSD(tx.runningBalance)}
                         </td>
                       </tr>
                     ))
@@ -560,6 +562,7 @@ export function ClientWorkspace({
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

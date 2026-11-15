@@ -1,7 +1,8 @@
 import { requireSession } from "@/lib/auth";
 import { getClients } from "@/lib/db/clients";
 import { ClientsManager } from "@/components/dashboard/clients-manager";
-import { Building2, ShieldCheck } from "lucide-react";
+import { PageHeader } from "@/components/dashboard/ui/page-header";
+import { Building2 } from "lucide-react";
 
 export default async function ClientsPage() {
   await requireSession(["SUPER_ADMIN", "ADMIN"]);
@@ -9,21 +10,10 @@ export default async function ClientsPage() {
 
   return (
     <div className="space-y-6 max-w-7xl">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
-        <div className="flex items-center gap-4">
-          
-          <div>
-            
-            <h1 className="text-xl sm:text-2xl font-black text-primary tracking-tight mt-0.5">
-              Clients &amp; Mining Companies
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Manage client accounts, on-site delivery addresses, contacts, and access to commercial files.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Clients & Mining Companies"
+        description="Manage client accounts, on-site delivery addresses, contacts, and access to commercial files."
+      />
 
       <ClientsManager initialClients={clients} />
     </div>

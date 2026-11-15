@@ -1,11 +1,10 @@
 // ============================================================================
-// API Route: POST /api/quotations/line-image
-// Server-side Vercel Blob upload for optional quotation line brand/product images.
+// API Route: GET & POST /api/quotations/line-image
+// In-memory blob upload/retrieval for optional quotation line brand/product images.
 // ============================================================================
 
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { getCurrentSession } from "@/lib/auth";
 import { permissions } from "@/lib/permissions";
 import { getQuotationById, checkQuotationEligibility } from "@/lib/db/quotations";
@@ -14,7 +13,8 @@ import {
   MAX_QUOTATION_IMAGE_BYTES,
   QUOTATION_IMAGE_PATH_PREFIX,
   detectImageFormatFromBytes,
-  getBlobReadWriteToken,
+  getMockBlob,
+  putMockBlob,
   type AllowedQuotationImageMimeType,
 } from "@/lib/blob";
 
@@ -28,6 +28,27 @@ function isExtensionMatchingMime(
   if (mimeType === "image/png") return ext === ".png";
   if (mimeType === "image/jpeg") return ext === ".jpg" || ext === ".jpeg";
   return false;
+}
+
+export async function GET(request: NextRequest) {
+  const pathParam = request.nextUrl.searchParams.get("path");
+  if (!pathParam || !pathParam.startsWith(QUOTATION_IMAGE_PATH_PREFIX)) {
+    return NextResponse.json({ error: "Image introuvable." }, { status: 404 });
+  }
+
+  const entry = getMockBlob(pathParam);
+  if (!entry) {
+    return NextResponse.json({ error: "Image introuvable." }, { status: 404 });
+  }
+
+  return new NextResponse(Buffer.from(entry.bytes), {
+    status: 200,
+    headers: {
+      "Content-Type": entry.contentType,
+      "Content-Length": String(entry.bytes.byteLength),
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -48,17 +69,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 3. Ensure Vercel Blob server configuration is present (never fall back to mock storage)
-  const blobToken = getBlobReadWriteToken();
-  if (!blobToken) {
-    console.error("[Blob Upload] BLOB_READ_WRITE_TOKEN manquant dans l'environnement serveur.");
-    return NextResponse.json(
-      { error: "Configuration Vercel Blob manquante." },
-      { status: 500 }
-    );
-  }
-
-  // 4. Parse multipart form data
+  // 3. Parse multipart form data
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -69,7 +80,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Verify authorized quotation workflow (if editing an existing quotation)
+  // 4. Verify authorized quotation workflow (if editing an existing quotation)
   const quotationIdRaw = formData.get("quotationId");
   if (typeof quotationIdRaw === "string" && quotationIdRaw.trim().length > 0) {
     const quotation = await getQuotationById(quotationIdRaw.trim());
@@ -88,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 6. Validate uploaded file existence
+  // 5. Validate uploaded file existence
   const fileEntry = formData.get("file");
   if (!(fileEntry instanceof File) || fileEntry.size === 0) {
     return NextResponse.json(
@@ -97,7 +108,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 7. Enforce maximum upload size (4 MB)
+  // 6. Enforce maximum upload size (4 MB)
   if (fileEntry.size > MAX_QUOTATION_IMAGE_BYTES) {
     return NextResponse.json(
       { error: "Image trop volumineuse (4 MB maximum)." },
@@ -105,7 +116,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 8. Validate declared MIME type & extension
+  // 7. Validate declared MIME type & extension
   const declaredMime = fileEntry.type as AllowedQuotationImageMimeType;
   if (!ALLOWED_QUOTATION_IMAGE_MIME_TYPES.includes(declaredMime)) {
     return NextResponse.json(
@@ -121,7 +132,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 9. Validate actual image binary signature (magic bytes)
+  // 8. Validate actual image binary signature (magic bytes)
   let bytes: Uint8Array;
   try {
     const buffer = await fileEntry.arrayBuffer();
@@ -156,35 +167,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 10. Upload to existing PUBLIC Vercel Blob store with unique pathname
+  // 9. Store in in-memory Map blob stub with unique pathname
   const extension = detectedMime === "image/png" ? "png" : "jpg";
   const pathname = `${QUOTATION_IMAGE_PATH_PREFIX}${crypto.randomUUID()}.${extension}`;
+  const blob = putMockBlob(pathname, bytes, detectedMime);
 
-  try {
-    const blob = await put(pathname, Buffer.from(bytes), {
-      access: "public",
-      addRandomSuffix: true,
-      contentType: detectedMime,
-      token: blobToken,
-    });
-
-    return NextResponse.json(
-      {
-        url: blob.url,
-        pathname: blob.pathname,
-        contentType: blob.contentType || detectedMime,
-        size: bytes.byteLength,
-      },
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error(
-      "[Blob Upload] Échec lors de l'envoi vers Vercel Blob:",
-      err instanceof Error ? err.message : "Erreur inconnue"
-    );
-    return NextResponse.json(
-      { error: "Échec du téléversement de l'image." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    {
+      url: blob.url,
+      pathname: blob.pathname,
+      contentType: blob.contentType,
+      size: bytes.byteLength,
+    },
+    { status: 200 }
+  );
 }

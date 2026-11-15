@@ -92,7 +92,7 @@ export function DetailSheet({
             <div className="flex items-start justify-between gap-3 pr-8">
               <div className="space-y-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <SheetTitle className="text-base font-bold tracking-tight text-foreground break-all">
+                  <SheetTitle className="text-base font-black tracking-tight text-primary break-all">
                     {title}
                   </SheetTitle>
                   {badge}
@@ -137,7 +137,7 @@ export function DetailSheet({
           <div className="flex items-start justify-between gap-3 pr-8">
             <div className="space-y-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <SheetTitle className="text-lg font-bold tracking-tight text-foreground break-words">
+                <SheetTitle className="text-lg font-black tracking-tight text-primary break-words">
                   {title}
                 </SheetTitle>
                 {badge}

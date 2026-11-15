@@ -134,7 +134,7 @@ export function StatementsViewer({
               className="h-9 flex-1 sm:flex-initial px-3.5 rounded-xl border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors shrink-0 flex items-center justify-center gap-1.5"
               title="Aperçu du document officiel Relevé de compte & Facture non payée (PDF)"
             >
-              <FileText className="size-3.5 text-primary" /> Aperçu PDF
+              <FileText className="size-3.5 text-primary" /> PDF
             </a>
             <a
               href={`/api/statements/${currentClientId}/pdf?disposition=attachment${currentStartDate ? `&startDate=${encodeURIComponent(currentStartDate)}` : ""}${currentEndDate ? `&endDate=${encodeURIComponent(currentEndDate)}` : ""}`}
@@ -143,13 +143,13 @@ export function StatementsViewer({
             >
               <Download className="size-3.5 text-muted-foreground" /> PDF
             </a>
-            <button
+            {/* <button
               type="button"
               onClick={handleDownloadCSV}
               className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Download className="size-3.5 text-muted-foreground" /> CSV
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={handlePrint}
@@ -171,7 +171,7 @@ export function StatementsViewer({
                 Extrait de Compte Client
               </span>
               <h2 className="text-xl font-black text-primary mt-1 flex items-center gap-2">
-                <Building2 className="size-5 text-accent" />
+                <Building2 className="size-5 text-primary" />
                 {statement.client.name}
               </h2>
               <div className="flex items-center gap-2 mt-1">
@@ -197,8 +197,8 @@ export function StatementsViewer({
             </div>
           </div>
 
-          {/* Period Summary Cards (matching Comfort Shift screenshot 4) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-secondary/30 border border-border text-xs">
+          {/* Period Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-secondary/30 border border-border text-xs">
             <div>
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Solde Initial</p>
               <p className="text-sm font-mono font-bold text-foreground mt-0.5">
@@ -218,7 +218,7 @@ export function StatementsViewer({
                 <TrendingDown className="size-3 text-success" /> Règlements Encaissés
               </p>
               <p className="text-sm font-mono font-bold text-success mt-0.5">
-                -${formatUSD(statement.totalCredits)}
+                - {formatUSD(statement.totalCredits)}
               </p>
             </div>
             <div>
@@ -232,7 +232,7 @@ export function StatementsViewer({
           </div>
 
           {/* Statement Transactions Table */}
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="overflow-hidden rounded-2xl border border-border">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs min-w-[650px]">
@@ -353,19 +353,19 @@ export function StatementsViewer({
           {/* Certified closing statement signature note */}
           <div className="pt-6 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground gap-3">
             <p className="italic">
-              Arrêté le présent relevé de compte à Lubumbashi, certifié sincère et conforme aux écritures comptables MIS SARL.
+              This account statement was prepared in Lubumbashi and is certified as accurate and in accordance with the accounting records of MIS SARL.
             </p>
             <p className="font-bold text-foreground shrink-0">
-              Direction Administrative et Financière
+              Administrative and Financial Department
             </p>
           </div>
         </div>
       ) : (
         <div className="py-20 text-center text-muted-foreground rounded-2xl border border-dashed border-border bg-card">
           <FileText className="mx-auto size-10 text-muted-foreground/40 mb-2" />
-          <p className="font-bold text-foreground">Sélectionnez un compte client</p>
+          <p className="font-bold text-foreground">Select a customer account</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Générez l&apos;extrait de compte en temps réel pour consulter la balance débiteur.
+            Generate a real-time account statement to view the outstanding balance.
           </p>
         </div>
       )}

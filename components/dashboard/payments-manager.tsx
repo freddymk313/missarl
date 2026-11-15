@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, CreditCard, X } from "lucide-react";
+import { Plus, Search, CreditCard, TrendingUp, Clock } from "lucide-react";
 import { PaymentRecord } from "@/lib/db/payments";
 import { ClientRecord } from "@/lib/db/clients";
 import { InvoiceRecord } from "@/lib/db/invoices";
@@ -10,6 +10,7 @@ import { recordPaymentAction } from "@/actions/payments";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
+import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD } from "@/lib/formatters";
 
 interface PaymentsManagerProps {
@@ -128,33 +129,33 @@ export function PaymentsManager({
   return (
     <div className="space-y-6">
       {/* Top Stat Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
-            Nombre d&apos;Encaissements
-          </p>
-          <p className="text-xl font-black text-primary mt-1">{payments.length}</p>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
-            Total Encaissé
-          </p>
-          <p className="text-xl font-black text-success font-mono mt-1">
-             {formatUSD(totalCollected)}
-          </p>
-        </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
-            Solde Non Affecté
-          </p>
-          <p className="text-xl font-black text-muted-foreground font-mono mt-1">
-             {formatUSD(totalUnallocated)}
-          </p>
-        </div>
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <StatTile
+          label="Nombre d'Encaissements"
+          value={payments.length}
+          icon={CreditCard}
+          tone="primary"
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Total Encaissé"
+          value={formatUSD(totalCollected)}
+          icon={TrendingUp}
+          tone="success"
+        /></div>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+
+        <StatTile
+          label="Solde Non Affecté"
+          value={formatUSD(totalUnallocated)}
+          icon={Clock}
+        /></div>
       </div>
 
       {/* Search and Action Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="relative flex-1 max-w-md">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -171,14 +172,14 @@ export function PaymentsManager({
 
         <button
           onClick={handleOpenModal}
-          className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
         >
           <Plus className="size-4" /> Enregistrer un Encaissement
         </button>
       </div>
 
       {/* Payments Data Table - Desktop */}
-      <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-2xs">
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
@@ -301,7 +302,7 @@ export function PaymentsManager({
                   setSelectedClientId(e.target.value);
                   setSelectedAllocations({});
                 }}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -318,7 +319,7 @@ export function PaymentsManager({
                 required
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
           </div>
@@ -334,7 +335,7 @@ export function PaymentsManager({
                 value={amount || ""}
                 onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                 placeholder="0.00"
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-black text-primary text-base focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm font-mono font-black text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
             </div>
 
@@ -343,7 +344,7 @@ export function PaymentsManager({
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               >
                 <option value="BANK_TRANSFER">Virement Bancaire (Swift)</option>
                 <option value="CHECK">Chèque Certifié</option>
@@ -364,7 +365,7 @@ export function PaymentsManager({
               placeholder="ex: RAW-DEP-2026-9901"
               value={referenceNumber}
               onChange={(e) => setReferenceNumber(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
             />
           </div>
 
@@ -415,7 +416,7 @@ export function PaymentsManager({
                           handleAllocationChange(inv.id, parseFloat(e.target.value) || 0)
                         }
                         placeholder="0.00"
-                        className="w-24 h-8 rounded-lg border border-border bg-card px-2 text-xs font-mono text-right font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                        className="w-24 h-9 rounded-xl border border-border bg-card px-2.5 text-xs font-mono text-right font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                   </div>
@@ -439,14 +440,14 @@ export function PaymentsManager({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? "Enregistrement..." : "Valider l'encaissement"}
             </button>

@@ -312,7 +312,7 @@ export default async function DashboardPage() {
             value={quoteStat.total}
             icon={FileSpreadsheet}
             href="/dashboard/quotes"
-            subtext={`${quoteStat.validated} validés · $ ${formatUSD(quoteStat.total_amount)}`}
+            subtext={`${quoteStat.validated} validés · ${formatUSD(quoteStat.total_amount)}`}
           />
         </div>
         <div className="min-w-[260px] sm:min-w-0 flex-1">
@@ -321,7 +321,7 @@ export default async function DashboardPage() {
             value={orderStat.total}
             icon={ShoppingCart}
             href="/dashboard/orders"
-            subtext={`${orderStat.active} en cours · $ ${formatUSD(orderStat.total_amount)}`}
+            subtext={`${orderStat.active} en cours · ${formatUSD(orderStat.total_amount)}`}
           />
         </div>
         <div className="min-w-[260px] sm:min-w-0 flex-1">
@@ -443,8 +443,8 @@ export default async function DashboardPage() {
                 />
               </div>
               <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>Encaissé: ${formatUSD(paymentStat.total_collected)}</span>
-                <span>Reste: ${formatUSD(invoiceStat.total_receivables)}</span>
+                <span>Encaissé: {formatUSD(paymentStat.total_collected)}</span>
+                <span>Reste: {formatUSD(invoiceStat.total_receivables)}</span>
               </div>
             </div>
 
@@ -454,7 +454,7 @@ export default async function DashboardPage() {
                   Encaissé
                 </p>
                 <p className="text-xs font-mono font-bold text-success mt-0.5">
-                  ${formatUSD(paymentStat.total_collected)}
+                  {formatUSD(paymentStat.total_collected)}
                 </p>
               </div>
               <div className="rounded-xl bg-secondary/50 p-2.5">
@@ -462,7 +462,7 @@ export default async function DashboardPage() {
                   Créances Dues
                 </p>
                 <p className="text-xs font-mono font-bold text-destructive mt-0.5">
-                  ${formatUSD(invoiceStat.total_receivables)}
+                  {formatUSD(invoiceStat.total_receivables)}
                 </p>
               </div>
             </div>
@@ -504,7 +504,7 @@ export default async function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-mono font-black text-destructive text-xs">
-                        ${formatUSD(inv.balance_due)}
+                        {formatUSD(inv.balance_due)}
                       </p>
                       <StatusBadge status={inv.status} />
                     </div>

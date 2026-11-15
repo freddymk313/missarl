@@ -13,6 +13,8 @@ import {
   Building2,
   FileText,
   Pencil,
+  Clock,
+  Receipt,
 } from "lucide-react";
 import type { QuotationRecord } from "@/lib/db/quotations";
 import { isQuotationEditable } from "@/lib/quotation-utils";
@@ -23,6 +25,7 @@ import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
+import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 
@@ -67,7 +70,8 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
   const draftCount = quotations.filter((q) => q.status === "DRAFT").length;
 
   const handleValidate = async (id: string) => {
-    if (!confirm("Are you sure you want to commercially validate this quote?")) return;
+    if (!confirm("Are you sure you want to commercially validate this quote?"))
+      return;
     const res = await updateQuotationStatusAction(id, "VALIDATED");
     if (res.success && res.quotation) {
       setQuotations((prev) =>
@@ -104,61 +108,55 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Quick Stat Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-3 sm:p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Quotes
-          </p>
-          <p className="text-xl font-black text-primary mt-1">
-            {quotations.length}
-          </p>
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Total Quotes"
+            value={quotations.length}
+            icon={FileSpreadsheet}
+          />
         </div>
-        <div className="p-3 sm:p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Drafts
-          </p>
-          <p className="text-xl font-black text-foreground mt-1">
-            {draftCount}
-          </p>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+          <StatTile label="Drafts" value={draftCount} icon={Clock} />
         </div>
-        <div className="p-3 sm:p-4 rounded-2xl border border-border bg-card shadow-xs">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Validated
-          </p>
-          <p className="text-xl font-black text-success mt-1">
-            {validatedCount}
-          </p>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Validated"
+            value={validatedCount}
+            icon={CheckCircle2}
+            tone="success"
+          />
         </div>
-        <div className="p-3 sm:p-4 rounded-2xl border border-border bg-card shadow-xs col-span-2 sm:col-span-1">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Invoiced / Quoted
-          </p>
-          <p className="text-xl font-black text-primary font-mono mt-1">
-            {formatUSD(totalAmount)}
-          </p>
+        <div className="min-w-[240px] sm:min-w-0 flex-1">
+          <StatTile
+            label="Total Invoiced / Quoted"
+            value={formatUSD(totalAmount)}
+            icon={Receipt}
+            tone="primary"
+          />
         </div>
       </div>
 
       {/* Filters & Actions Bar */}
-      <div className="flex flex-col gap-3 bg-card p-4 rounded-2xl border border-border shadow-xs">
-        {/* Search — full width */}
-        <div className="relative">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
+        {/* Search */}
+        <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by quote ref, client, RFQ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
         {/* Filters row + action */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 flex-1 min-w-[120px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 sm:flex-initial min-w-[130px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="ALL">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -170,7 +168,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
           <select
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="h-9 flex-1 min-w-[120px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 sm:flex-initial min-w-[130px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="ALL">All Types</option>
             <option value="QUOTATION">Standard Quote</option>
@@ -179,7 +177,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
 
           <Link
             href="/dashboard/quotes/new"
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0"
           >
             <Plus className="size-4" /> New Quote
           </Link>
@@ -323,7 +321,9 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
         {filtered.length === 0 ? (
           <div className="py-16 text-center rounded-2xl border border-dashed border-border bg-card">
             <FileSpreadsheet className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-            <p className="font-bold text-foreground text-sm">No quotations found</p>
+            <p className="font-bold text-foreground text-sm">
+              No quotations found
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               Create a new quotation to get started.
             </p>
@@ -503,13 +503,14 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             {selectedQuote.items && selectedQuote.items.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-black text-primary flex items-center gap-1.5">
-                  <FileText className="size-3.5 text-primary" /> Quoted Items ({selectedQuote.items.length})
+                  <FileText className="size-3.5 text-primary" /> Quoted Items (
+                  {selectedQuote.items.length})
                 </p>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {selectedQuote.items.map((it, idx) => (
                     <div
                       key={idx}
-                      className="p-2.5 rounded-lg border border-border bg-card text-xs shadow-2xs"
+                      className="p-2.5 rounded-xl border border-border bg-card text-xs shadow-xs"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
@@ -558,7 +559,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                 <button
                   type="button"
                   onClick={() => handleValidate(selectedQuote.id)}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-success text-success-foreground text-xs font-bold hover:bg-success/90 transition-colors shadow-xs cursor-pointer"
                 >
                   <CheckCircle2 className="size-4" /> Validate Quote
                 </button>
@@ -569,10 +570,12 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                     href={`/dashboard/orders?newOrderFromQuoteId=${selectedQuote.id}`}
                     className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs"
                   >
-                    <ArrowRight className="size-4" /> Convert to Purchase Order (PO)
+                    <ArrowRight className="size-4" /> Convert to Purchase Order
+                    (PO)
                   </Link>
                   <p className="text-[11px] text-muted-foreground text-center">
-                    Ce devis est validé commercialement et ne peut plus être modifié directement.
+                    Ce devis est validé commercialement et ne peut plus être
+                    modifié directement.
                   </p>
                 </div>
               )}
@@ -589,14 +592,18 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       {/* Cancellation Modal — now using ResponsiveModal */}
       <ResponsiveModal
         open={!!cancellingId}
-        onClose={() => { setCancellingId(null); setCancellationReason(""); }}
+        onClose={() => {
+          setCancellingId(null);
+          setCancellationReason("");
+        }}
         title="Cancellation Reason Required"
         variant="danger"
         maxWidthClass="max-w-md"
       >
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            In accordance with accounting rules, issued quotes cannot be deleted, but are archived with an auditable reason.
+            In accordance with accounting rules, issued quotes cannot be
+            deleted, but are archived with an auditable reason.
           </p>
           <textarea
             required
@@ -609,15 +616,18 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={() => { setCancellingId(null); setCancellationReason(""); }}
-              className="h-10 px-5 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors"
+              onClick={() => {
+                setCancellingId(null);
+                setCancellationReason("");
+              }}
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
             >
               Back
             </button>
             <button
               type="button"
               onClick={() => cancellingId && handleCancel(cancellingId)}
-              className="h-10 px-5 rounded-xl bg-destructive text-white hover:bg-destructive/90 text-xs font-bold transition-colors shadow-xs"
+              className="h-9 px-4 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs font-bold transition-colors shadow-xs cursor-pointer"
             >
               Confirm Cancellation
             </button>
