@@ -60,12 +60,32 @@ export function QuotationPdfActions({
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const safeRef = quotationRef
-        .replace(/[^a-zA-Z0-9\-_]/g, "-")
-        .replace(/-+/g, "-")
-        .toUpperCase();
+
+      // Extract filename from server Content-Disposition header if available
+      let downloadFilename = "";
+      const dispositionHeader = res.headers.get("content-disposition");
+      if (dispositionHeader) {
+        const utf8Match = dispositionHeader.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match?.[1]) {
+          downloadFilename = decodeURIComponent(utf8Match[1].trim());
+        } else {
+          const standardMatch = dispositionHeader.match(/filename="([^"]+)"/i);
+          if (standardMatch?.[1]) {
+            downloadFilename = standardMatch[1].trim();
+          }
+        }
+      }
+
+      if (!downloadFilename) {
+        const safeRef = quotationRef
+          .replace(/[^a-zA-Z0-9\-_]/g, "-")
+          .replace(/-+/g, "-")
+          .toUpperCase();
+        downloadFilename = `MIS-${safeRef}.pdf`;
+      }
+
       a.href = url;
-      a.download = `MIS-${safeRef}.pdf`;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

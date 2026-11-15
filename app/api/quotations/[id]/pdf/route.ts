@@ -98,12 +98,30 @@ export async function GET(
     );
   }
 
-  // 8. Build safe filename: MIS-REF.pdf
-  const safeRef = pdfData.reference
-    .replace(/[^a-zA-Z0-9\-_]/g, "-")
-    .replace(/-+/g, "-")
-    .toUpperCase();
-  const filename = `MIS-${safeRef}.pdf`;
+  // 8. Build safe filename: RFQ reference (with " OQ.pdf") or fallback to MIS-REF.pdf
+  const rawRfq = (pdfData.clientRfqNumber ?? pdfData.rfqNumber ?? "").trim();
+  let filename: string;
+
+  if (rawRfq) {
+    // Strip file extension if already included
+    const strippedRfq = rawRfq.replace(/\.pdf$/i, "").trim();
+
+    // Sanitize unsafe filename characters: / \ : * ? " < > | and control characters
+    const safeRfq = strippedRfq
+      .replace(/[/\\:*?"<>|\x00-\x1f\x7f]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // If the RFQ doesn't already end with "OQ" (case-insensitive), append " OQ"
+    const rfqWithOq = /oq$/i.test(safeRfq) ? safeRfq : `${safeRfq} OQ`;
+    filename = `${rfqWithOq}.pdf`;
+  } else {
+    const safeRef = pdfData.reference
+      .replace(/[^a-zA-Z0-9\-_]/g, "-")
+      .replace(/-+/g, "-")
+      .toUpperCase();
+    filename = `MIS-${safeRef}.pdf`;
+  }
 
   // 9. Disposition: inline (preview) vs attachment (download)
   const url = new URL(request.url);
@@ -117,7 +135,7 @@ export async function GET(
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${disposition}; filename="${filename}"`,
+      "Content-Disposition": `${disposition}; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
       "Content-Length": String(pdfBytes.byteLength),
       // Prevent caching — always generate fresh from DB
       "Cache-Control": "no-store, no-cache, must-revalidate",
