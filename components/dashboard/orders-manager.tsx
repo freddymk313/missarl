@@ -392,21 +392,21 @@ export function OrdersManager({
     <div className="space-y-6">
       {/* Top Stat Strip */}
       <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
         <StatTile
           label="Total Orders (PO)"
           value={orders.length}
           icon={ShoppingCart}
           tone="primary"
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Pending Deliveries"
           value={activeOrders.length}
           icon={Truck}
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Completed (Delivered)"
@@ -414,7 +414,7 @@ export function OrdersManager({
           icon={CheckCircle2}
           tone="success"
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Total Ordered Volume"
@@ -1044,7 +1044,7 @@ export function OrdersManager({
                   ) : (
                     <div className="rounded-xl border border-border overflow-hidden">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs min-w-[520px]">
+                        <table className="w-full text-left text-xs min-w-130">
                         <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
                           <tr>
                             <th className="p-2.5 w-8 text-center">✓</th>
@@ -1309,7 +1309,7 @@ export function OrdersManager({
 
                   <div className="rounded-xl border border-border overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs min-w-[500px]">
+                      <table className="w-full text-left text-xs min-w-125">
                         <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
                         <tr>
                           <th className="p-2.5 w-8 text-center">✓</th>

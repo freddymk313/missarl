@@ -244,7 +244,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                       <RefChip value={inv.invoiceNumber} />
                       {inv.normalizedInvoiceNumber && (
                         <p
-                          className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-[150px]"
+                          className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate max-w-37.5"
                           title={`Standardized: ${inv.normalizedInvoiceNumber}`}
                         >
                           {inv.normalizedInvoiceNumber}

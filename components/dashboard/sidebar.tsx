@@ -117,9 +117,9 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
       {/* Sidebar Container */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0 h-[100dvh] overflow-hidden",
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-border bg-card text-foreground transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 shrink-0 h-dvh overflow-hidden",
           // Mobile: 85vw up to 320px; Desktop: fixed 264px
-          "w-[min(85vw,320px)] lg:w-[264px]",
+          "w-[min(85vw,320px)] lg:w-66",
           mobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
         )}
       >
@@ -266,7 +266,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                   >
                     {isActive && (
                       <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.75 rounded-r-full bg-accent"
                         aria-hidden="true"
                       />
                     )}
@@ -338,7 +338,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                         >
                           {isActive && (
                             <span
-                              className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"
+                              className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.75 rounded-r-full bg-accent"
                               aria-hidden="true"
                             />
                           )}

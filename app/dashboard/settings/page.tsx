@@ -126,7 +126,7 @@ export default async function SettingsPage() {
             <p className="text-muted-foreground font-semibold mb-2">
               Applied migrations:
             </p>
-            <div className="space-y-1.5 font-mono text-[11px] max-h-[140px] overflow-y-auto pr-1">
+            <div className="space-y-1.5 font-mono text-[11px] max-h-35 overflow-y-auto pr-1">
               {appliedMigrations.map((m) => (
                 <div
                   key={m.version}
@@ -160,7 +160,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[550px]">
+          <table className="w-full text-left text-xs min-w-137.5">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
               <tr>
                 <th className="py-3 px-3">Date &amp; Time</th>

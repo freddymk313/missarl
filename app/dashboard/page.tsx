@@ -306,7 +306,7 @@ export default async function DashboardPage() {
       {/* 4 KPI StatTiles */}
       {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"> */}
       <div className="flex lg:grid lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
-        <div className="min-w-[260px] sm:min-w-0 flex-1">
+        <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
             label="Devis Émis"
             value={quoteStat.total}
@@ -315,7 +315,7 @@ export default async function DashboardPage() {
             subtext={`${quoteStat.validated} validés · ${formatUSD(quoteStat.total_amount)}`}
           />
         </div>
-        <div className="min-w-[260px] sm:min-w-0 flex-1">
+        <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
             label="Bons de Commande"
             value={orderStat.total}
@@ -324,7 +324,7 @@ export default async function DashboardPage() {
             subtext={`${orderStat.active} en cours · ${formatUSD(orderStat.total_amount)}`}
           />
         </div>
-        <div className="min-w-[260px] sm:min-w-0 flex-1">
+        <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
             label="Créances à recouvrer"
             value={` ${formatUSD(invoiceStat.total_receivables)}`}
@@ -334,7 +334,7 @@ export default async function DashboardPage() {
             subtext={`${invoiceStat.unpaid_count} facture(s) en attente`}
           />
         </div>
-        <div className="min-w-[260px] sm:min-w-0 flex-1">
+        <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
             label="Paiements Encaissés"
             value={`${formatUSD(paymentStat.total_collected)}`}
@@ -498,7 +498,7 @@ export default async function DashboardPage() {
                       <p className="font-mono font-extrabold text-primary text-[11px]">
                         {inv.invoice_number}
                       </p>
-                      <p className="text-[10px] text-muted-foreground truncate max-w-[130px]">
+                      <p className="text-[10px] text-muted-foreground truncate max-w-32.5">
                         {inv.client_name}
                       </p>
                     </div>

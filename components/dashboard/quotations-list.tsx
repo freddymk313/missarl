@@ -109,17 +109,17 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
     <div className="space-y-4 sm:space-y-6">
       {/* Quick Stat Summary Strip */}
       <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Total Quotes"
             value={quotations.length}
             icon={FileSpreadsheet}
           />
         </div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile label="Drafts" value={draftCount} icon={Clock} />
         </div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Validated"
             value={validatedCount}
@@ -127,7 +127,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             tone="success"
           />
         </div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Total Invoiced / Quoted"
             value={formatUSD(totalAmount)}
@@ -156,7 +156,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 flex-1 sm:flex-initial min-w-[130px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="ALL">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -168,7 +168,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
           <select
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="h-9 flex-1 sm:flex-initial min-w-[130px] rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           >
             <option value="ALL">All Types</option>
             <option value="QUOTATION">Standard Quote</option>
@@ -436,7 +436,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
               <p className="text-xs font-bold text-muted-foreground">Client</p>
               <h2 className="text-base font-black text-foreground mt-0.5 flex items-center gap-2">
                 <Building2 className="size-4 text-primary shrink-0" />
-                <span className="break-words">{selectedQuote.clientName}</span>
+                <span className="wrap-break-word">{selectedQuote.clientName}</span>
               </h2>
             </div>
 
@@ -514,7 +514,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0">
-                          <p className="font-bold text-foreground break-words">
+                          <p className="font-bold text-foreground wrap-break-word">
                             {it.description}
                           </p>
                           <p className="text-[10px] text-muted-foreground">

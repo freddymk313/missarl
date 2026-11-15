@@ -130,14 +130,14 @@ export function PaymentsManager({
     <div className="space-y-6">
       {/* Top Stat Strip */}
       <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
         <StatTile
           label="Nombre d'Encaissements"
           value={payments.length}
           icon={CreditCard}
           tone="primary"
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Total Encaissé"
@@ -145,7 +145,7 @@ export function PaymentsManager({
           icon={TrendingUp}
           tone="success"
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Solde Non Affecté"

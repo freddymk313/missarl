@@ -547,27 +547,27 @@ export function ArticlesManager({
     <div className="space-y-6">
       {/* KPI Strip */}
       <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
         <StatTile
           label="Total Items"
           value={currentStats.totalItems}
           icon={Package}
           tone="primary"
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
         <StatTile
           label="Categories Used"
           value={currentStats.categoriesUsed}
           icon={Layers}
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Suppliers Referenced"
           value={currentStats.suppliersReferenced}
           icon={Truck}
         /></div>
-        <div className="min-w-[240px] sm:min-w-0 flex-1">
+        <div className="min-w-60 sm:min-w-0 flex-1">
 
         <StatTile
           label="Items Without Offer"
@@ -591,7 +591,7 @@ export function ArticlesManager({
       {/* Search & Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 min-w-50">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"

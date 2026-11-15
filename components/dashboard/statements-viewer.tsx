@@ -81,7 +81,7 @@ export function StatementsViewer({
         onSubmit={handleFilter}
         className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 print:hidden"
       >
-        <div className="w-full sm:flex-1 sm:min-w-[220px]">
+        <div className="w-full sm:flex-1 sm:min-w-55">
           <label className="block text-xs font-bold text-foreground">Sélectionner un client *</label>
           <select
             value={currentClientId}
@@ -235,7 +235,7 @@ export function StatementsViewer({
           <div className="overflow-hidden rounded-2xl border border-border">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[650px]">
+              <table className="w-full text-left text-xs min-w-162.5">
                 <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="py-3 px-3">Date</th>
