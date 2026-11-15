@@ -66,7 +66,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
   const roleMeta = ROLES[user.role] || { label: user.role, description: "" };
 
   return (
-    <header className="sticky top-0 z-30 flex h-19.25 w-full items-center justify-between border-b border-border bg-card/90 px-3 sm:px-6 backdrop-blur-md">
+    <header className="shrink-0 sticky top-0 z-30 flex h-19.25 w-full items-center justify-between border-b border-border bg-card/90 px-3 sm:px-6 backdrop-blur-md">
       {/* Left: Mobile hamburger + Page Title */}
       <div className="flex items-center gap-3 min-w-0">
         <button

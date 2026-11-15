@@ -38,7 +38,7 @@ export function PageHeader({
     <div
       className={cn(
         "bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-xs border-l-4 border-l-accent",
-        className
+        className,
       )}
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -100,7 +100,7 @@ export function PageHeader({
                   "relative pb-2.5 transition-colors whitespace-nowrap outline-none cursor-pointer",
                   isActive
                     ? "text-primary font-black after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {tab.label}
@@ -108,7 +108,9 @@ export function PageHeader({
                   <span
                     className={cn(
                       "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
-                      isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground",
                     )}
                   >
                     {tab.count}
@@ -122,4 +124,3 @@ export function PageHeader({
     </div>
   );
 }
-

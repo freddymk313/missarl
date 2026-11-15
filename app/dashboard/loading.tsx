@@ -2,7 +2,7 @@ export default function DashboardLoading() {
   return (
     <div className="space-y-6 max-w-7xl animate-pulse">
       {/* Header skeleton */}
-      <div className="h-28 rounded-2xl bg-card border border-border p-6 flex items-center justify-between">
+      <div className="rounded-2xl bg-card border border-border p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-2">
           <div className="h-3 w-32 rounded-md bg-secondary" />
           <div className="h-6 w-56 rounded-md bg-secondary" />
@@ -13,10 +13,13 @@ export default function DashboardLoading() {
         </div>
       </div>
 
-      {/* 4 KPI tiles skeleton */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 4 KPI tiles skeleton (Scrollable horizontal sur mobile, Grille sur sm/lg) */}
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 rounded-2xl bg-card border border-border p-5 space-y-3">
+          <div
+            key={i}
+            className="min-w-60 sm:min-w-0 flex-1 h-32 rounded-2xl bg-card border border-border p-5 space-y-3 shrink-0"
+          >
             <div className="flex justify-between items-center">
               <div className="h-3 w-20 rounded bg-secondary" />
               <div className="size-8 rounded-lg bg-secondary" />

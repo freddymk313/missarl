@@ -120,12 +120,12 @@ export function QuotationPdfActions({
           onClick={handlePreview}
           disabled={loading !== null}
           className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50"
-          title="PDF Preview"
+          title="PDF Print"
         >
           {loading === "preview" ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <Eye className="size-3.5" />
+            <Printer className="size-3.5" />
           )}
         </button>
         <button
@@ -154,7 +154,7 @@ export function QuotationPdfActions({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-row gap-2">
         {/* Preview */}
         <button
           type="button"
@@ -186,7 +186,7 @@ export function QuotationPdfActions({
         </button>
 
         {/* Print */}
-        <button
+        {/* <button
           type="button"
           onClick={handlePrint}
           disabled={loading !== null}
@@ -198,7 +198,7 @@ export function QuotationPdfActions({
             <Printer className="size-4" />
           )}
           Print
-        </button>
+        </button> */}
       </div>
     </div>
   );

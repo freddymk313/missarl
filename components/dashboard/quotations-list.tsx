@@ -423,6 +423,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       <DetailSheet
         isOpen={!!selectedQuote}
         onClose={() => setSelectedQuote(null)}
+        size="xl"
         title={selectedQuote?.internalReference || "Quotation Details"}
         statusBadge={
           selectedQuote ? (
@@ -550,7 +551,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
               {isQuotationEditable(selectedQuote.status) && (
                 <Link
                   href={`/dashboard/quotes/${selectedQuote.id}/edit`}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-bold hover:bg-primary/10 transition-colors shadow-xs"
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-accent/30 bg-gold/5 text-accent text-xs font-bold hover:bg-accent/10 transition-colors shadow-xs"
                 >
                   <Pencil className="size-4" /> Edit Quotation
                 </Link>

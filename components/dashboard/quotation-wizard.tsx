@@ -1477,8 +1477,8 @@ export function QuotationWizard({
         </div>
 
         {/* Right Column (4 cols): Sticky Financial Recap */}
-        <div className="lg:col-span-4">
-          <div className="sticky top-20 rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
+        <div className="lg:col-span-4 lg:sticky lg:top-4 self-start">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5 max-h-[calc(100dvh-5rem)] overflow-y-auto">
             <h3 className="text-sm font-black text-primary flex items-center gap-2 pb-3 border-b border-border">
               <span className="flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
                 3
@@ -1597,7 +1597,7 @@ export function QuotationWizard({
       </div>
 
       {/* Mobile Sticky Quick Summary & Submit */}
-      <div className="lg:hidden sticky bottom-0 -mx-3 -mb-3 sm:-mx-5 sm:-mb-5 p-3.5 bg-card/95 backdrop-blur-md border-t border-border z-20 flex items-center justify-between gap-3 shadow-lg pb-safe">
+      <div className="lg:hidden sticky bottom-2 rounded-2xl border border-border bg-card/95 backdrop-blur-md p-3.5 z-20 flex items-center justify-between gap-3 shadow-lg">
         <div>
           <span className="text-[10px] text-muted-foreground uppercase font-bold block leading-none">
             Total incl. tax
