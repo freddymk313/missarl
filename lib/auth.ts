@@ -4,7 +4,7 @@
 // ============================================================================
 
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
 import { UserRole, UserSession } from "@/lib/permissions";
@@ -60,11 +60,15 @@ export async function createSession(
     UPDATE users SET last_login_at = NOW() WHERE id = ${userId}
   `;
 
+  const headerStore = await headers();
+  const forwardedProto = headerStore.get("x-forwarded-proto");
+  const isHttps = forwardedProto === "https" || process.env.NODE_ENV === "production";
+
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, rawToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: isHttps,
+    sameSite: isHttps ? "none" : "lax",
     path: "/",
     expires: expiresAt,
   });

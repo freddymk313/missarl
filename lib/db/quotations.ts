@@ -240,7 +240,8 @@ export async function createQuotation(data: {
   let subtotal = 0;
   const preparedLines = data.items.map((item, index) => {
     const qty = Math.max(0.01, item.quantity);
-    let price = Math.max(0, item.unitPrice);
+    const parsedUnitPrice = Number(item.unitPrice);
+    const price = Number.isFinite(parsedUnitPrice) ? Math.max(0, parsedUnitPrice) : 0;
     const disc = Math.min(100, Math.max(0, item.discountPercent || 0));
 
     // Effective commission: item override if provided, else quotation default
@@ -265,11 +266,6 @@ export async function createQuotation(data: {
     if (commissionAmount === null && baseCostUsd !== null) {
       commissionAmount =
         Math.round(baseCostUsd * (effectiveCommissionPercent / 100) * 10000) / 10000;
-    }
-
-    // If unitPrice was not explicitly provided (> 0) and we have baseCost, derive unit price
-    if (price === 0 && baseCostUsd !== null) {
-      price = Math.round((baseCostUsd + (commissionAmount ?? 0)) * 100) / 100;
     }
 
     const lineTotal = Math.round(qty * price * (1 - disc / 100) * 100) / 100;
@@ -661,7 +657,8 @@ export async function updateQuotation(data: {
   let subtotal = 0;
   const preparedLines = data.items.map((item, index) => {
     const qty = Math.max(0.01, item.quantity);
-    let price = Math.max(0, item.unitPrice);
+    const parsedUnitPrice = Number(item.unitPrice);
+    const price = Number.isFinite(parsedUnitPrice) ? Math.max(0, parsedUnitPrice) : 0;
     const disc = Math.min(100, Math.max(0, item.discountPercent || 0));
 
     const effectiveCommissionPercent =
@@ -683,10 +680,6 @@ export async function updateQuotation(data: {
     if (commissionAmount === null && baseCostUsd !== null) {
       commissionAmount =
         Math.round(baseCostUsd * (effectiveCommissionPercent / 100) * 10000) / 10000;
-    }
-
-    if (price === 0 && baseCostUsd !== null) {
-      price = Math.round((baseCostUsd + (commissionAmount ?? 0)) * 100) / 100;
     }
 
     const lineTotal = Math.round(qty * price * (1 - disc / 100) * 100) / 100;

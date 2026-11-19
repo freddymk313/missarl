@@ -483,6 +483,13 @@ export async function executeMockSql(
     return [{ total: activeItems.length, categories: catCount || 1 }];
   }
 
+  if (lowerQ.includes("from items") && lowerQ.includes("where id = any(")) {
+    const ids = Array.isArray(values[0]) ? (values[0] as string[]) : [];
+    return mockDb.items
+      .filter((item) => ids.includes(item.id))
+      .map((item) => ({ id: item.id }));
+  }
+
   if (lowerQ.includes("from items") && lowerQ.includes("where id =")) {
     const id = values[0] as string;
     const it = mockDb.items.find((item) => item.id === id);

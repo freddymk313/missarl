@@ -6,6 +6,8 @@ import {
   Plus,
   Trash2,
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
   CheckCircle2,
   Search,
   X,
@@ -478,6 +480,20 @@ export function QuotationWizard({
     }
   };
 
+  const moveLine = (index: number, direction: "up" | "down") => {
+    setLines((prev) => {
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
+      return next;
+    });
+  };
+
   const updateLine = <K extends keyof LineItemDraft>(
     index: number,
     field: K,
@@ -808,7 +824,7 @@ export function QuotationWizard({
   // ── Success State ─────────────────────────────────────────────────────────
   if (savedQuotation) {
     return (
-      <div className="rounded-2xl border border-success/30 bg-success/5 p-8 space-y-6 max-w-lg mx-auto text-center">
+      <div className="*rounded-2xl *border *border-success/30 *bg-success/5 p-8 space-y-6 max-w-lg mx-auto text-center">
         <div className="flex flex-col items-center gap-3">
           <div className="size-14 rounded-full bg-success/15 flex items-center justify-center">
             <CheckCircle2 className="size-7 text-success" />
@@ -1114,19 +1130,51 @@ export function QuotationWizard({
                     key={line._key}
                     className="p-4 rounded-xl border border-border bg-secondary/20 space-y-3"
                   >
-                    <div className="flex items-center justify-between text-xs font-bold text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2 text-xs font-bold text-muted-foreground">
                       <span className="text-primary font-black">
                         Line #{index + 1}
                       </span>
-                      {lines.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeLine(index)}
-                          className="text-destructive hover:text-destructive/80 flex items-center gap-1 text-[11px] cursor-pointer"
-                        >
-                          <Trash2 className="size-3.5" /> Remove
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveLine(index, "up")}
+                            disabled={index === 0}
+                            aria-label={`Move Line #${index + 1} up`}
+                            title={
+                              index === 0
+                                ? "First line cannot move up"
+                                : "Move line up"
+                            }
+                            className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary hover:text-primary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-foreground"
+                          >
+                            <ArrowUp className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveLine(index, "down")}
+                            disabled={index === lines.length - 1}
+                            aria-label={`Move Line #${index + 1} down`}
+                            title={
+                              index === lines.length - 1
+                                ? "Last line cannot move down"
+                                : "Move line down"
+                            }
+                            className="inline-flex size-7 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary hover:text-primary transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:text-foreground"
+                          >
+                            <ArrowDown className="size-3.5" />
+                          </button>
+                        </div>
+                        {lines.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLine(index)}
+                            className="text-destructive hover:text-destructive/80 flex items-center gap-1 text-[11px] ml-1 cursor-pointer"
+                          >
+                            <Trash2 className="size-3.5" /> Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-12">
