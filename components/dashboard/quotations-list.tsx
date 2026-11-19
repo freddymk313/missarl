@@ -15,6 +15,7 @@ import {
   Pencil,
   Clock,
   Receipt,
+  Sparkles,
 } from "lucide-react";
 import type { QuotationRecord } from "@/lib/db/quotations";
 import { isQuotationEditable } from "@/lib/quotation-utils";
@@ -174,6 +175,13 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             <option value="QUOTATION">Standard Quote</option>
             <option value="PROFORMA">Proforma</option>
           </select>
+
+          <Link
+            href="/dashboard/quotes/import"
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-primary/25 bg-accent/15 text-primary text-xs font-bold hover:bg-accent/25 transition-colors shadow-xs shrink-0"
+          >
+            <Sparkles className="size-3.5 text-accent" /> Importer une RFQ avec Gemini
+          </Link>
 
           <Link
             href="/dashboard/quotes/new"

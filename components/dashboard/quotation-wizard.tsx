@@ -24,6 +24,7 @@ import { createQuotationAction, updateQuotationAction } from "@/actions/quotatio
 import { formatUSD } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
+import type { QuotationDraftLineInput } from "@/lib/rfq-import-types";
 
 interface QuotationWizardProps {
   clients: ClientRecord[];
@@ -33,6 +34,11 @@ interface QuotationWizardProps {
   mode?: "create" | "edit";
   initialQuotation?: QuotationRecord;
   initialLines?: QuotationLineItem[];
+  // Optional prefill from RFQ Import Assistant (create mode)
+  initialDraftLines?: QuotationDraftLineInput[];
+  initialRfqNumber?: string;
+  onBack?: () => void;
+  backLabel?: string;
 }
 
 interface LineItemDraft {
@@ -288,6 +294,10 @@ export function QuotationWizard({
   mode = "create",
   initialQuotation,
   initialLines,
+  initialDraftLines,
+  initialRfqNumber,
+  onBack,
+  backLabel,
 }: QuotationWizardProps) {
   const router = useRouter();
   const isEdit = mode === "edit" && !!initialQuotation;
@@ -329,6 +339,9 @@ export function QuotationWizard({
         .replace(/^RFQ-[A-Z0-9]+-/i, "")
         .replace(/\s*OQ$/i, "");
       return stripped;
+    }
+    if (!isEdit && initialRfqNumber) {
+      return initialRfqNumber.trim();
     }
     return "";
   });
@@ -395,7 +408,7 @@ export function QuotationWizard({
     isEdit: boolean;
   } | null>(null);
 
-  // Build initial line items from initialLines (edit mode) or a blank row (create mode)
+  // Build initial line items from initialLines (edit mode), initialDraftLines (RFQ import), or a blank row
   const [lines, setLines] = useState<LineItemDraft[]>(() => {
     if (isEdit && initialLines && initialLines.length > 0) {
       return initialLines.map((il, idx) => ({
@@ -419,6 +432,21 @@ export function QuotationWizard({
         _exchangeRateSnapshot: il.exchangeRateSnapshot ?? null,
         _baseCostUsdSnapshot: il.baseCostUsdSnapshot ?? null,
         _supplierOfferId: il.supplierOfferId ?? null,
+      }));
+    }
+    if (!isEdit && initialDraftLines && initialDraftLines.length > 0) {
+      return initialDraftLines.map((dl, idx) => ({
+        _key: `rfq-draft-${idx}-${createDraftKey()}`,
+        itemId: dl.itemId,
+        brand: dl.brand ?? "",
+        brandImageUrl: dl.brandImageUrl ?? null,
+        description: dl.description,
+        unit: dl.unit,
+        quantity: dl.quantity,
+        unitPrice: dl.unitPrice ?? 0,
+        supplyPrice: dl.supplyPrice ?? 0,
+        discountPercent: dl.discountPercent ?? 0,
+        commissionPercent: dl.commissionPercent ?? null,
       }));
     }
     return [
@@ -870,12 +898,22 @@ export function QuotationWizard({
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Top Bar with back link and submit action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border">
-        <Link
-          href="/dashboard/quotes"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="size-3.5" /> Back to Quotes List
-        </Link>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="size-3.5" /> {backLabel || "Retour à la révision RFQ"}
+          </button>
+        ) : (
+          <Link
+            href="/dashboard/quotes"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="size-3.5" /> Back to Quotes List
+          </Link>
+        )}
         {isEdit && initialQuotation && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground font-semibold">Editing Reference:</span>

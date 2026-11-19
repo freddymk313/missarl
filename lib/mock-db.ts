@@ -98,11 +98,12 @@ export interface MockItem {
   id: string;
   sku: string;
   designation: string;
-  category_id: string;
+  description?: string;
+  category_id: string | null;
   brand_id: string | null;
   mpn: string | null;
   mpn_normalized: string | null;
-  unit_code: string;
+  unit_code: string | null;
   specs: Record<string, unknown> | null;
   notes: string | null;
   is_active: boolean;

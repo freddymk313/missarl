@@ -3,6 +3,7 @@
 // Dispatches queries to in-memory MockDatabase when real DB is offline/unconfigured.
 // ============================================================================
 
+import crypto from "crypto";
 import {
   mockDb,
   MockClient,
@@ -483,6 +484,93 @@ export async function executeMockSql(
     return [{ total: activeItems.length, categories: catCount || 1 }];
   }
 
+  if (lowerQ.startsWith("insert into items")) {
+    const hasQuotedPrice = lowerQ.includes("quoted_price");
+    const unit = (values[0] as string) || "EA";
+    const unitCode = (values[1] as string | null) ?? unit;
+    const designation = String(values[2] || "").trim();
+    const description = String(values[3] || "").trim();
+    const categoryId = (values[4] as string | null) ?? null;
+    const brandId = (values[5] as string | null) ?? null;
+    const mpn = (values[6] as string | null) ?? null;
+    const mpnNormalized = (values[7] as string | null) ?? null;
+    const specsRaw = hasQuotedPrice ? values[11] : values[9];
+    const isActiveRaw = hasQuotedPrice ? values[12] : values[10];
+
+    let specsObj: Record<string, unknown> = {};
+    if (typeof specsRaw === "string") {
+      try {
+        specsObj = JSON.parse(specsRaw) as Record<string, unknown>;
+      } catch {
+        specsObj = {};
+      }
+    } else if (specsRaw && typeof specsRaw === "object") {
+      specsObj = specsRaw as Record<string, unknown>;
+    }
+
+    const seqNum = mockDb.items.length + 1;
+    const id = crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${seqNum}`;
+    const sku = `MIS-${String(seqNum).padStart(6, "0")}`;
+    const now = new Date().toISOString();
+    const cat = categoryId ? mockDb.categories.find((c) => c.id === categoryId) : undefined;
+    const brand = brandId ? mockDb.brands.find((b) => b.id === brandId) : undefined;
+    const unitRec = unitCode ? mockDb.units.find((u) => u.code === unitCode) : undefined;
+
+    mockDb.items.push({
+      id,
+      sku,
+      designation,
+      description,
+      category_id: categoryId,
+      brand_id: brandId,
+      mpn,
+      mpn_normalized: mpnNormalized,
+      unit_code: unitCode,
+      specs: specsObj,
+      notes: null,
+      is_active: isActiveRaw !== false,
+      created_at: now,
+      updated_at: now,
+      category_code: cat?.code,
+      category_name: cat?.name_fr,
+      brand_name: brand?.name ?? null,
+      unit_label: unitRec?.label_fr,
+    });
+
+    return [
+      {
+        id,
+        skuRef: sku,
+        designation,
+        description,
+        categoryId,
+        brandId,
+        manufacturerPartNumber: mpn,
+        mpnNormalized,
+        unitCode,
+        supplyPrice: null,
+        quotedPrice: null,
+        vatIncluded: false,
+        specs: specsObj,
+        isActive: isActiveRaw !== false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+
+  if (lowerQ.includes("from items") && lowerQ.includes("where is_active = true")) {
+    return mockDb.items
+      .filter((it) => it.is_active)
+      .map((it) => ({
+        id: it.id,
+        skuRef: it.sku,
+        designation: it.designation,
+        description: it.description ?? it.designation,
+        unitCode: it.unit_code,
+      }));
+  }
+
   if (lowerQ.includes("from items") && lowerQ.includes("where id = any(")) {
     const ids = Array.isArray(values[0]) ? (values[0] as string[]) : [];
     return mockDb.items
@@ -498,23 +586,26 @@ export async function executeMockSql(
       {
         id: it.id,
         sku: it.sku,
+        skuRef: it.sku,
         designation: it.designation,
+        description: it.description ?? it.designation,
         categoryId: it.category_id,
-        categoryCode: it.category_code || "ELECTROMECH",
-        categoryName: it.category_name || "Électromécanique",
+        categoryCode: it.category_code || null,
+        categoryName: it.category_name || null,
         brandId: it.brand_id,
-        brandName: it.brand_name || "IFM Electronic",
+        brandName: it.brand_name || null,
+        manufacturerPartNumber: it.mpn,
         mpn: it.mpn,
         unitCode: it.unit_code,
-        unitLabel: it.unit_label || "Pièce",
-        specs: it.specs,
+        unitLabel: it.unit_label || it.unit_code || "Pièce",
+        specs: it.specs ?? {},
         notes: it.notes,
         isActive: it.is_active,
         createdAt: it.created_at,
         updatedAt: it.updated_at,
-        bestOfferPrice: 150.0,
+        bestOfferPrice: null,
         bestOfferCurrency: "USD",
-        bestOfferSupplierName: "IFM Electronic SA",
+        bestOfferSupplierName: null,
       },
     ];
   }
@@ -526,6 +617,7 @@ export async function executeMockSql(
       list = list.filter(
         (it) =>
           it.designation.toLowerCase().includes(search) ||
+          (it.description && it.description.toLowerCase().includes(search)) ||
           it.sku.toLowerCase().includes(search) ||
           (it.mpn && it.mpn.toLowerCase().includes(search))
       );
@@ -533,23 +625,26 @@ export async function executeMockSql(
     return list.map((it) => ({
       id: it.id,
       sku: it.sku,
+      skuRef: it.sku,
       designation: it.designation,
+      description: it.description ?? it.designation,
       categoryId: it.category_id,
-      categoryCode: it.category_code || "ELECTROMECH",
-      categoryName: it.category_name || "Électromécanique",
+      categoryCode: it.category_code || null,
+      categoryName: it.category_name || null,
       brandId: it.brand_id,
-      brandName: it.brand_name || "IFM Electronic",
+      brandName: it.brand_name || null,
+      manufacturerPartNumber: it.mpn,
       mpn: it.mpn,
       unitCode: it.unit_code,
-      unitLabel: it.unit_label || "Pièce",
-      specs: it.specs,
+      unitLabel: it.unit_label || it.unit_code || "Pièce",
+      specs: it.specs ?? {},
       notes: it.notes,
       isActive: it.is_active,
       createdAt: it.created_at,
       updatedAt: it.updated_at,
-      bestOfferPrice: 150.0,
+      bestOfferPrice: null,
       bestOfferCurrency: "USD",
-      bestOfferSupplierName: "IFM Electronic SA",
+      bestOfferSupplierName: null,
     }));
   }
 
