@@ -9,6 +9,7 @@ import {
   updateQuotationStatus,
   getQuotationById,
 } from "@/lib/db/quotations";
+import { peekNextQuotationReference } from "@/lib/db/clients";
 
 const MAX_BRAND_LENGTH = 100;
 
@@ -209,5 +210,23 @@ export async function getQuotationItemsAction(quotationId: string) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur de chargement des articles du devis.";
     return { success: false, error: message };
+  }
+}
+
+/**
+ * Returns the next suggested quotation reference for a given client WITHOUT
+ * consuming or reserving the sequence number. Safe to call when opening the form.
+ */
+export async function getNextQuotationReferenceAction(clientId: string) {
+  await requireSession(["SUPER_ADMIN", "ADMIN"]);
+  if (!clientId) {
+    return { success: false as const, error: "Client ID requis." };
+  }
+  try {
+    const result = await peekNextQuotationReference(clientId);
+    return { success: true as const, ...result };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Erreur lors du calcul de la référence.";
+    return { success: false as const, error: message };
   }
 }

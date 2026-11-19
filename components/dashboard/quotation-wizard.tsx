@@ -20,7 +20,7 @@ import {
 import Link from "next/link";
 import { ClientRecord } from "@/lib/db/clients";
 import { ItemRecord } from "@/lib/db/items";
-import { createQuotationAction, updateQuotationAction } from "@/actions/quotations";
+import { createQuotationAction, updateQuotationAction, getNextQuotationReferenceAction } from "@/actions/quotations";
 import { formatUSD } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
@@ -80,7 +80,7 @@ function isAllowedImageFile(file: File): boolean {
   return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
 }
 
-// ── Helpers for Client Tag & Reference Number ────────────────────────────────
+// ── Helpers for Client Tag ────────────────────────────────────────────────────
 
 function getClientTag(client?: ClientRecord): string {
   if (!client) return "CLIENT";
@@ -94,29 +94,6 @@ function getClientTag(client?: ClientRecord): string {
   return client.code
     ? client.code.replace(/[^A-Za-z0-9]/g, "")
     : (client.name.split(" ")[0] || "CLIENT").toUpperCase();
-}
-
-function getInitialSequence(clientTag: string): number {
-  if (typeof window !== "undefined") {
-    try {
-      const saved = localStorage.getItem(`mis_quote_seq_${clientTag}`);
-      if (saved) {
-        const parsed = parseInt(saved, 10);
-        if (!isNaN(parsed)) return parsed;
-      }
-    } catch {
-      // Ignore localStorage read errors
-    }
-  }
-  if (clientTag === "KICO") return 88;
-  if (clientTag === "CHEMAF") return 24;
-  if (clientTag === "KAMOA") return 114;
-  return 1;
-}
-
-function formatRefNumber(seq: number): string {
-  const padded = String(seq).padStart(4, "0");
-  return `${padded}/026/MIS`;
 }
 
 // ── Searchable Combobox for Pre-registered Catalog Items ─────────────────────
@@ -319,16 +296,28 @@ export function QuotationWizard({
     [selectedClient],
   );
 
-  // Reference Number REF N° — locked in edit mode, editable in create mode
+  // Reference Number REF N° — locked in edit mode, fetched from server in create mode
   const [internalRef, setInternalRef] = useState<string>(() => {
     if (isEdit && initialQuotation) {
       return initialQuotation.internalReference;
     }
-    const tag = getClientTag(
-      clients.find((c) => c.id === (preselectedClientId || clients[0]?.id)),
-    );
-    return formatRefNumber(getInitialSequence(tag));
+    return "";
   });
+  const [isFetchingRef, setIsFetchingRef] = useState(false);
+
+  // On mount (create mode): fetch the next suggested reference from the server
+  useEffect(() => {
+    if (!isEdit && clientId) {
+      setIsFetchingRef(true);
+      getNextQuotationReferenceAction(clientId).then((res) => {
+        if (res.success && res.reference) {
+          setInternalRef(res.reference);
+        }
+        setIsFetchingRef(false);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Client RFQ Number — in edit mode, extract just the numeric part
   const [rfqNumber, setRfqNumber] = useState<string>(() => {
@@ -354,14 +343,17 @@ export function QuotationWizard({
     return `RFQ-${clientTag}-${trimmed} OQ`;
   }, [rfqNumber, clientTag]);
 
-  // Handle client selection change: update REF N° and RFQ tag (create mode only)
+  // Handle client selection change: update REF N° from server (create mode only)
   const handleClientChange = (newClientId: string) => {
     setClientId(newClientId);
-    if (!isEdit) {
-      const newClient = clients.find((c) => c.id === newClientId);
-      const newTag = getClientTag(newClient);
-      const seq = getInitialSequence(newTag);
-      setInternalRef(formatRefNumber(seq));
+    if (!isEdit && newClientId) {
+      setIsFetchingRef(true);
+      getNextQuotationReferenceAction(newClientId).then((res) => {
+        if (res.success && res.reference) {
+          setInternalRef(res.reference);
+        }
+        setIsFetchingRef(false);
+      });
     }
   };
 
@@ -813,22 +805,6 @@ export function QuotationWizard({
           setIsSubmitting(false);
           scrollToTop();
         } else if (res.quotation) {
-          // Auto-increment and remember the next sequence in localStorage
-          try {
-            const match = internalRef.match(/^(\d+)/);
-            if (match) {
-              const currentSeq = parseInt(match[1], 10);
-              if (!isNaN(currentSeq)) {
-                localStorage.setItem(
-                  `mis_quote_seq_${clientTag}`,
-                  String(currentSeq + 1),
-                );
-              }
-            }
-          } catch {
-            // Ignore localStorage write failures
-          }
-
           // Show success state with PDF actions before redirecting
           setSavedQuotation({
             id: res.quotation.id,
@@ -975,7 +951,7 @@ export function QuotationWizard({
                   </label>
                   {!isEdit && (
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      +1 auto
+                      {isFetchingRef ? "chargement…" : "+1 auto"}
                     </span>
                   )}
                 </div>
@@ -983,12 +959,12 @@ export function QuotationWizard({
                   type="text"
                   required
                   readOnly={isEdit}
-                  disabled={isEdit}
+                  disabled={isEdit || isFetchingRef}
                   value={internalRef}
                   onChange={(e) => setInternalRef(e.target.value)}
                   placeholder="0088/026/MIS"
                   className={`h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-black text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 ${
-                    isEdit ? "opacity-75 cursor-not-allowed bg-secondary/50" : ""
+                    isEdit || isFetchingRef ? "opacity-75 cursor-not-allowed bg-secondary/50" : ""
                   }`}
                 />
               </div>

@@ -183,11 +183,12 @@ export async function deleteClient(id: string): Promise<boolean> {
 
 /**
  * Concurrency-safe atomic generation of per-client quotation internal reference.
- * Prevents race conditions and duplicate sequences. Never reuses sequence numbers.
+ * Format: NNNN/YYY/MIS (e.g. 0090/026/MIS for sequence 90 in year 2026).
+ * Reconciles the counter with GREATEST(db_counter, max sequence_number, max parsed reference).
+ * Never reuses sequence numbers, never decreases the counter.
  */
 export async function getNextQuotationReference(
-  clientId: string,
-  docType: "QUOTATION" | "PROFORMA"
+  clientId: string
 ): Promise<{ reference: string; sequenceNumber: number; year: number }> {
   const client = await getClientById(clientId);
   if (!client) {
@@ -195,24 +196,80 @@ export async function getNextQuotationReference(
   }
 
   const currentYear = new Date().getFullYear();
+  const yearCode = String(currentYear % 1000).padStart(3, "0");
 
+  // Atomic UPSERT: advance counter to GREATEST(db_counter, max_seq_in_quotations, max_parsed_ref) + 1
   const seqRows = await sql`
+    WITH current_max AS (
+      SELECT GREATEST(
+        COALESCE((SELECT last_sequence FROM client_quotation_sequences WHERE client_id = ${clientId} AND year = ${currentYear}), 0),
+        COALESCE((SELECT MAX(sequence_number) FROM quotations WHERE client_id = ${clientId} AND year = ${currentYear}), 0),
+        COALESCE((SELECT MAX(
+          CASE
+            WHEN internal_reference ~ '^[0-9]{1,6}/'
+            THEN CAST(SPLIT_PART(internal_reference, '/', 1) AS INTEGER)
+            ELSE 0
+          END
+        ) FROM quotations WHERE client_id = ${clientId} AND year = ${currentYear}), 0)
+      ) AS max_seq
+    )
     INSERT INTO client_quotation_sequences (client_id, year, last_sequence)
-    VALUES (${clientId}, ${currentYear}, 1)
+    VALUES (${clientId}, ${currentYear}, (SELECT max_seq + 1 FROM current_max))
     ON CONFLICT (client_id, year)
-    DO UPDATE SET 
-      last_sequence = client_quotation_sequences.last_sequence + 1,
+    DO UPDATE SET
+      last_sequence = GREATEST(
+        client_quotation_sequences.last_sequence + 1,
+        (SELECT max_seq + 1 FROM current_max)
+      ),
       updated_at = NOW()
-    RETURNING last_sequence as "lastSequence";
+    RETURNING last_sequence AS "lastSequence"
   `;
 
   const seqNum = Number(seqRows[0].lastSequence);
-  const paddedSeq = String(seqNum).padStart(3, "0");
-  const prefix = docType === "PROFORMA" ? "PRO" : "DEV";
-  const reference = `MIS/${prefix}/${client.code}/${currentYear}/${paddedSeq}`;
+  const paddedSeq = String(seqNum).padStart(4, "0");
+  const reference = `${paddedSeq}/${yearCode}/MIS`;
 
   return {
     reference,
+    sequenceNumber: seqNum,
+    year: currentYear,
+  };
+}
+
+/**
+ * Peek at the next expected quotation reference WITHOUT consuming/incrementing the counter.
+ * Safe to call when displaying the form — does not reserve any number.
+ */
+export async function peekNextQuotationReference(
+  clientId: string
+): Promise<{ reference: string; sequenceNumber: number; year: number }> {
+  const client = await getClientById(clientId);
+  if (!client) {
+    throw new Error(`Client ID introuvable: ${clientId}`);
+  }
+
+  const currentYear = new Date().getFullYear();
+  const yearCode = String(currentYear % 1000).padStart(3, "0");
+
+  const rows = await sql`
+    SELECT GREATEST(
+      COALESCE((SELECT last_sequence FROM client_quotation_sequences WHERE client_id = ${clientId} AND year = ${currentYear}), 0),
+      COALESCE((SELECT MAX(sequence_number) FROM quotations WHERE client_id = ${clientId} AND year = ${currentYear}), 0),
+      COALESCE((SELECT MAX(
+        CASE
+          WHEN internal_reference ~ '^[0-9]{1,6}/'
+          THEN CAST(SPLIT_PART(internal_reference, '/', 1) AS INTEGER)
+          ELSE 0
+        END
+      ) FROM quotations WHERE client_id = ${clientId} AND year = ${currentYear}), 0)
+    ) + 1 AS next_seq
+  `;
+
+  const seqNum = Number(rows[0].next_seq) || 1;
+  const paddedSeq = String(seqNum).padStart(4, "0");
+
+  return {
+    reference: `${paddedSeq}/${yearCode}/MIS`,
     sequenceNumber: seqNum,
     year: currentYear,
   };

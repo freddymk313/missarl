@@ -306,21 +306,87 @@ export async function createQuotation(data: {
   const vatAmount = Math.round(subtotal * (vatRate / 100) * 100) / 100;
   const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
-  // 2. Reference generation (use user-specified reference or fallback to sequence generator)
+  // 2. Reference generation — validate manual reference or auto-generate from DB counter
   let reference: string;
   let sequenceNumber: number;
   let year: number;
 
+  const currentYear = new Date().getFullYear();
+  const yearCode = String(currentYear % 1000).padStart(3, "0");
+
   if (data.internalReference && data.internalReference.trim()) {
-    reference = data.internalReference.trim();
-    const match = reference.match(/^(\d+)/);
-    sequenceNumber = match ? parseInt(match[1], 10) : 1;
-    year = new Date().getFullYear();
+    const manualRef = data.internalReference.trim();
+
+    // Validate format: must be NNNN/YYY/MIS
+    const refMatch = manualRef.match(/^(\d{1,6})\/(\d{2,4})\/MIS$/i);
+    if (!refMatch) {
+      throw new Error(
+        `Format de référence invalide: "${manualRef}". Format attendu: NNNN/${yearCode}/MIS`
+      );
+    }
+
+    const manualSeq = parseInt(refMatch[1], 10);
+    const manualYearCode = refMatch[2];
+
+    // Year code validation
+    if (manualYearCode !== yearCode) {
+      throw new Error(
+        `Le code année "${manualYearCode}" ne correspond pas à l'année en cours "${yearCode}".`
+      );
+    }
+
+    // Check for duplicate reference
+    const dupCheck = await sql`
+      SELECT id FROM quotations
+      WHERE internal_reference = ${manualRef}
+      LIMIT 1
+    `;
+    if (dupCheck.length > 0) {
+      throw new Error(
+        `La référence "${manualRef}" existe déjà. Veuillez choisir une autre référence.`
+      );
+    }
+
+    // Get current max sequence to validate that manual seq is not too low
+    const maxRows = await sql`
+      SELECT GREATEST(
+        COALESCE((SELECT last_sequence FROM client_quotation_sequences WHERE client_id = ${data.clientId} AND year = ${currentYear}), 0),
+        COALESCE((SELECT MAX(sequence_number) FROM quotations WHERE client_id = ${data.clientId} AND year = ${currentYear}), 0),
+        COALESCE((SELECT MAX(
+          CASE
+            WHEN internal_reference ~ '^[0-9]{1,6}/'
+            THEN CAST(SPLIT_PART(internal_reference, '/', 1) AS INTEGER)
+            ELSE 0
+          END
+        ) FROM quotations WHERE client_id = ${data.clientId} AND year = ${currentYear}), 0)
+      ) AS current_max
+    `;
+
+    const currentMax = Number(maxRows[0].current_max) || 0;
+
+    if (manualSeq <= currentMax) {
+      const nextPadded = String(currentMax + 1).padStart(4, "0");
+      throw new Error(
+        `Cette référence est inférieure au dernier numéro utilisé. Le prochain numéro disponible est ${nextPadded}/${yearCode}/MIS.`
+      );
+    }
+
+    // Advance the counter to the manual sequence (atomic, never decreases)
+    await sql`
+      INSERT INTO client_quotation_sequences (client_id, year, last_sequence)
+      VALUES (${data.clientId}, ${currentYear}, ${manualSeq})
+      ON CONFLICT (client_id, year)
+      DO UPDATE SET
+        last_sequence = GREATEST(client_quotation_sequences.last_sequence, ${manualSeq}),
+        updated_at = NOW()
+    `;
+
+    reference = manualRef;
+    sequenceNumber = manualSeq;
+    year = currentYear;
   } else {
-    const nextRef = await getNextQuotationReference(
-      data.clientId,
-      data.docType
-    );
+    // Auto-generate — consumes a sequence number atomically
+    const nextRef = await getNextQuotationReference(data.clientId);
     reference = nextRef.reference;
     sequenceNumber = nextRef.sequenceNumber;
     year = nextRef.year;
