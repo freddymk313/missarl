@@ -23,7 +23,6 @@ import {
   CONTENT_WIDTH,
   formatCurrency,
   formatDate,
-  formatDateTime,
   wrapText,
   drawDocumentHeader,
   drawCustomerSection,
@@ -119,7 +118,7 @@ export async function generateInvoicePdf(
 
   drawDocumentHeader(page1, {
     title: "FACTURE",
-    dateText: formatDateTime(data.issueDate),
+    dateText: formatDate(data.issueDate),
     logoImage,
     company: data.company,
     fontRegular,

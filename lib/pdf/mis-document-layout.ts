@@ -76,15 +76,32 @@ export function formatCurrency(amount: number): string {
  */
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return new Date().toLocaleDateString("fr-FR");
+  const trimmed = dateStr.trim();
+  // Check if it already starts with DD/MM/YYYY (with optional time after)
+  const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/);
+  if (ddmmyyyyMatch) {
+    const day = ddmmyyyyMatch[1].padStart(2, "0");
+    const month = ddmmyyyyMatch[2].padStart(2, "0");
+    const year = ddmmyyyyMatch[3];
+    return `${day}/${month}/${year}`;
+  }
+  // Check ISO format YYYY-MM-DD (with optional time after)
+  const yyyymmddMatch = trimmed.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})/);
+  if (yyyymmddMatch) {
+    const year = yyyymmddMatch[1];
+    const month = yyyymmddMatch[2].padStart(2, "0");
+    const day = yyyymmddMatch[3].padStart(2, "0");
+    return `${day}/${month}/${year}`;
+  }
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
+    const d = new Date(trimmed);
+    if (isNaN(d.getTime())) return trimmed.split(" ")[0] || trimmed;
     const day = String(d.getDate()).padStart(2, "0");
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
   } catch {
-    return dateStr;
+    return trimmed.split(" ")[0] || trimmed;
   }
 }
 
@@ -238,17 +255,24 @@ export function drawDocumentHeader(
     color: BLACK,
   });
 
-  // 3. Top Right: Date
-  page.drawText("Date:", {
-    x: 439.18,
+  // 3. Top Right: Date (clean DD/MM/YYYY, right-aligned to RIGHT_EDGE without time or overflow)
+  const cleanDate = formatDate(dateText);
+  const dateW = fontRegular.widthOfTextAtSize(cleanDate, 8.04);
+  const dateValX = RIGHT_EDGE - dateW;
+  const dateLabel = "Date:";
+  const dateLabelW = fontRegular.widthOfTextAtSize(dateLabel, 8.04);
+  const dateLabelX = dateValX - dateLabelW - 8.0;
+
+  page.drawText(dateLabel, {
+    x: dateLabelX,
     y: 775.92,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
   });
 
-  page.drawText(dateText, {
-    x: 468.0,
+  page.drawText(cleanDate, {
+    x: dateValX,
     y: 775.92,
     size: 8.04,
     font: fontRegular,
@@ -257,7 +281,8 @@ export function drawDocumentHeader(
 
   // 4. Top Right: Document Title
   const titleW = fontBold.widthOfTextAtSize(title, 10.08);
-  const titleX = Math.max(420, RIGHT_EDGE - titleW);
+  const offsetLeft = 36.5; // 👈 Augmente cette valeur pour aller plus à gauche (ex: 10 à 30)
+  const titleX = Math.max(390, RIGHT_EDGE - titleW - offsetLeft);
   page.drawText(title, {
     x: titleX,
     y: 744.7,
@@ -321,9 +346,14 @@ export function drawCustomerSection(
     color: RED_TEXT,
   });
 
-  // Reference label & value
+  // Reference label & value (calés proprement à droite sans éloignement ni chevauchement)
+  const refValW = fontRegular.widthOfTextAtSize(referenceValue, 8.04);
+  const refValX = RIGHT_EDGE - refValW;
+  const refLabelW = fontRegular.widthOfTextAtSize(referenceLabel, 8.04);
+  const refLabelX = Math.max(380, refValX - refLabelW - 10);
+
   page.drawText(referenceLabel, {
-    x: 455.0,
+    x: refLabelX,
     y: 697.18,
     size: 8.04,
     font: fontRegular,
@@ -331,9 +361,10 @@ export function drawCustomerSection(
   });
 
   page.drawText(referenceValue, {
-    x: 495.0,
+    x: refValX,
     y: 697.18,
     size: 8.04,
+    font: fontRegular,
     color: BLACK,
   });
 
@@ -356,7 +387,7 @@ export function drawCustomerSection(
     });
   }
 
-  // Row 2 Right: PO and/or RFQ Number
+  // Row 2 Right: PO and/or RFQ Number (guaranteed never exceeding right margin)
   const rightParts: string[] = [];
   if (clientPoNumber && clientPoNumber.trim()) {
     rightParts.push(`PO N° : ${clientPoNumber.trim()}`);
@@ -367,12 +398,23 @@ export function drawCustomerSection(
 
   if (rightParts.length > 0) {
     const rightStr = rightParts.join(" | ");
-    const rightW = fontBold.widthOfTextAtSize(rightStr, 8.04);
+    let fontSize = 8.04;
+    let rightW = fontRegular.widthOfTextAtSize(rightStr, fontSize);
+    const maxAvailableWidth = RIGHT_EDGE - 210; // ~332 pt available on the right of Customer ID
+
+    // Dynamically scale down font if text is unusually long
+    if (rightW > maxAvailableWidth) {
+      fontSize = Math.max(6.5, (maxAvailableWidth / rightW) * fontSize);
+      rightW = fontRegular.widthOfTextAtSize(rightStr, fontSize);
+    }
+
     const rightX = RIGHT_EDGE - rightW;
+
     page.drawText(rightStr, {
-      x: Math.max(290, rightX),
+      x: rightX,
       y: 676.3,
-      size: 8.04,
+      size: fontSize,
+      font: fontRegular,
       color: BLACK,
     });
   }
@@ -402,9 +444,13 @@ export function drawSignaturesSection(
   const leftX = MARGIN_LEFT;
   const rightX = RIGHT_EDGE - colWidth;
 
-  // 1. Left: RECEPTION
-  page.drawText("SIGNATURE POUR LA RECEPTION", {
-    x: leftX,
+  // 1. Left: RECEPTION (titre centré au-dessus de la boîte)
+  const recTitle = "SIGNATURE POUR LA RECEPTION";
+  const recTitleW = fontBold.widthOfTextAtSize(recTitle, 8.04);
+  const recTitleX = leftX + (colWidth - recTitleW) / 2;
+
+  page.drawText(recTitle, {
+    x: recTitleX,
     y: y,
     size: 8.04,
     font: fontBold,
@@ -447,9 +493,13 @@ export function drawSignaturesSection(
     color: BLACK,
   });
 
-  // 2. Right: LIVRAISON
-  page.drawText("SIGNATURE POUR LA LIVRAISON", {
-    x: rightX,
+  // 2. Right: LIVRAISON (titre centré au-dessus de la boîte)
+  const livTitle = "SIGNATURE POUR LA LIVRAISON";
+  const livTitleW = fontBold.widthOfTextAtSize(livTitle, 8.04);
+  const livTitleX = rightX + (colWidth - livTitleW) / 2;
+
+  page.drawText(livTitle, {
+    x: livTitleX,
     y: y,
     size: 8.04,
     font: fontBold,
@@ -484,21 +534,21 @@ export function drawSignaturesSection(
   // Seal: ~62x62 pt, Signature: ~75x40 pt
   const stampBoxY = y - sectionHeight + 5;
   if (sealImage) {
-    const sealW = 60.0;
-    const sealH = 60.0;
+    const sealW = 68.0;
+    const sealH = 68.0;
     page.drawImage(sealImage, {
-      x: rightX + colWidth - sealW - 12,
-      y: stampBoxY + 4,
+      x: rightX + colWidth - sealW - 38,
+      y: stampBoxY - 3,
       width: sealW,
       height: sealH,
     });
   }
 
   if (signatureImage) {
-    const sigW = 75.0;
-    const sigH = 38.0;
+    const sigW = 88.0;
+    const sigH = 48.0;
     page.drawImage(signatureImage, {
-      x: rightX + 24,
+      x: rightX + 38,
       y: stampBoxY + 12,
       width: sigW,
       height: sigH,
@@ -506,7 +556,7 @@ export function drawSignaturesSection(
   }
 
   page.drawText("Pour Marc Ingineering Service SARL", {
-    x: rightX + 8,
+    x: rightX + 12,
     y: y - sectionHeight + 3,
     size: 6.8,
     font: fontBold,
