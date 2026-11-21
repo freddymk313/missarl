@@ -34,6 +34,8 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 }
 :root {
   --background: oklch(1 0 0);
@@ -51,6 +53,7 @@
   --accent: oklch(0.856 0.173 90);
   --accent-foreground: oklch(0.248 0.065 251);
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.913 0.014 255);
   --input: oklch(0.913 0.014 255);
   --ring: oklch(0.45 0.071 250);
