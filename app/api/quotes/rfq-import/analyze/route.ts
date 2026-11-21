@@ -23,6 +23,7 @@ import {
 import type { RFQAnalysisResponse } from "@/lib/rfq-import-types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   // 1. Authenticate user

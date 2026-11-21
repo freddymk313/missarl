@@ -11,8 +11,9 @@ import type {
   RFQExtractionConfidence,
 } from "@/lib/rfq-import-types";
 
-export const DEFAULT_GEMINI_RFQ_MODEL = "gemini-4-hydrogen";
-const EXTRACTION_TIMEOUT_MS = 90_000;
+export const DEFAULT_GEMINI_RFQ_MODEL = "gemini-3.5-flash-lite";
+export const FALLBACK_GEMINI_RFQ_MODELS = ["gemini-3.1-flash-lite"];
+const EXTRACTION_TIMEOUT_MS = 45_000;
 
 export class RFQExtractionError extends Error {
   status: number;
@@ -361,7 +362,11 @@ export async function extractRFQWithGemini(input: {
     );
   }
 
-  const model = input.model?.trim() || getConfiguredGeminiModel();
+  const primaryModel = input.model?.trim() || getConfiguredGeminiModel();
+  const candidateModels = Array.from(
+    new Set([primaryModel, ...FALLBACK_GEMINI_RFQ_MODELS])
+  );
+
   const ai = new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -372,64 +377,68 @@ export async function extractRFQWithGemini(input: {
   });
 
   const base64Data = input.bytes.toString("base64");
-  const requestParams = {
-    model,
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            mimeType: input.mimeType,
-            data: base64Data,
-          },
-        },
-        {
-          text: RFQ_USER_PROMPT,
-        },
-      ],
-    },
-    config: {
-      systemInstruction: RFQ_SYSTEM_INSTRUCTION,
-      responseMimeType: "application/json",
-      responseSchema: RFQ_RESPONSE_SCHEMA,
-    },
-  };
-
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const response = await runWithTimeout(
-        ai.models.generateContent(requestParams),
-        EXTRACTION_TIMEOUT_MS
-      );
 
-      const text = response.text?.trim();
-      if (!text) {
-        throw new RFQExtractionError(
-          "Gemini n'a retourné aucun contenu structuré pour ce document.",
-          422
-        );
-      }
+  for (const model of candidateModels) {
+    const requestParams = {
+      model,
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: input.mimeType,
+              data: base64Data,
+            },
+          },
+          {
+            text: RFQ_USER_PROMPT,
+          },
+        ],
+      },
+      config: {
+        systemInstruction: RFQ_SYSTEM_INSTRUCTION,
+        responseMimeType: "application/json",
+        responseSchema: RFQ_RESPONSE_SCHEMA,
+      },
+    };
 
-      let parsedJson: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        parsedJson = JSON.parse(text);
-      } catch {
-        throw new RFQExtractionError(
-          "La réponse renvoyée par Gemini n'est pas un JSON exploitable.",
-          422
+        const response = await runWithTimeout(
+          ai.models.generateContent(requestParams),
+          EXTRACTION_TIMEOUT_MS
         );
-      }
 
-      const extracted = normalizeExtractedRFQPayload(parsedJson);
-      return { extracted, model };
-    } catch (err) {
-      lastError = err;
-      // Only retry once on genuine transient transport / 5xx errors
-      if (attempt === 0 && isTransientError(err)) {
-        await new Promise((resolve) => setTimeout(resolve, 650));
-        continue;
+        const text = response.text?.trim();
+        if (!text) {
+          throw new RFQExtractionError(
+            "Gemini n'a retourné aucun contenu structuré pour ce document.",
+            422
+          );
+        }
+
+        let parsedJson: unknown;
+        try {
+          parsedJson = JSON.parse(text);
+        } catch {
+          throw new RFQExtractionError(
+            "La réponse renvoyée par Gemini n'est pas un JSON exploitable.",
+            422
+          );
+        }
+
+        const extracted = normalizeExtractedRFQPayload(parsedJson);
+        return { extracted, model };
+      } catch (err) {
+        lastError = err;
+        // If transient error and first attempt on this model, wait briefly and retry
+        if (attempt === 0 && isTransientError(err)) {
+          await new Promise((resolve) => setTimeout(resolve, 650));
+          continue;
+        }
+        // Break to try next candidate model if available
+        break;
       }
-      throw mapGeminiError(err);
     }
   }
 
