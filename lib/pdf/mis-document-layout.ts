@@ -284,7 +284,7 @@ export function drawCustomerSection(
   options: {
     clientName: string;
     clientCode?: string | null;
-    referenceLabel: string; // e.g. "REF N°" or "FACTURE N°" or "BL N°"
+    referenceLabel: string; // e.g. "REF N°" or "FAC N°" or "BL N°"
     referenceValue: string;
     clientPoNumber?: string | null;
     clientRfqNumber?: string | null;
@@ -323,7 +323,7 @@ export function drawCustomerSection(
 
   // Reference label & value
   page.drawText(referenceLabel, {
-    x: 420.0,
+    x: 455.0,
     y: 697.18,
     size: 8.04,
     font: fontRegular,
@@ -331,10 +331,9 @@ export function drawCustomerSection(
   });
 
   page.drawText(referenceValue, {
-    x: 480.0,
+    x: 495.0,
     y: 697.18,
     size: 8.04,
-    font: fontBold,
     color: BLACK,
   });
 
@@ -371,10 +370,9 @@ export function drawCustomerSection(
     const rightW = fontBold.widthOfTextAtSize(rightStr, 8.04);
     const rightX = RIGHT_EDGE - rightW;
     page.drawText(rightStr, {
-      x: Math.max(300, rightX),
+      x: Math.max(290, rightX),
       y: 676.3,
       size: 8.04,
-      font: fontBold,
       color: BLACK,
     });
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useMemo } from "react";
 import {
   Plus,
   Search,
@@ -69,7 +69,12 @@ export function OrdersManager({
   // ── New Order Modal State (with Partial Acceptance) ────────────────────────
   const [isModalOpen, setIsModalOpen] = useState(!!initialNewOrderQuoteId);
   const [selectedQuoteId, setSelectedQuoteId] = useState(initialNewOrderQuoteId || "");
-  const [clientPoNumber, setClientPoNumber] = useState("");
+  const [poNumber, setPoNumber] = useState("");
+  const fullClientPoNumber = useMemo(() => {
+    const trimmed = poNumber.trim();
+    if (!trimmed) return "";
+    return `PO ${trimmed} OX`;
+  }, [poNumber]);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -173,7 +178,7 @@ export function OrdersManager({
         setDeliveryNotes(blRes.deliveryNotes);
       }
     } catch (err: unknown) {
-      setOrderDetailError(err instanceof Error ? err.message : "Erreur inattendue lors du chargement des détails.");
+      setOrderDetailError(err instanceof Error ? err.message : "Unexpected error while loading details.");
     } finally {
       setIsLoadingOrderDetails(false);
     }
@@ -236,18 +241,18 @@ export function OrdersManager({
       });
 
     if (itemsToDeliver.length === 0) {
-      setBatchError("Veuillez cocher au moins un article à inclure dans ce lot de livraison.");
+      setBatchError("Please select at least one item to include in this delivery batch.");
       return;
     }
 
     for (const it of itemsToDeliver) {
       const avail = allocations[it.orderItemId]?.available ?? 0;
       if (it.quantity <= 0) {
-        setBatchError("Chaque quantité à livrer doit être supérieure à zéro.");
+        setBatchError("Each delivery quantity must be greater than zero.");
         return;
       }
       if (it.quantity > avail) {
-        setBatchError(`La quantité (${it.quantity}) dépasse le disponible restant (${avail}).`);
+        setBatchError(`The quantity (${it.quantity}) exceeds remaining available (${avail}).`);
         return;
       }
     }
@@ -267,7 +272,7 @@ export function OrdersManager({
       });
 
       if (!res.success) {
-        setBatchError(res.error || "Erreur lors de la préparation de la livraison.");
+        setBatchError(res.error || "Error while preparing delivery.");
       } else {
         setIsDeliveryModalOpen(false);
         // Reload details immediately
@@ -278,7 +283,7 @@ export function OrdersManager({
         );
       }
     } catch (err) {
-      setBatchError(err instanceof Error ? err.message : "Erreur inattendue");
+      setBatchError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setIsSubmittingBatch(false);
     }
@@ -293,14 +298,14 @@ export function OrdersManager({
     try {
       const res = await updateDeliveryNoteStatusAction(blId, newStatus, reason);
       if (!res.success) {
-        alert(res.error || "Erreur de changement de statut du BL.");
+        alert(res.error || "Failed to update delivery note status.");
       } else {
         if (selectedOrder) {
           await loadOrderFullDetails(selectedOrder.id);
         }
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur inattendue");
+      alert(err instanceof Error ? err.message : "Unexpected error");
     }
   };
 
@@ -342,8 +347,13 @@ export function OrdersManager({
     e.preventDefault();
     setFormError("");
 
+    if (!fullClientPoNumber) {
+      setFormError("Please enter a Customer PO number.");
+      return;
+    }
+
     if (acceptedLines.length === 0) {
-      setFormError("Veuillez sélectionner au moins un article accepté pour créer la commande.");
+      setFormError("Please select at least one accepted item to create the order.");
       return;
     }
 
@@ -356,27 +366,27 @@ export function OrdersManager({
     try {
       const res = await createOrderAction({
         quotationId: selectedQuoteId,
-        clientPoNumber,
+        clientPoNumber: fullClientPoNumber,
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes,
         selectedItems: payloadSelectedItems,
       });
 
       if (!res.success) {
-        setFormError(res.error || "Erreur de création de la commande.");
+        setFormError(res.error || "Failed to create order.");
       } else if (res.order) {
         startTransition(() => {
           setOrders((prev) => [res.order!, ...prev]);
         });
         setIsModalOpen(false);
-        setClientPoNumber("");
+        setPoNumber("");
         setSelectedQuoteId("");
         setQuoteItems([]);
         setSelectedItemIds({});
         setAcceptedQuantities({});
       }
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Erreur inattendue");
+      setFormError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setIsSubmitting(false);
     }
@@ -633,7 +643,7 @@ export function OrdersManager({
           setSelectedOrder(null);
           setDetailedOrder(null);
         }}
-        size="xl"
+        size="2xl"
         title={selectedOrder?.orderNumber || "Purchase Order Details"}
         statusBadge={selectedOrder ? <StatusBadge status={selectedOrder.status} /> : undefined}
         hasChildDialog={isDeliveryModalOpen}
@@ -975,17 +985,40 @@ export function OrdersManager({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-foreground">
-                    Customer PO Number (e.g. PO/2026/045) *
-                  </label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="PO/..."
-                    value={clientPoNumber}
-                    onChange={(e) => setClientPoNumber(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-foreground">
+                      Customer PO Number *
+                    </label>
+                    {fullClientPoNumber ? (
+                      <span className="text-[10px] font-mono font-black text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                        {fullClientPoNumber}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        ex: PO 46534 OX
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative mt-1">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground select-none">
+                      PO
+                    </span>
+                    <input
+                      required
+                      type="text"
+                      placeholder="46534"
+                      value={poNumber}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        val = val.replace(/^PO\s*[-/]?\s*/i, "").replace(/\s*[-/]?\s*OX$/i, "");
+                        setPoNumber(val);
+                      }}
+                      className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-10 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-muted-foreground select-none">
+                      OX
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1188,12 +1221,12 @@ export function OrdersManager({
       <Dialog open={isDeliveryModalOpen} onOpenChange={(open) => { if (!open) setIsDeliveryModalOpen(false); }}>
         <DialogContent
           showCloseButton={false}
-          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl border-border"
+          className="w-full sm:max-w-4xl lg:max-w-5xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl border-border"
         >
           <DialogHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="text-base font-black text-primary flex items-center gap-2">
+                <DialogTitle className="text-base sm:text-lg font-black text-primary flex items-center gap-2">
                   <PackageCheck className="size-5" /> Prepare Delivery Note (BL)
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -1203,7 +1236,7 @@ export function OrdersManager({
               <button
                 type="button"
                 onClick={() => setIsDeliveryModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer transition-colors"
               >
                 <X className="size-5" />
               </button>
@@ -1219,7 +1252,7 @@ export function OrdersManager({
               )}
 
               <form onSubmit={handleCreateDeliveryBatch} className="mt-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-bold text-foreground">
                       Delivery Date *
@@ -1249,7 +1282,7 @@ export function OrdersManager({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-xs font-bold text-foreground">
                       Carrier
@@ -1303,95 +1336,128 @@ export function OrdersManager({
 
                 {/* Items Allocation Table */}
                 <div className="space-y-2 pt-2 border-t border-border">
-                  <span className="text-xs font-black uppercase tracking-wider text-muted-foreground block">
-                    Items and quantities to deliver in this batch
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                      Items and quantities to deliver in this batch
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          const qtys: Record<string, number> = {};
+                          for (const it of detailedOrder.items || []) {
+                            const avail = allocations[it.id]?.available ?? 0;
+                            if (avail > 0) {
+                              all[it.id] = true;
+                              qtys[it.id] = batchQuantities[it.id] ?? avail;
+                            }
+                          }
+                          setBatchSelectedIds(all);
+                          setBatchQuantities((prev) => ({ ...prev, ...qtys }));
+                        }}
+                        className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        Select all
+                      </button>
+                      <span className="text-muted-foreground text-xs">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setBatchSelectedIds({})}
+                        className="text-[11px] font-bold text-muted-foreground hover:underline cursor-pointer"
+                      >
+                        Deselect all
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="rounded-xl border border-border overflow-hidden">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs min-w-125">
+                      <table className="w-full text-left text-xs min-w-160">
                         <thead className="bg-secondary/40 text-[10px] uppercase font-bold text-muted-foreground border-b border-border">
-                        <tr>
-                          <th className="p-2.5 w-8 text-center">✓</th>
-                          <th className="p-2.5">Description</th>
-                          <th className="p-2.5 text-center">Available</th>
-                          <th className="p-2.5 text-center w-28">Qty to Deliver</th>
-                          <th className="p-2.5">Note on Delivery Document</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {detailedOrder.items?.map((it) => {
-                          const avail = allocations[it.id]?.available ?? 0;
-                          const isChecked = !!batchSelectedIds[it.id] && avail > 0;
-                          const qty = batchQuantities[it.id] ?? avail;
-                          const obs = batchObservations[it.id] ?? "";
+                          <tr>
+                            <th className="p-3 w-10 text-center">✓</th>
+                            <th className="p-3 min-w-56">Description</th>
+                            <th className="p-3 text-center w-28 whitespace-nowrap">Available</th>
+                            <th className="p-3 text-center w-36 whitespace-nowrap">Qty to Deliver</th>
+                            <th className="p-3 min-w-64">Note on Delivery Document</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {detailedOrder.items?.map((it) => {
+                            const avail = allocations[it.id]?.available ?? 0;
+                            const isChecked = !!batchSelectedIds[it.id] && avail > 0;
+                            const qty = batchQuantities[it.id] ?? avail;
+                            const obs = batchObservations[it.id] ?? "";
 
-                          return (
-                            <tr
-                              key={it.id}
-                              className={avail === 0 ? "bg-secondary/20 opacity-50" : "bg-card"}
-                            >
-                              <td className="p-2.5 text-center">
-                                <input
-                                  type="checkbox"
-                                  disabled={avail <= 0}
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    setBatchSelectedIds((prev) => ({ ...prev, [it.id]: checked }));
-                                    if (checked && !batchQuantities[it.id]) {
-                                      setBatchQuantities((prev) => ({ ...prev, [it.id]: avail }));
+                            return (
+                              <tr
+                                key={it.id}
+                                className={avail === 0 ? "bg-secondary/20 opacity-50" : "bg-card hover:bg-secondary/15 transition-colors"}
+                              >
+                                <td className="p-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    disabled={avail <= 0}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setBatchSelectedIds((prev) => ({ ...prev, [it.id]: checked }));
+                                      if (checked && !batchQuantities[it.id]) {
+                                        setBatchQuantities((prev) => ({ ...prev, [it.id]: avail }));
+                                      }
+                                    }}
+                                    className="rounded size-4 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <p className="font-bold text-foreground">{it.description}</p>
+                                  {it.brand && (
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">Brand: {it.brand}</p>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center font-bold text-foreground whitespace-nowrap">
+                                  <span className="inline-block px-2 py-0.5 rounded-md bg-secondary text-foreground text-xs font-mono font-bold">
+                                    {avail} {it.unit}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-center">
+                                  <input
+                                    type="number"
+                                    min="0.01"
+                                    max={avail}
+                                    step="any"
+                                    disabled={!isChecked}
+                                    value={qty}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      setBatchQuantities((prev) => ({
+                                        ...prev,
+                                        [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
+                                      }));
+                                    }}
+                                    className="h-9 w-28 rounded-xl border border-border bg-card px-2.5 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                  />
+                                </td>
+                                <td className="p-3">
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Package 1/2, Good condition..."
+                                    disabled={!isChecked}
+                                    value={obs}
+                                    onChange={(e) =>
+                                      setBatchObservations((prev) => ({ ...prev, [it.id]: e.target.value }))
                                     }
-                                  }}
-                                  className="rounded size-4 text-primary focus:ring-primary/20 cursor-pointer disabled:cursor-not-allowed"
-                                />
-                              </td>
-                              <td className="p-2.5">
-                                <p className="font-bold text-foreground">{it.description}</p>
-                                {it.brand && (
-                                  <p className="text-[10px] text-muted-foreground">Brand: {it.brand}</p>
-                                )}
-                              </td>
-                              <td className="p-2.5 text-center font-bold text-foreground">
-                                {avail} {it.unit}
-                              </td>
-                              <td className="p-2.5 text-center">
-                                <input
-                                  type="number"
-                                  min="0.01"
-                                  max={avail}
-                                  step="any"
-                                  disabled={!isChecked}
-                                  value={qty}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    setBatchQuantities((prev) => ({
-                                      ...prev,
-                                      [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
-                                    }));
-                                  }}
-                                  className="h-9 w-24 rounded-xl border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
-                                />
-                              </td>
-                              <td className="p-2.5">
-                                <input
-                                  type="text"
-                                  placeholder="e.g. Package 1/2, Good condition..."
-                                  disabled={!isChecked}
-                                  value={obs}
-                                  onChange={(e) =>
-                                    setBatchObservations((prev) => ({ ...prev, [it.id]: e.target.value }))
-                                  }
-                                  className="h-9 w-full rounded-xl border border-border bg-card px-2.5 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                    className="h-9 w-full min-w-44 rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
                 </div>
 
                 <div>

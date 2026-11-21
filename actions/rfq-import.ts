@@ -34,7 +34,7 @@ export async function createImportedItemsAction(
       success: false,
       createdItems: [],
       failures: [],
-      error: "Aucun article sélectionné pour la création.",
+      error: "No items selected for creation.",
     };
   }
 
@@ -61,7 +61,7 @@ export async function createImportedItemsAction(
     if (!Number.isInteger(sourceLineNumber) || sourceLineNumber <= 0) {
       failures.push({
         sourceLineNumber: Number.isFinite(sourceLineNumber) ? sourceLineNumber : 0,
-        error: "Numéro de ligne source invalide.",
+        error: "Invalid source line number.",
       });
       continue;
     }
@@ -69,7 +69,7 @@ export async function createImportedItemsAction(
     if (!designation || designation.length < 2) {
       failures.push({
         sourceLineNumber,
-        error: "La désignation est obligatoire (2 caractères minimum).",
+        error: "Designation is required (at least 2 characters).",
       });
       continue;
     }
@@ -77,7 +77,7 @@ export async function createImportedItemsAction(
     if (!description || description.length < 2) {
       failures.push({
         sourceLineNumber,
-        error: "La description technique est obligatoire (2 caractères minimum).",
+        error: "Technical description is required (at least 2 characters).",
       });
       continue;
     }
@@ -85,7 +85,7 @@ export async function createImportedItemsAction(
     if (!validUnitCode) {
       failures.push({
         sourceLineNumber,
-        error: `Unité "${input.unitCode || ""}" invalide ou absente du référentiel.`,
+        error: `Unit "${input.unitCode || ""}" is invalid or not in catalog.`,
       });
       continue;
     }
@@ -123,7 +123,7 @@ export async function createImportedItemsAction(
     if (existingDuplicate) {
       failures.push({
         sourceLineNumber,
-        error: `Un article quasi identique existe déjà (${existingDuplicate.skuRef}). Associez l'article existant.`,
+        error: `A nearly identical item already exists (${existingDuplicate.skuRef}). Link the existing item instead.`,
         duplicateItem: existingDuplicate,
       });
       continue;

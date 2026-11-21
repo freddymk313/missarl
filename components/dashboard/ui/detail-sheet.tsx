@@ -22,7 +22,7 @@ export interface DetailSheetProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
-  size?: "default" | "lg" | "xl";
+  size?: "default" | "lg" | "xl" | "2xl";
   /** Pass true when a child dialog/modal is open to prevent the Sheet from closing on outside clicks */
   hasChildDialog?: boolean;
 }
@@ -54,6 +54,7 @@ export function DetailSheet({
     default: "sm:max-w-md",
     lg: "sm:max-w-xl lg:max-w-2xl",
     xl: "sm:max-w-2xl lg:max-w-3xl",
+    "2xl": 'min-w-2xl lg:max-w-3xl',
   };
 
   const handleOpenChange = (newVal: boolean) => {

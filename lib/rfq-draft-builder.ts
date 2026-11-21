@@ -150,7 +150,7 @@ export function validateReviewLinesForQuote(
   if (included.length === 0) {
     return {
       ok: false,
-      error: "Sélectionnez au moins une ligne à inclure dans le devis.",
+      error: "Select at least one line to include in the quote.",
       blockingLineNumbers: [],
     };
   }
@@ -163,26 +163,26 @@ export function validateReviewLinesForQuote(
   )) {
     const lineIssues: string[] = [];
     if (!line.designation.trim() && !line.description.trim()) {
-      lineIssues.push("désignation/description manquante");
+      lineIssues.push("missing designation/description");
     }
     if (line.quantity === null || !Number.isFinite(line.quantity) || line.quantity <= 0) {
-      lineIssues.push("quantité invalide");
+      lineIssues.push("invalid quantity");
     }
     if (!line.unitCode.trim()) {
-      lineIssues.push("unité non sélectionnée");
+      lineIssues.push("unit not selected");
     }
     if (
       line.status === "POSSIBLE_MATCH" &&
       line.resolutionMode === "LINK_EXISTING" &&
       !line.possibleMatchConfirmed
     ) {
-      lineIssues.push("correspondance à confirmer");
+      lineIssues.push("match needs confirmation");
     }
 
     if (lineIssues.length > 0) {
       blocking.push(line.sourceLineNumber);
       if (reasons.length < 3) {
-        reasons.push(`Ligne #${line.sourceLineNumber} (${lineIssues.join(", ")})`);
+        reasons.push(`Line #${line.sourceLineNumber} (${lineIssues.join(", ")})`);
       }
     }
   }
@@ -190,8 +190,8 @@ export function validateReviewLinesForQuote(
   if (blocking.length > 0) {
     return {
       ok: false,
-      error: `Veuillez corriger les lignes bloquantes avant de préparer le devis : ${reasons.join(" ; ")}${
-        blocking.length > 3 ? ` (+${blocking.length - 3} autres)` : ""
+      error: `Please correct blocking lines before preparing the quote: ${reasons.join(" ; ")}${
+        blocking.length > 3 ? ` (+${blocking.length - 3} others)` : ""
       }.`,
       blockingLineNumbers: blocking,
     };
@@ -200,12 +200,70 @@ export function validateReviewLinesForQuote(
   return { ok: true };
 }
 
+export interface RFQCatalogPrice {
+  supplyPrice: number | null;
+  quotedPrice?: number | null;
+}
+
+export interface ResolvedRFQQuotationPrices {
+  supplyPrice: number;
+  unitPrice: number;
+  commissionPercent: number | null;
+}
+
+function isValidCatalogPrice(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+/**
+ * Resolves quotation draft line pricing from MIS SARL catalogue prices:
+ * - Priority 1 (Supplier Price present, including 0): purchase cost = supplyPrice,
+ *   selling unitPrice = 0, commissionPercent = null (inherit global commission).
+ * - Priority 2 (No Supplier Price, Quoted Price present, including 0): purchase cost = 0,
+ *   selling unitPrice = quotedPrice, commissionPercent = 0 (direct selling price, no commission added).
+ * - Priority 3 (Neither price present / unlinked): 0 / 0 / null.
+ */
+export function resolveRFQQuotationPrices(
+  prices?: RFQCatalogPrice | null
+): ResolvedRFQQuotationPrices {
+  if (!prices) {
+    return {
+      supplyPrice: 0,
+      unitPrice: 0,
+      commissionPercent: null,
+    };
+  }
+
+  if (isValidCatalogPrice(prices.supplyPrice)) {
+    return {
+      supplyPrice: prices.supplyPrice,
+      unitPrice: 0,
+      commissionPercent: null,
+    };
+  }
+
+  if (isValidCatalogPrice(prices.quotedPrice)) {
+    return {
+      supplyPrice: 0,
+      unitPrice: prices.quotedPrice,
+      commissionPercent: 0,
+    };
+  }
+
+  return {
+    supplyPrice: 0,
+    unitPrice: 0,
+    commissionPercent: null,
+  };
+}
+
 /**
  * Builds QuotationWizard initial draft lines strictly ordered by original RFQ
- * `sourceLineNumber ASC`, always starting with selling unitPrice = 0.
+ * `sourceLineNumber ASC`, prefilling catalogue prices by MIS SARL priority rules.
  */
 export function buildOrderedQuotationDraftLines(
-  lines: EditableRFQReviewLine[]
+  lines: EditableRFQReviewLine[],
+  catalogPriceByItemId?: ReadonlyMap<string, RFQCatalogPrice>
 ): QuotationDraftLineInput[] {
   return [...lines]
     .filter((l) => l.includedInQuote)
@@ -220,18 +278,41 @@ export function buildOrderedQuotationDraftLines(
             : `${des} — ${desc}`
           : desc || des;
 
+      const linkedItemId =
+        line.resolutionMode === "LINK_EXISTING" && line.linkedItemId
+          ? line.linkedItemId
+          : undefined;
+
+      let catalogPrices: RFQCatalogPrice | null = null;
+      if (linkedItemId) {
+        const fromMap = catalogPriceByItemId?.get(linkedItemId) ?? null;
+        if (line.createdInSession) {
+          catalogPrices = {
+            supplyPrice:
+              line.createdSupplyPrice !== undefined
+                ? line.createdSupplyPrice
+                : (fromMap?.supplyPrice ?? null),
+            quotedPrice:
+              line.createdQuotedPrice !== undefined
+                ? line.createdQuotedPrice
+                : (fromMap?.quotedPrice ?? null),
+          };
+        } else {
+          catalogPrices = fromMap;
+        }
+      }
+
+      const resolvedPrices = resolveRFQQuotationPrices(catalogPrices);
+
       return {
-        itemId:
-          line.resolutionMode === "LINK_EXISTING" && line.linkedItemId
-            ? line.linkedItemId
-            : undefined,
+        itemId: linkedItemId,
         description: combinedDescription,
         unit: line.unitCode.trim(),
         quantity: line.quantity ?? 1,
-        unitPrice: 0,
-        supplyPrice: 0,
+        unitPrice: resolvedPrices.unitPrice,
+        supplyPrice: resolvedPrices.supplyPrice,
         discountPercent: 0,
-        commissionPercent: null,
+        commissionPercent: resolvedPrices.commissionPercent,
         brand: "",
         brandImageUrl: null,
       };

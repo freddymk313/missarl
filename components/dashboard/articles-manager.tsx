@@ -268,10 +268,14 @@ export function ArticlesManager({
 
   // State
   const [items, setItems] = useState<ItemRecord[]>(initialPageData.items);
-  const [totalCount, setTotalCount] = useState<number>(initialPageData.totalCount);
+  const [totalCount, setTotalCount] = useState<number>(
+    initialPageData.totalCount,
+  );
   const [page, setPage] = useState<number>(initialPageData.page);
   const [pageSize, setPageSize] = useState<number>(initialPageData.pageSize);
-  const [totalPages, setTotalPages] = useState<number>(initialPageData.totalPages);
+  const [totalPages, setTotalPages] = useState<number>(
+    initialPageData.totalPages,
+  );
   const [currentStats, setCurrentStats] = useState<ItemStats>(stats);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filterCategory, setFilterCategory] = useState(initialCategoryId);
@@ -379,8 +383,8 @@ export function ArticlesManager({
       item.supplyPrice != null
         ? item.supplyPrice.toString()
         : item.cheapestOfferUsd != null
-        ? item.cheapestOfferUsd.toString()
-        : "";
+          ? item.cheapestOfferUsd.toString()
+          : "";
     setSupplyPrice(initialSupply);
     setQuotedPrice(item.quotedPrice != null ? item.quotedPrice.toString() : "");
     setSpecs(item.specs ?? {});
@@ -476,7 +480,7 @@ export function ArticlesManager({
 
     const supplyCheck = validateOptionalCatalogPrice(
       supplyPrice,
-      "Supply Price ($)"
+      "Supply Price ($)",
     );
     if (!supplyCheck.ok) {
       setFormError(supplyCheck.error);
@@ -485,7 +489,7 @@ export function ArticlesManager({
 
     const quotedCheck = validateOptionalCatalogPrice(
       quotedPrice,
-      "Quoted Price ($)"
+      "Quoted Price ($)",
     );
     if (!quotedCheck.ok) {
       setFormError(quotedCheck.error);
@@ -527,8 +531,8 @@ export function ArticlesManager({
           supplyCheck.value !== null
             ? supplyCheck.value
             : offerSupplyFallback && offerSupplyFallback.ok
-            ? offerSupplyFallback.value
-            : null;
+              ? offerSupplyFallback.value
+              : null;
 
         const res = await createItemAction({
           designation,
@@ -620,7 +624,7 @@ export function ArticlesManager({
       } else {
         if (res.item) {
           setItems((prev) =>
-            prev.map((i) => (i.id === res.item!.id ? res.item! : i))
+            prev.map((i) => (i.id === res.item!.id ? res.item! : i)),
           );
           if (detailItem?.id === res.item.id) {
             setDetailItem(res.item);
@@ -644,33 +648,35 @@ export function ArticlesManager({
       {/* KPI Strip */}
       <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
         <div className="min-w-60 sm:min-w-0 flex-1">
-        <StatTile
-          label="Total Items"
-          value={currentStats.totalItems}
-          icon={Package}
-          tone="primary"
-        /></div>
+          <StatTile
+            label="Total Items"
+            value={currentStats.totalItems}
+            icon={Package}
+            tone="primary"
+          />
+        </div>
         <div className="min-w-60 sm:min-w-0 flex-1">
-        <StatTile
-          label="Categories Used"
-          value={currentStats.categoriesUsed}
-          icon={Layers}
-        /></div>
+          <StatTile
+            label="Categories Used"
+            value={currentStats.categoriesUsed}
+            icon={Layers}
+          />
+        </div>
         <div className="min-w-60 sm:min-w-0 flex-1">
-
-        <StatTile
-          label="Suppliers Referenced"
-          value={currentStats.suppliersReferenced}
-          icon={Truck}
-        /></div>
+          <StatTile
+            label="Suppliers Referenced"
+            value={currentStats.suppliersReferenced}
+            icon={Truck}
+          />
+        </div>
         <div className="min-w-60 sm:min-w-0 flex-1">
-
-        <StatTile
-          label="Items Without Offer"
-          value={currentStats.itemsWithoutOffer}
-          icon={AlertCircle}
-          tone={currentStats.itemsWithoutOffer > 0 ? "warning" : "default"}
-        /></div>
+          <StatTile
+            label="Items Without Offer"
+            value={currentStats.itemsWithoutOffer}
+            icon={AlertCircle}
+            tone={currentStats.itemsWithoutOffer > 0 ? "warning" : "default"}
+          />
+        </div>
       </div>
 
       {/* Role notice */}
@@ -688,7 +694,7 @@ export function ArticlesManager({
       <div className="flex flex-col gap-3 bg-card p-4 rounded-2xl border border-border shadow-xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2.5">
-            <div className="relative flex-1 min-w-50">
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-50">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -749,24 +755,39 @@ export function ArticlesManager({
               <option value="designation">Sort: Alphabetical</option>
             </select>
 
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={isSearching}
-              className="h-9 px-4 rounded-xl bg-secondary border border-border text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer disabled:opacity-55 shrink-0 flex items-center justify-center"
-            >
-              {isSearching ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                "Search"
+            {/* Conteneur des 2 boutons côte à côte sur mobile, séparés sur sm+ */}
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="h-9 flex-1 sm:flex-initial px-4 rounded-xl bg-secondary border border-border text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer disabled:opacity-55 shrink-0 flex items-center justify-center"
+              >
+                {isSearching ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  "Search"
+                )}
+              </button>
+
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="sm:hidden inline-flex items-center justify-center text-center gap-1.5 h-9 flex-1 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+                >
+                  <Plus className="size-4" /> <span>New Item</span>
+                </button>
               )}
-            </button>
+            </div>
           </div>
 
+          {/* Bouton New Item sur tablette/PC */}
           {canManage && (
             <button
+              type="button"
               onClick={openCreate}
-              className="inline-flex items-center justify-center text-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+              className="hidden sm:inline-flex items-center justify-center text-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
             >
               <Plus className="size-4" /> <span>New Item</span>
             </button>
@@ -884,11 +905,12 @@ export function ArticlesManager({
                           <span className="font-bold text-foreground">
                             $ {item.supplyPrice.toFixed(2)}
                           </span>
-                          {item.cheapestOfferUsd != null && item.cheapestOfferUsd !== item.supplyPrice && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Offer: $ {item.cheapestOfferUsd.toFixed(2)}
-                            </p>
-                          )}
+                          {item.cheapestOfferUsd != null &&
+                            item.cheapestOfferUsd !== item.supplyPrice && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Offer: $ {item.cheapestOfferUsd.toFixed(2)}
+                              </p>
+                            )}
                         </div>
                       ) : item.cheapestOfferUsd != null ? (
                         <span className="font-bold text-foreground">
@@ -1004,7 +1026,9 @@ export function ArticlesManager({
                   <div className="flex items-baseline gap-3">
                     {item.supplyPrice != null && (
                       <div>
-                        <span className="text-[10px] text-muted-foreground block">Supply</span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          Supply
+                        </span>
                         <span className="font-mono font-bold text-foreground text-xs">
                           ${item.supplyPrice.toFixed(2)}
                         </span>
@@ -1012,7 +1036,9 @@ export function ArticlesManager({
                     )}
                     {item.quotedPrice != null && (
                       <div>
-                        <span className="text-[10px] text-muted-foreground block">Quoted</span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          Quoted
+                        </span>
                         <span className="font-mono font-bold text-primary text-xs">
                           ${item.quotedPrice.toFixed(2)}
                         </span>
@@ -1020,7 +1046,9 @@ export function ArticlesManager({
                     )}
                     {item.unitCode && (
                       <div>
-                        <span className="text-[10px] text-muted-foreground block">Unit</span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          Unit
+                        </span>
                         <span className="text-xs font-bold text-muted-foreground">
                           {item.unitCode}
                         </span>
@@ -1028,7 +1056,10 @@ export function ArticlesManager({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
                       type="button"
                       onClick={() => openDetail(item)}
@@ -1154,8 +1185,8 @@ export function ArticlesManager({
                     {detailItem.supplyPrice != null
                       ? `$ ${detailItem.supplyPrice.toFixed(2)}`
                       : detailItem.cheapestOfferUsd != null
-                      ? `$ ${detailItem.cheapestOfferUsd.toFixed(2)}`
-                      : "—"}
+                        ? `$ ${detailItem.cheapestOfferUsd.toFixed(2)}`
+                        : "—"}
                   </p>
                 </div>
                 <span className="text-[10px] text-muted-foreground mt-1">
@@ -1358,343 +1389,338 @@ export function ArticlesManager({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Section: Identification */}
-              <fieldset>
-                <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
-                  Identification
-                </legend>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-foreground">
-                      Short Designation *{" "}
-                      <span className="text-muted-foreground font-normal">
-                        (noun first, e.g. MOTOR, ELECTRIC 132KW)
-                      </span>
-                    </label>
-                    <input
-                      required
-                      value={designation}
-                      onChange={(e) => setDesignation(e.target.value)}
-                      placeholder="VALVE, BUTTERFLY PN16 DN100"
-                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-foreground">
-                      Full Technical Description *
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Detailed technical specification…"
-                      className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Category *
-                      </label>
-                      <select
-                        required
-                        value={categoryId}
-                        onChange={(e) => setCategoryId(e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      >
-                        <option value="">Select…</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nameFr}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Unit *
-                      </label>
-                      <select
-                        required
-                        value={unitCode}
-                        onChange={(e) => setUnitCode(e.target.value)}
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      >
-                        {units.map((u) => (
-                          <option key={u.code} value={u.code}>
-                            {u.code} — {u.labelFr}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Brand / Manufacturer
-                      </label>
-                      <input
-                        value={brandName}
-                        onChange={(e) => setBrandName(e.target.value)}
-                        list="brands-catalog-list"
-                        placeholder="KSB, Schneider, Weir…"
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      />
-                      <datalist id="brands-catalog-list">
-                        {brands.map((b) => (
-                          <option key={b.id} value={b.name} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Manufacturer Part Number (MPN)
-                      </label>
-                      <input
-                        value={mpn}
-                        onChange={(e) => setMpn(e.target.value)}
-                        placeholder="SDW6205050AENORV"
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Supply Price ($){" "}
-                        <span className="text-muted-foreground font-normal">
-                          (Coût fournisseur)
-                        </span>
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={supplyPrice}
-                        onChange={(e) => setSupplyPrice(e.target.value)}
-                        placeholder="0.00"
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-foreground">
-                        Quoted Price ($){" "}
-                        <span className="text-muted-foreground font-normal">
-                          (Prix devisé client)
-                        </span>
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={quotedPrice}
-                        onChange={(e) => setQuotedPrice(e.target.value)}
-                        placeholder="0.00"
-                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </fieldset>
-
-              {/* Section: Specs */}
-              <fieldset>
-                <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
-                  Specifications{" "}
-                  <span className="text-muted-foreground font-normal normal-case">
-                    (optional key/value)
+          {/* Section: Identification */}
+          <fieldset>
+            <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
+              Identification
+            </legend>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-foreground">
+                  Short Designation *{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (noun first, e.g. MOTOR, ELECTRIC 132KW)
                   </span>
-                </legend>
-                <SpecsEditor value={specs} onChange={setSpecs} />
-              </fieldset>
-
-              {/* Section: Client Codes (create only) */}
-              {!editingItem && (
-                <fieldset>
-                  <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
-                    Client Codes{" "}
-                    <span className="text-muted-foreground font-normal normal-case">
-                      (optional)
-                    </span>
-                  </legend>
-                  <ClientCodesEditor
-                    value={clientCodes}
-                    onChange={setClientCodes}
-                    clients={clients}
+                </label>
+                <input
+                  required
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  placeholder="VALVE, BUTTERFLY PN16 DN100"
+                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-foreground">
+                  Full Technical Description *
+                </label>
+                <textarea
+                  required
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Detailed technical specification…"
+                  className="w-full rounded-xl border border-border bg-card p-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Category *
+                  </label>
+                  <select
+                    required
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  >
+                    <option value="">Select…</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nameFr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Unit *
+                  </label>
+                  <select
+                    required
+                    value={unitCode}
+                    onChange={(e) => setUnitCode(e.target.value)}
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  >
+                    {units.map((u) => (
+                      <option key={u.code} value={u.code}>
+                        {u.code} — {u.labelFr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Brand / Manufacturer
+                  </label>
+                  <input
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    list="brands-catalog-list"
+                    placeholder="KSB, Schneider, Weir…"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
-                </fieldset>
-              )}
+                  <datalist id="brands-catalog-list">
+                    {brands.map((b) => (
+                      <option key={b.id} value={b.name} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Manufacturer Part Number (MPN)
+                  </label>
+                  <input
+                    value={mpn}
+                    onChange={(e) => setMpn(e.target.value)}
+                    placeholder="SDW6205050AENORV"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Supply Price ($){" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Coût fournisseur)
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={supplyPrice}
+                    onChange={(e) => setSupplyPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground">
+                    Quoted Price ($){" "}
+                    <span className="text-muted-foreground font-normal">
+                      (Prix devisé client)
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quotedPrice}
+                    onChange={(e) => setQuotedPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+          </fieldset>
 
-              {/* Section: Supplier Offer (create only) */}
-              {!editingItem && suppliers.length > 0 && (
-                <fieldset>
-                  <legend className="text-xs font-black text-primary uppercase tracking-wide mb-2 flex items-center gap-2">
-                    Supplier Offer
-                    <button
-                      type="button"
-                      onClick={() => setIncludeOffer(!includeOffer)}
-                      className="text-[10px] font-normal text-primary hover:underline normal-case"
-                    >
-                      {includeOffer ? (
-                        <>
-                          <ChevronUp className="inline size-3 mr-0.5" /> Hide
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="inline size-3 mr-0.5" /> Add
-                          one
-                        </>
-                      )}
-                    </button>
-                  </legend>
-                  {includeOffer && (
-                    <div className="space-y-3 rounded-xl border border-border bg-secondary/20 p-3.5">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Supplier *
-                          </label>
-                          <select
-                            value={offerSupplierId}
-                            onChange={(e) => setOfferSupplierId(e.target.value)}
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          >
-                            {suppliers.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Supplier Item Code
-                          </label>
-                          <input
-                            value={offerSupplierCode}
-                            onChange={(e) =>
-                              setOfferSupplierCode(e.target.value)
-                            }
-                            placeholder="Supplier's own reference"
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          />
-                        </div>
+          {/* Section: Specs */}
+          <fieldset>
+            <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
+              Specifications{" "}
+              <span className="text-muted-foreground font-normal normal-case">
+                (optional key/value)
+              </span>
+            </legend>
+            <SpecsEditor value={specs} onChange={setSpecs} />
+          </fieldset>
+
+          {/* Section: Client Codes (create only) */}
+          {!editingItem && (
+            <fieldset>
+              <legend className="text-xs font-black text-primary uppercase tracking-wide mb-3">
+                Client Codes{" "}
+                <span className="text-muted-foreground font-normal normal-case">
+                  (optional)
+                </span>
+              </legend>
+              <ClientCodesEditor
+                value={clientCodes}
+                onChange={setClientCodes}
+                clients={clients}
+              />
+            </fieldset>
+          )}
+
+          {/* Section: Supplier Offer (create only) */}
+          {!editingItem && suppliers.length > 0 && (
+            <fieldset>
+              <legend className="text-xs font-black text-primary uppercase tracking-wide mb-2 flex items-center gap-2">
+                Supplier Offer
+                <button
+                  type="button"
+                  onClick={() => setIncludeOffer(!includeOffer)}
+                  className="text-[10px] font-normal text-primary hover:underline normal-case"
+                >
+                  {includeOffer ? (
+                    <>
+                      <ChevronUp className="inline size-3 mr-0.5" /> Hide
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="inline size-3 mr-0.5" /> Add one
+                    </>
+                  )}
+                </button>
+              </legend>
+              {includeOffer && (
+                <div className="space-y-3 rounded-xl border border-border bg-secondary/20 p-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Supplier *
+                      </label>
+                      <select
+                        value={offerSupplierId}
+                        onChange={(e) => setOfferSupplierId(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      >
+                        {suppliers.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Supplier Item Code
+                      </label>
+                      <input
+                        value={offerSupplierCode}
+                        onChange={(e) => setOfferSupplierCode(e.target.value)}
+                        placeholder="Supplier's own reference"
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Currency
+                      </label>
+                      <div className="h-9 flex items-center px-3 rounded-xl border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
+                        USD ($)
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Currency
-                          </label>
-                          <div className="h-9 flex items-center px-3 rounded-xl border border-border bg-card text-xs font-mono font-bold text-foreground mt-1">
-                            USD ($)
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Supplier Price ($) *
-                          </label>
-                          <div className="relative mt-1">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
-                              $
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={offerPrice}
-                              onChange={(e) => setOfferPrice(e.target.value)}
-                              placeholder="0.00"
-                              className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Quoted On
-                          </label>
-                          <input
-                            type="date"
-                            value={offerDate}
-                            onChange={(e) => setOfferDate(e.target.value)}
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Valid Until
-                          </label>
-                          <input
-                            type="date"
-                            value={offerValidUntil}
-                            onChange={(e) => setOfferValidUntil(e.target.value)}
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Lead Time (days)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={offerLeadTime}
-                            onChange={(e) => setOfferLeadTime(e.target.value)}
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-foreground">
-                            Min. Order Qty
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            value={offerMinQty}
-                            onChange={(e) => setOfferMinQty(e.target.value)}
-                            className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-foreground">
-                          Notes
-                        </label>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Supplier Price ($) *
+                      </label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
+                          $
+                        </span>
                         <input
-                          value={offerNotes}
-                          onChange={(e) => setOfferNotes(e.target.value)}
-                          placeholder="e.g. FOB Johannesburg, subject to availability"
-                          className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={offerPrice}
+                          onChange={(e) => setOfferPrice(e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </div>
-                  )}
-                </fieldset>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Quoted On
+                      </label>
+                      <input
+                        type="date"
+                        value={offerDate}
+                        onChange={(e) => setOfferDate(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Valid Until
+                      </label>
+                      <input
+                        type="date"
+                        value={offerValidUntil}
+                        onChange={(e) => setOfferValidUntil(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Lead Time (days)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={offerLeadTime}
+                        onChange={(e) => setOfferLeadTime(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-foreground">
+                        Min. Order Qty
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        value={offerMinQty}
+                        onChange={(e) => setOfferMinQty(e.target.value)}
+                        className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-foreground">
+                      Notes
+                    </label>
+                    <input
+                      value={offerNotes}
+                      onChange={(e) => setOfferNotes(e.target.value)}
+                      placeholder="e.g. FOB Johannesburg, subject to availability"
+                      className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
+                    />
+                  </div>
+                </div>
               )}
+            </fieldset>
+          )}
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isSubmitting && (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  )}
-                  {editingItem ? "Save Changes" : "Create Item"}
-                </button>
-              </div>
-            </form>
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
+            >
+              {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+              {editingItem ? "Save Changes" : "Create Item"}
+            </button>
+          </div>
+        </form>
       </ResponsiveModal>
 
       {/* ── DELETE CONFIRM MODAL ── */}
@@ -1715,7 +1741,8 @@ export function ArticlesManager({
               ? This cannot be undone.
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Historical records in quotations, orders, and invoices will be safely preserved.
+              Historical records in quotations, orders, and invoices will be
+              safely preserved.
             </p>
             {deleteError && (
               <p className="mt-3 text-xs text-destructive font-semibold">

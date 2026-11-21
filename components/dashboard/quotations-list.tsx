@@ -140,57 +140,60 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
 
       {/* Filters & Actions Bar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by quote ref, client, RFQ..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
+  {/* Search */}
+  <div className="relative flex-1">
+    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+    <input
+      type="text"
+      placeholder="Search by quote ref, client, RFQ..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+    />
+  </div>
 
-        {/* Filters row + action */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="DRAFT">Draft</option>
-            <option value="SUBMITTED">Submitted</option>
-            <option value="VALIDATED">Validated</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+  {/* Filters row + action */}
+  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+    <select
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+    >
+      <option value="ALL">All Statuses</option>
+      <option value="DRAFT">Draft</option>
+      <option value="SUBMITTED">Submitted</option>
+      <option value="VALIDATED">Validated</option>
+      <option value="CANCELLED">Cancelled</option>
+    </select>
 
-          <select
-            value={docTypeFilter}
-            onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          >
-            <option value="ALL">All Types</option>
-            <option value="QUOTATION">Standard Quote</option>
-            <option value="PROFORMA">Proforma</option>
-          </select>
+    <select
+      value={docTypeFilter}
+      onChange={(e) => setDocTypeFilter(e.target.value)}
+      className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+    >
+      <option value="ALL">All Types</option>
+      <option value="QUOTATION">Standard Quote</option>
+      <option value="PROFORMA">Proforma</option>
+    </select>
 
-          <Link
-            href="/dashboard/quotes/import"
-            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-primary/25 bg-accent/15 text-primary text-xs font-bold hover:bg-accent/25 transition-colors shadow-xs shrink-0"
-          >
-            <Sparkles className="size-3.5 text-accent" /> Use Gemini
-          </Link>
+    {/* Deux boutons côte à côte pleine largeur sur mobile, compacts à partir de sm */}
+    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
+      <Link
+        href="/dashboard/quotes/import"
+        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-primary/25 bg-accent/15 text-primary text-xs font-bold hover:bg-accent/25 transition-colors shadow-xs shrink-0 whitespace-nowrap"
+      >
+        <Sparkles className="size-3.5 text-accent shrink-0" /> Use Gemini
+      </Link>
 
-          <Link
-            href="/dashboard/quotes/new"
-            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0"
-          >
-            <Plus className="size-4" /> New Quote
-          </Link>
-        </div>
-      </div>
+      <Link
+        href="/dashboard/quotes/new"
+        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 whitespace-nowrap"
+      >
+        <Plus className="size-4 shrink-0" /> New Quote
+      </Link>
+    </div>
+  </div>
+</div>
 
       {/* ── Desktop / Tablet Table (md and above) ─────────────────────────── */}
       <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-xs">

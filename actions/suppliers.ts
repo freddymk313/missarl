@@ -18,7 +18,7 @@ export async function createSupplierAction(formData: FormData) {
   const notes = formData.get("notes")?.toString().trim();
 
   if (!code || !name) {
-    return { success: false, error: "Le code fournisseur et le nom sont obligatoires." };
+    return { success: false, error: "Supplier code and name are required." };
   }
 
   try {
@@ -45,7 +45,7 @@ export async function createSupplierAction(formData: FormData) {
     revalidatePath("/dashboard/fournisseurs");
     return { success: true, supplier };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur de création du fournisseur.";
+    const message = err instanceof Error ? err.message : "Error creating supplier.";
     return { success: false, error: message };
   }
 }
@@ -57,15 +57,15 @@ export async function updateSupplierAction(
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
   if (data.code !== undefined && !data.code.trim()) {
-    return { success: false, error: "Le code fournisseur ne peut pas être vide." };
+    return { success: false, error: "Supplier code cannot be empty." };
   }
   if (data.name !== undefined && !data.name.trim()) {
-    return { success: false, error: "Le nom du fournisseur ne peut pas être vide." };
+    return { success: false, error: "Supplier name cannot be empty." };
   }
 
   try {
     const updated = await updateSupplier(supplierId, data);
-    if (!updated) return { success: false, error: "Fournisseur introuvable." };
+    if (!updated) return { success: false, error: "Supplier not found." };
 
     await logAudit({
       userId: session.id,
@@ -79,7 +79,7 @@ export async function updateSupplierAction(
     revalidatePath("/dashboard/fournisseurs");
     return { success: true, supplier: updated };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur de mise à jour.";
+    const message = err instanceof Error ? err.message : "Error updating supplier.";
     return { success: false, error: message };
   }
 }
@@ -90,7 +90,7 @@ export async function deleteSupplierAction(supplierId: string) {
   try {
     const deleted = await deleteSupplier(supplierId);
     if (!deleted) {
-      return { success: false, error: "Fournisseur introuvable." };
+      return { success: false, error: "Supplier not found." };
     }
 
     await logAudit({
@@ -105,7 +105,7 @@ export async function deleteSupplierAction(supplierId: string) {
     revalidatePath("/dashboard/fournisseurs");
     return { success: true };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur lors de la suppression du fournisseur.";
+    const message = err instanceof Error ? err.message : "Error deleting supplier.";
     return { success: false, error: message };
   }
 }

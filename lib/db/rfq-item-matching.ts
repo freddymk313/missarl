@@ -368,9 +368,9 @@ export function matchExtractedRFQItems(input: {
     const normalizedUnitCode = normalizeUnitFromCatalog(item.rawUnit, units);
     const unitMatchWarning =
       item.rawUnit && !normalizedUnitCode
-        ? `Unité "${item.rawUnit}" non reconnue dans le référentiel. Sélectionnez une unité valide.`
+        ? `Unit "${item.rawUnit}" not recognized in catalog. Please select a valid unit.`
         : !item.rawUnit
-        ? "Unité absente du document RFQ. Sélectionnez une unité."
+        ? "Unit missing from RFQ document. Please select a unit."
         : null;
 
     // Score strictly against designation & description only
@@ -402,16 +402,16 @@ export function matchExtractedRFQItems(input: {
     // Check explicit NEEDS_REVIEW reasons
     const reviewReasons: string[] = [];
     if (!item.designation.trim() && !item.description.trim()) {
-      reviewReasons.push("Désignation et description absentes");
+      reviewReasons.push("Missing designation and description");
     }
     if (item.confidence === "low") {
-      reviewReasons.push("Confiance d'extraction faible");
+      reviewReasons.push("Low extraction confidence");
     }
     if (item.quantity === null || item.quantity <= 0) {
-      reviewReasons.push("Quantité manquante ou invalide");
+      reviewReasons.push("Missing or invalid quantity");
     }
     if (item.rawUnit && !normalizedUnitCode) {
-      reviewReasons.push(`Unité "${item.rawUnit}" non standardisée`);
+      reviewReasons.push(`Non-standard unit "${item.rawUnit}"`);
     }
 
     let status: RFQMatchStatus;
@@ -434,7 +434,7 @@ export function matchExtractedRFQItems(input: {
       if (isAmbiguous) {
         status = "POSSIBLE_MATCH";
         needsReviewReason =
-          "Plusieurs articles du catalogue ont une désignation très proche.";
+          "Multiple catalog items have very similar designations.";
       } else {
         status = "MATCHED";
         matchedItem = best;

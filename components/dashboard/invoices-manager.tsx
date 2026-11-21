@@ -446,7 +446,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
       <DetailSheet
         isOpen={!!selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
-        size="xl"
+        size="2xl"
         title={selectedInvoice?.invoiceNumber || "Invoice Details"}
         statusBadge={
           selectedInvoice ? (

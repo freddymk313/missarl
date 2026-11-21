@@ -279,8 +279,8 @@ export default async function DashboardPage() {
                 </h1>
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Suivi des opérations commerciales, devis miniers, commandes et
-                créances clients.
+                Track commercial operations, mining quotes, purchase orders, and
+                accounts receivable.
               </p>
             </div>
           </div>
@@ -291,7 +291,7 @@ export default async function DashboardPage() {
               href="/dashboard/quotes/new"
               className="inline-flex items-center justify-center gap-2 h-9 flex-1 sm:flex-initial px-3.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
             >
-              <FileSpreadsheet className="size-3.5" /> Nouveau Devis
+              <FileSpreadsheet className="size-3.5" /> New Quote
             </Link>
             <Link
               href="/dashboard/clients"
@@ -304,107 +304,111 @@ export default async function DashboardPage() {
       </div>
 
       {/* 4 KPI StatTiles */}
-      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"> */}
       <div className="flex lg:grid lg:grid-cols-4 overflow-x-auto gap-3 sm:gap-4 pb-2 no-scrollbar">
         <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
-            label="Devis Émis"
+            label="Quotes Issued"
             value={quoteStat.total}
             icon={FileSpreadsheet}
             href="/dashboard/quotes"
-            subtext={`${quoteStat.validated} validés · ${formatUSD(quoteStat.total_amount)}`}
+            subtext={`${quoteStat.validated} validated · ${formatUSD(quoteStat.total_amount)}`}
           />
         </div>
         <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
-            label="Bons de Commande"
+            label="Purchase Orders"
             value={orderStat.total}
             icon={ShoppingCart}
             href="/dashboard/orders"
-            subtext={`${orderStat.active} en cours · ${formatUSD(orderStat.total_amount)}`}
+            subtext={`${orderStat.active} active · ${formatUSD(orderStat.total_amount)}`}
           />
         </div>
         <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
-            label="Créances à recouvrer"
+            label="Outstanding Receivables"
             value={` ${formatUSD(invoiceStat.total_receivables)}`}
             icon={Receipt}
             href="/dashboard/invoices"
             trend="down"
-            subtext={`${invoiceStat.unpaid_count} facture(s) en attente`}
+            subtext={`${invoiceStat.unpaid_count} unpaid invoice(s)`}
           />
         </div>
         <div className="min-w-65 sm:min-w-0 flex-1">
           <StatTile
-            label="Paiements Encaissés"
+            label="Collected Payments"
             value={`${formatUSD(paymentStat.total_collected)}`}
             icon={CreditCard}
             href="/dashboard/payments"
             trend="up"
-            subtext={`${paymentStat.total} versement(s) reçu(s)`}
+            subtext={`${paymentStat.total} payment(s) received`}
           />
         </div>
       </div>
 
       {/* Main Grid: Activity & Budget Summary */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 lg:grid-cols-12 min-w-0">
         {/* Left Column: Recent Tasks / Quotes (8 cols) */}
-        <div className="lg:col-span-8 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <div>
+        <div className="lg:col-span-8 min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex items-start sm:items-center justify-between gap-3 pb-3 border-b border-border">
+            <div className="min-w-0">
               <h2 className="text-sm font-black text-primary flex items-center gap-2">
-                <FileSpreadsheet className="size-4 text-accent" /> Devis &
-                Propositions Récentes
+                <FileSpreadsheet className="size-4 text-accent shrink-0" />
+                <span className="truncate">Recent Quotes</span>
               </h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Dernières cotations industrielles émises aux clients miniers
+              <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 sm:line-clamp-1">
+                Latest industrial quotations issued to mining customers
               </p>
             </div>
             <Link
               href="/dashboard/quotes"
-              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-accent transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-accent transition-colors shrink-0 whitespace-nowrap"
             >
-              Consulter tout <ArrowRight className="size-3 text-accent" />
+              <span>View All</span>
+              <ArrowRight className="size-3 text-accent shrink-0" />
             </Link>
           </div>
 
           <div className="divide-y divide-border/60">
             {recentQuotes.length === 0 ? (
               <p className="py-8 text-center text-xs text-muted-foreground">
-                Aucun devis créé pour le moment.
+                No quotes created yet.
               </p>
             ) : (
               recentQuotes.map((q) => (
                 <div
                   key={q.id}
-                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-secondary/30 px-2 rounded-xl transition-colors"
+                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 text-xs hover:bg-secondary/30 px-2 rounded-xl transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <RefChip value={q.internal_reference} />
-                    <div>
-                      <p className="font-extrabold text-foreground">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="shrink-0">
+                      <RefChip value={q.internal_reference} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-extrabold text-foreground truncate">
                         {q.client_name}
                       </p>
                       <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="size-3 text-accent" />{" "}
-                        {q.document_date}
+                        <Clock className="size-3 text-accent shrink-0" />
+                        <span className="truncate">{q.document_date}</span>
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3.5">
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/40">
                     <MoneyText
                       amount={q.total}
-                      className="text-xs font-black text-foreground"
+                      className="text-xs font-black text-foreground whitespace-nowrap"
                     />
-                    <StatusBadge status={q.status} />
-                    <Link
-                      href="/dashboard/quotes"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-accent hover:bg-secondary transition-colors"
-                      title="Ouvrir la liste des devis"
-                    >
-                      <ExternalLink className="size-3.5" />
-                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusBadge status={q.status} />
+                      <Link
+                        href="/dashboard/quotes"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-accent hover:bg-secondary transition-colors shrink-0"
+                        title="Open quotes list"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))
@@ -413,28 +417,29 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right Column: Financial Balance & Invoices to Watch (4 cols) */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 min-w-0 space-y-6">
           {/* Treasury Summary Card */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-bold text-muted-foreground">
-                Suivi Trésorerie
+                Treasury Overview
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-md">
-                <TrendingUp className="size-3" /> {collectionRate}% recouvré
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success bg-success/15 px-2 py-0.5 rounded-md whitespace-nowrap">
+                <TrendingUp className="size-3 shrink-0" /> {collectionRate}%
+                collected
               </span>
             </div>
 
             <div className="space-y-1">
               <p className="text-[11px] text-muted-foreground font-medium">
-                Total Facturé
+                Total Invoiced
               </p>
-              <p className="text-xl font-black text-primary font-mono">
+              <p className="text-xl font-black text-primary font-mono break-all sm:break-normal">
                 {formatUSD(invoiceStat.total_invoiced)}
               </p>
             </div>
 
-            {/* Progress bar avec touche jaune/or */}
+            {/* Progress bar with subtle accent accent color */}
             <div className="space-y-1.5 pt-1">
               <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
                 <div
@@ -442,68 +447,68 @@ export default async function DashboardPage() {
                   style={{ width: `${collectionRate}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>Encaissé: {formatUSD(paymentStat.total_collected)}</span>
-                <span>Reste: {formatUSD(invoiceStat.total_receivables)}</span>
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>Collected: {formatUSD(paymentStat.total_collected)}</span>
+                <span>Remaining: {formatUSD(invoiceStat.total_receivables)}</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border text-xs">
-              <div className="rounded-xl bg-secondary/50 p-2.5">
-                <p className="text-[10px] text-muted-foreground font-semibold">
-                  Encaissé
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2 pt-2 border-t border-border text-xs">
+              <div className="rounded-xl bg-secondary/50 p-2.5 min-w-0">
+                <p className="text-[10px] text-muted-foreground font-semibold truncate">
+                  Collected
                 </p>
-                <p className="text-xs font-mono font-bold text-success mt-0.5">
+                <p className="text-xs font-mono font-bold text-success mt-0.5 truncate">
                   {formatUSD(paymentStat.total_collected)}
                 </p>
               </div>
-              <div className="rounded-xl bg-secondary/50 p-2.5">
-                <p className="text-[10px] text-muted-foreground font-semibold">
-                  Créances Dues
+              <div className="rounded-xl bg-secondary/50 p-2.5 min-w-0">
+                <p className="text-[10px] text-muted-foreground font-semibold truncate">
+                  Outstanding Balance
                 </p>
-                <p className="text-xs font-mono font-bold text-destructive mt-0.5">
+                <p className="text-xs font-mono font-bold text-destructive mt-0.5 truncate">
                   {formatUSD(invoiceStat.total_receivables)}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Factures à surveiller */}
+          {/* Invoices to Watch */}
           <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border">
-              <h3 className="text-xs font-black text-primary flex items-center gap-1.5">
-                <AlertTriangle className="size-3.5 text-accent" /> Factures à
-                Surveiller
+            <div className="flex items-center justify-between gap-2 pb-2 border-b border-border">
+              <h3 className="text-xs font-black text-primary flex items-center gap-1.5 min-w-0">
+                <AlertTriangle className="size-3.5 text-accent shrink-0" />
+                <span className="truncate">Invoices to Watch</span>
               </h3>
               <Link
                 href="/dashboard/invoices"
-                className="text-[11px] font-bold text-muted-foreground hover:text-accent transition-colors"
+                className="text-[11px] font-bold text-muted-foreground hover:text-accent transition-colors shrink-0 whitespace-nowrap"
               >
-                Tout voir
+                View All
               </Link>
             </div>
 
             <div className="space-y-2.5">
               {recentInvoices.length === 0 ? (
                 <p className="py-4 text-center text-xs text-muted-foreground">
-                  Aucune facture en retard.
+                  No overdue invoices.
                 </p>
               ) : (
                 recentInvoices.map((inv) => (
                   <div
                     key={inv.id}
-                    className="p-3 rounded-xl border border-border/80 bg-secondary/20 flex items-center justify-between text-xs"
+                    className="p-3 rounded-xl border border-border/80 bg-secondary/20 flex items-center justify-between gap-2.5 text-xs min-w-0"
                   >
-                    <div>
-                      <p className="font-mono font-extrabold text-primary text-[11px]">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono font-extrabold text-primary text-[11px] truncate">
                         {inv.invoice_number}
                       </p>
-                      <p className="text-[10px] text-muted-foreground truncate max-w-32.5">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {inv.client_name}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-mono font-black text-destructive text-xs">
+                    <div className="text-right shrink-0">
+                      <p className="font-mono font-black text-destructive text-xs whitespace-nowrap">
                         {formatUSD(inv.balance_due)}
                       </p>
                       <StatusBadge status={inv.status} />

@@ -22,8 +22,10 @@ import {
   buildOrderedQuotationDraftLines,
   createInitialReviewLines,
   groupReviewLinesByStatus,
+  resolveRFQQuotationPrices,
   REVIEW_GROUP_ORDER,
   validateReviewLinesForQuote,
+  type RFQCatalogPrice,
 } from "../lib/rfq-draft-builder";
 import {
   createItem,
@@ -586,19 +588,44 @@ async function run() {
   multiScenarioLines[2].addToCatalog = false;
   multiScenarioLines[2].includedInQuote = true;
 
-  const scenarioDrafts = buildOrderedQuotationDraftLines(multiScenarioLines);
+  const scenarioCatalogMap = new Map<string, RFQCatalogPrice>([
+    [
+      itemA.id,
+      {
+        supplyPrice: itemA.supplyPrice,
+        quotedPrice: itemA.quotedPrice ?? null,
+      },
+    ],
+    [
+      "item-0001",
+      {
+        supplyPrice: null,
+        quotedPrice: null,
+      },
+    ],
+  ]);
+
+  const scenarioDrafts = buildOrderedQuotationDraftLines(
+    multiScenarioLines,
+    scenarioCatalogMap
+  );
   // Line 2 (Scenario B) is excluded; Lines 1, 3, 4 are included
   assert.equal(scenarioDrafts.length, 3);
   assert.equal(scenarioDrafts[0].itemId, itemA.id);
   assert.equal(
-    scenarioDrafts[0].unitPrice,
-    0,
-    "Scenario A: Quoted Price in catalog must NOT overwrite quotation unitPrice"
+    scenarioDrafts[0].supplyPrice,
+    125.5,
+    "Scenario A: Supplier Price in catalog transfers to purchase cost"
   );
   assert.equal(
-    scenarioDrafts[0].supplyPrice,
+    scenarioDrafts[0].unitPrice,
     0,
-    "Scenario A: Supplier Price in catalog must NOT overwrite quotation supplyPrice"
+    "Scenario A: Quoted Price must NOT overwrite unitPrice when Supplier Price exists"
+  );
+  assert.equal(
+    scenarioDrafts[0].commissionPercent,
+    null,
+    "Scenario A: Global commission remains applicable (null)"
   );
   assert.equal(
     scenarioDrafts[1].itemId,
@@ -680,6 +707,294 @@ async function run() {
   assert.ok(allActive.length >= 120);
 
   console.log("[PASS] 7. Scenarios A-H: optional USD prices, independent checkboxes, and >100 items pagination");
+
+  // --------------------------------------------------------------------------
+  // 8. RFQ Catalogue Price Prefill Priority Rules (Tests 1-8)
+  // --------------------------------------------------------------------------
+  // Test 1: supplyPrice = 120, quotedPrice = 175 -> supplyPrice: 120, unitPrice: 0, commissionPercent: null
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: 120, quotedPrice: 175 }),
+    { supplyPrice: 120, unitPrice: 0, commissionPercent: null }
+  );
+
+  // Test 2: supplyPrice = null, quotedPrice = 175 -> supplyPrice: 0, unitPrice: 175, commissionPercent: 0
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: null, quotedPrice: 175 }),
+    { supplyPrice: 0, unitPrice: 175, commissionPercent: 0 }
+  );
+
+  // Test 3: supplyPrice = 120, quotedPrice = null -> supplyPrice: 120, unitPrice: 0, commissionPercent: null
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: 120, quotedPrice: null }),
+    { supplyPrice: 120, unitPrice: 0, commissionPercent: null }
+  );
+
+  // Test 4: supplyPrice = null, quotedPrice = null -> supplyPrice: 0, unitPrice: 0, commissionPercent: null
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: null, quotedPrice: null }),
+    { supplyPrice: 0, unitPrice: 0, commissionPercent: null }
+  );
+
+  // Test 7: Explicit 0 handling (must NOT use truthy checks)
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: 0, quotedPrice: 175 }),
+    { supplyPrice: 0, unitPrice: 0, commissionPercent: null },
+    "Explicit 0 supplyPrice takes priority over quotedPrice"
+  );
+  assert.deepEqual(
+    resolveRFQQuotationPrices({ supplyPrice: null, quotedPrice: 0 }),
+    { supplyPrice: 0, unitPrice: 0, commissionPercent: 0 },
+    "Explicit 0 quotedPrice applies when supplyPrice is null"
+  );
+
+  // Test 5, 6, 8: End-to-end mixed RFQ with existing items + newly created session items + uncreated line
+  const existingQuotedOnlyItem = await createItem({
+    designation: "SOUPAPE SECURITE BRIDE DN80",
+    description: "Soupape tarée 10 bar corps acier",
+    unitCode: "EA",
+    supplyPrice: null,
+    quotedPrice: 210,
+  });
+  const existingZeroSupplyItem = await createItem({
+    designation: "CABLE TERRE CUIVRE NU 25MM2",
+    description: "Conducteur cuivre recuit mise à la terre",
+    unitCode: "M",
+    supplyPrice: 0,
+    quotedPrice: 175,
+  });
+  const newSessionSupplyItem = await createItem({
+    designation: "VANNE PAPILLON MOTORISEE DN100",
+    description: "Vanne papillon actionneur 24VDC",
+    unitCode: "EA",
+    supplyPrice: 80,
+    quotedPrice: 125,
+  });
+  const newSessionQuotedOnlyItem = await createItem({
+    designation: "MANOMETRE GLYCERINE 0-16 BAR",
+    description: "Boîtier inox diamètre 100mm raccord 1/2 BSP",
+    unitCode: "EA",
+    supplyPrice: null,
+    quotedPrice: 125,
+  });
+
+  // Intentionally pass out-of-order lines and omit newSession* items from initial page catalog map
+  // to verify in-session creation pricing transfer & sourceLineNumber sorting.
+  const initialPageCatalogMap = new Map<string, RFQCatalogPrice>([
+    [
+      existingQuotedOnlyItem.id,
+      {
+        supplyPrice: existingQuotedOnlyItem.supplyPrice,
+        quotedPrice: existingQuotedOnlyItem.quotedPrice ?? null,
+      },
+    ],
+    [
+      existingZeroSupplyItem.id,
+      {
+        supplyPrice: existingZeroSupplyItem.supplyPrice,
+        quotedPrice: existingZeroSupplyItem.quotedPrice ?? null,
+      },
+    ],
+    [
+      itemA.id,
+      {
+        supplyPrice: itemA.supplyPrice,
+        quotedPrice: itemA.quotedPrice ?? null,
+      },
+    ],
+  ]);
+
+  const mixedReviewLines = createInitialReviewLines([
+    {
+      sourceLineNumber: 5,
+      pageNumber: 2,
+      extractedDesignation: "FOURNITURE SPECIALE NON ENREGISTREE",
+      extractedDescription: "Article devis uniquement non enregistré au catalogue",
+      quantity: 3,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 1,
+      pageNumber: 1,
+      extractedDesignation: existingQuotedOnlyItem.designation!,
+      extractedDescription: existingQuotedOnlyItem.description,
+      quantity: 2,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "MATCHED",
+      needsReviewReason: null,
+      matchedItem: {
+        itemId: existingQuotedOnlyItem.id,
+        skuRef: existingQuotedOnlyItem.skuRef,
+        designation: existingQuotedOnlyItem.designation,
+        description: existingQuotedOnlyItem.description,
+        unitCode: existingQuotedOnlyItem.unitCode,
+        score: 0.99,
+        matchReason: "Exact",
+      },
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 3,
+      pageNumber: 1,
+      extractedDesignation: newSessionSupplyItem.designation!,
+      extractedDescription: newSessionSupplyItem.description,
+      quantity: 4,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 2,
+      pageNumber: 1,
+      extractedDesignation: existingZeroSupplyItem.designation!,
+      extractedDescription: existingZeroSupplyItem.description,
+      quantity: 10,
+      rawUnit: "M",
+      normalizedUnitCode: "M",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "MATCHED",
+      needsReviewReason: null,
+      matchedItem: {
+        itemId: existingZeroSupplyItem.id,
+        skuRef: existingZeroSupplyItem.skuRef,
+        designation: existingZeroSupplyItem.designation,
+        description: existingZeroSupplyItem.description,
+        unitCode: existingZeroSupplyItem.unitCode,
+        score: 0.98,
+        matchReason: "Exact",
+      },
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 4,
+      pageNumber: 2,
+      extractedDesignation: newSessionQuotedOnlyItem.designation!,
+      extractedDescription: newSessionQuotedOnlyItem.description,
+      quantity: 6,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+  ]);
+
+  // Simulate session bulk creation on Lines #3 and #4 (index 2 and 4 in initial sorted order)
+  const line3 = mixedReviewLines.find((l) => l.sourceLineNumber === 3)!;
+  line3.resolutionMode = "LINK_EXISTING";
+  line3.linkedItemId = newSessionSupplyItem.id;
+  line3.linkedSkuRef = newSessionSupplyItem.skuRef;
+  line3.createdInSession = true;
+  line3.createdSupplyPrice = newSessionSupplyItem.supplyPrice; // 80
+  line3.createdQuotedPrice = newSessionSupplyItem.quotedPrice ?? null; // 125
+
+  const line4 = mixedReviewLines.find((l) => l.sourceLineNumber === 4)!;
+  line4.resolutionMode = "LINK_EXISTING";
+  line4.linkedItemId = newSessionQuotedOnlyItem.id;
+  line4.linkedSkuRef = newSessionQuotedOnlyItem.skuRef;
+  line4.createdInSession = true;
+  line4.createdSupplyPrice = newSessionQuotedOnlyItem.supplyPrice; // null
+  line4.createdQuotedPrice = newSessionQuotedOnlyItem.quotedPrice ?? null; // 125
+
+  const mixedDrafts = buildOrderedQuotationDraftLines(
+    mixedReviewLines,
+    initialPageCatalogMap
+  );
+  assert.equal(mixedDrafts.length, 5);
+
+  // Line 1 (Test 6): Existing matched item with only quotedPrice = 210
+  assert.equal(mixedDrafts[0].itemId, existingQuotedOnlyItem.id);
+  assert.equal(mixedDrafts[0].supplyPrice, 0);
+  assert.equal(mixedDrafts[0].unitPrice, 210);
+  assert.equal(mixedDrafts[0].commissionPercent, 0);
+
+  // Line 2 (Test 7): Existing matched item with explicit supplyPrice = 0, quotedPrice = 175
+  assert.equal(mixedDrafts[1].itemId, existingZeroSupplyItem.id);
+  assert.equal(mixedDrafts[1].supplyPrice, 0);
+  assert.equal(mixedDrafts[1].unitPrice, 0);
+  assert.equal(mixedDrafts[1].commissionPercent, null);
+
+  // Line 3 (Test 5): Newly created in session with supplyPrice = 80, quotedPrice = 125
+  assert.equal(mixedDrafts[2].itemId, newSessionSupplyItem.id);
+  assert.equal(mixedDrafts[2].supplyPrice, 80);
+  assert.equal(mixedDrafts[2].unitPrice, 0);
+  assert.equal(mixedDrafts[2].commissionPercent, null);
+
+  // Line 4 (Test 5 + Test 2): Newly created in session with supplyPrice = null, quotedPrice = 125
+  assert.equal(mixedDrafts[3].itemId, newSessionQuotedOnlyItem.id);
+  assert.equal(mixedDrafts[3].supplyPrice, 0);
+  assert.equal(mixedDrafts[3].unitPrice, 125);
+  assert.equal(mixedDrafts[3].commissionPercent, 0);
+
+  // Line 5 (Test 8): Uncreated CREATE_NEW line -> 0 / 0 / null
+  assert.equal(mixedDrafts[4].itemId, undefined);
+  assert.equal(mixedDrafts[4].supplyPrice, 0);
+  assert.equal(mixedDrafts[4].unitPrice, 0);
+  assert.equal(mixedDrafts[4].commissionPercent, null);
+
+  // Persist mixed quotation with global commission = 75 and verify quotedPrice line gets NO commission added
+  const globalCommission = 75;
+  const persistedMixedQuote = await createQuotation({
+    clientId: mockDb.clients[0].id,
+    docType: "QUOTATION",
+    clientRfqNumber: "RFQ-MIXED-PREFILL",
+    validityDays: 30,
+    vatRate: 16,
+    defaultCommissionPercent: globalCommission,
+    items: mixedDrafts.map((dl) => ({
+      itemId: dl.itemId,
+      brand: dl.brand,
+      brandImageUrl: dl.brandImageUrl,
+      description: dl.description,
+      unit: dl.unit,
+      quantity: dl.quantity,
+      unitPrice: dl.unitPrice,
+      discountPercent: dl.discountPercent,
+      supplierPriceSnapshot: dl.supplyPrice > 0 ? dl.supplyPrice : null,
+      baseCostUsdSnapshot: dl.supplyPrice > 0 ? dl.supplyPrice : null,
+      commissionPercent: dl.commissionPercent ?? globalCommission,
+      commissionAmount:
+        dl.unitPrice - dl.supplyPrice > 0 ? dl.unitPrice - dl.supplyPrice : 0,
+    })),
+    userId: mockDb.users[0].id,
+  });
+
+  const fetchedMixed = await getQuotationById(persistedMixedQuote.id);
+  assert.ok(fetchedMixed && fetchedMixed.items && fetchedMixed.items.length === 5);
+  assert.equal(fetchedMixed.items[0].unitPrice, 210);
+  assert.equal(fetchedMixed.items[0].commissionPercentSnapshot, 0);
+  assert.equal(fetchedMixed.items[2].supplierPriceSnapshot, 80);
+  assert.equal(fetchedMixed.items[2].unitPrice, 0);
+  assert.equal(fetchedMixed.items[2].commissionPercentSnapshot, 75);
+  assert.equal(fetchedMixed.items[3].unitPrice, 125);
+  assert.equal(fetchedMixed.items[3].commissionPercentSnapshot, 0);
+  assert.equal(fetchedMixed.items[4].unitPrice, 0);
+  assert.equal(fetchedMixed.items[4].commissionPercentSnapshot, 75);
+
+  console.log("[PASS] 8. RFQ catalogue price prefill priority rules (Tests 1-8) & persistence");
   console.log("\n=== ALL RFQ IMPORT TESTS PASSED SUCCESSFULLY ===");
 }
 

@@ -129,7 +129,7 @@ export async function generateInvoicePdf(
   drawCustomerSection(page1, {
     clientName: data.client.name,
     clientCode: data.client.code,
-    referenceLabel: "FACTURE N°",
+    referenceLabel: "FAC N°",
     referenceValue: data.invoiceNumber,
     clientPoNumber: data.clientPoNumber,
     clientRfqNumber: data.clientRfqNumber,

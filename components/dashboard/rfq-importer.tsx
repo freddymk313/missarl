@@ -42,6 +42,7 @@ import {
   REVIEW_GROUP_ORDER,
   validateReviewLinesForQuote,
   type EditableRFQReviewLine,
+  type RFQCatalogPrice,
 } from "@/lib/rfq-draft-builder";
 
 interface RFQImporterProps {
@@ -63,50 +64,47 @@ const GROUP_META: Record<
   }
 > = {
   NEW: {
-    title: "1. Nouveaux articles à créer",
+    title: "1. New items to create",
     subtitle:
-      "Aucune correspondance fiable trouvée sur la désignation ou la description. Sélectionnez ceux à ajouter au catalogue MIS.",
-    badgeClass:
-      "bg-accent/15 text-primary border-accent/40",
+      "No reliable match found on designation or description. Select which ones to add to the MIS catalog.",
+    badgeClass: "bg-accent/15 text-primary border-accent/40",
     borderClass: "border-accent/35",
   },
   POSSIBLE_MATCH: {
-    title: "2. Correspondances possibles à confirmer",
+    title: "2. Possible matches to confirm",
     subtitle:
-      "Plusieurs articles proches ou score intermédiaire détecté. Confirmez l'article existant ou basculez en création d'un nouvel article.",
+      "Multiple close items or intermediate match score detected. Confirm the existing item or switch to creating a new item.",
     badgeClass:
       "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
     borderClass: "border-amber-500/30",
   },
   MATCHED: {
-    title: "3. Articles reconnus dans le catalogue",
+    title: "3. Recognized catalog items",
     subtitle:
-      "Correspondance forte identifiée sur la désignation et la description. Prêts pour le devis à prix de vente initial 0,00 $.",
-    badgeClass:
-      "bg-success/15 text-success border-success/30",
+      "Strong match found on designation and description. Registered catalog prices (Supplier Price / Quoted Price) are automatically transferred to the quote.",
+    badgeClass: "bg-success/15 text-success border-success/30",
     borderClass: "border-success/25",
   },
   NEEDS_REVIEW: {
-    title: "4. Lignes à vérifier manuellement",
+    title: "4. Lines needing manual review",
     subtitle:
-      "Quantité manquante/invalide, unité non standardisée ou lecture incertaine. Corrigez ces lignes avant de générer le devis.",
-    badgeClass:
-      "bg-destructive/15 text-destructive border-destructive/30",
+      "Missing/invalid quantity, non-standard unit, or uncertain OCR reading. Review and correct these lines before generating the quote.",
+    badgeClass: "bg-destructive/15 text-destructive border-destructive/30",
     borderClass: "border-destructive/30",
   },
 };
 
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function isAllowedClientFile(file: File): boolean {
   const mime = (file.type || "").toLowerCase();
   if (
     ALLOWED_RFQ_MIME_TYPES.includes(
-      mime as (typeof ALLOWED_RFQ_MIME_TYPES)[number]
+      mime as (typeof ALLOWED_RFQ_MIME_TYPES)[number],
     )
   ) {
     return true;
@@ -128,7 +126,7 @@ export function RFQImporter({
 }: RFQImporterProps) {
   const [stage, setStage] = useState<ImporterStage>("upload");
   const [clientId, setClientId] = useState(
-    preselectedClientId || clients[0]?.id || ""
+    preselectedClientId || clients[0]?.id || "",
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -146,7 +144,9 @@ export function RFQImporter({
   const [units, setUnits] = useState<UnitRecord[]>(initialUnits);
   const [catalogItems, setCatalogItems] = useState<ItemRecord[]>(initialItems);
   const [reviewLines, setReviewLines] = useState<EditableRFQReviewLine[]>([]);
-  const [reviewBannerError, setReviewBannerError] = useState<string | null>(null);
+  const [reviewBannerError, setReviewBannerError] = useState<string | null>(
+    null,
+  );
   const [bulkCreateResult, setBulkCreateResult] = useState<{
     created: BulkCreateImportedItemSuccess[];
     failureCount: number;
@@ -167,18 +167,18 @@ export function RFQImporter({
     }
 
     if (file.size === 0) {
-      setUploadError("Le fichier sélectionné est vide.");
+      setUploadError("The selected file is empty.");
       return;
     }
 
     if (file.size > MAX_RFQ_FILE_BYTES) {
-      setUploadError("Fichier trop volumineux (4 MB maximum).");
+      setUploadError("File is too large (4 MB maximum).");
       return;
     }
 
     if (!isAllowedClientFile(file)) {
       setUploadError(
-        "Format non accepté. Sélectionnez un fichier PDF, JPEG ou PNG."
+        "Unsupported format. Please select a PDF, JPEG, or PNG file.",
       );
       return;
     }
@@ -191,16 +191,18 @@ export function RFQImporter({
     setUploadError(null);
 
     if (!clientId) {
-      setUploadError("Veuillez sélectionner un client destinataire.");
+      setUploadError("Please select a recipient client.");
       return;
     }
     if (!selectedFile) {
-      setUploadError("Veuillez sélectionner un document RFQ (PDF, JPEG ou PNG).");
+      setUploadError(
+        "Please select an RFQ document (PDF, JPEG, or PNG).",
+      );
       return;
     }
     if (!acknowledged) {
       setUploadError(
-        "Veuillez confirmer l'envoi temporaire du document à Google Gemini."
+        "Please confirm the temporary submission of this document to Google Gemini.",
       );
       return;
     }
@@ -225,7 +227,7 @@ export function RFQImporter({
       if (!res.ok || !("success" in payload) || !payload.success) {
         const msg =
           ("error" in payload && payload.error) ||
-          "L'analyse du document RFQ a échoué.";
+          "RFQ document analysis failed.";
         setUploadError(msg);
         setStage("upload");
         return;
@@ -248,7 +250,7 @@ export function RFQImporter({
       setStage("review");
     } catch {
       setUploadError(
-        "Impossible de joindre le serveur d'analyse. Vérifiez votre connexion et réessayez."
+        "Unable to connect to the analysis server. Please check your connection and try again.",
       );
       setStage("upload");
     }
@@ -256,23 +258,23 @@ export function RFQImporter({
 
   const updateReviewLine = (
     sourceLineNumber: number,
-    patch: Partial<EditableRFQReviewLine>
+    patch: Partial<EditableRFQReviewLine>,
   ) => {
     setReviewLines((prev) =>
       prev.map((line) =>
         line.sourceLineNumber === sourceLineNumber
           ? { ...line, ...patch }
-          : line
-      )
+          : line,
+      ),
     );
     setBlockingLineNumbers((prev) =>
-      prev.filter((n) => n !== sourceLineNumber)
+      prev.filter((n) => n !== sourceLineNumber),
     );
   };
 
   const groupedLines = useMemo(
     () => groupReviewLinesByStatus(reviewLines),
-    [reviewLines]
+    [reviewLines],
   );
 
   const summaryCounts = useMemo(
@@ -283,20 +285,20 @@ export function RFQImporter({
       matchedCount: groupedLines.MATCHED.length,
       needsReviewCount: groupedLines.NEEDS_REVIEW.length,
     }),
-    [reviewLines.length, groupedLines]
+    [reviewLines.length, groupedLines],
   );
 
   const eligibleForBulkCreate = useMemo(
     () =>
       reviewLines.filter(
-        (l) => l.resolutionMode === "CREATE_NEW" && l.addToCatalog
+        (l) => l.resolutionMode === "CREATE_NEW" && l.addToCatalog,
       ),
-    [reviewLines]
+    [reviewLines],
   );
 
   const hasAnyCreateCandidate = useMemo(
     () => reviewLines.some((l) => l.resolutionMode === "CREATE_NEW"),
-    [reviewLines]
+    [reviewLines],
   );
 
   const handleToggleSelectAllNew = (checked: boolean) => {
@@ -304,8 +306,8 @@ export function RFQImporter({
       prev.map((line) =>
         line.resolutionMode === "CREATE_NEW"
           ? { ...line, addToCatalog: checked }
-          : line
-      )
+          : line,
+      ),
     );
   };
 
@@ -314,21 +316,22 @@ export function RFQImporter({
 
     if (eligibleForBulkCreate.length === 0) {
       setReviewBannerError(
-        "Cochez « Ajouter aussi à Items & Pricing » sur au moins un nouvel article."
+        "Check 'Also add to Items & Pricing' on at least one new item.",
       );
       return;
     }
 
     // Check units, designations, and optional prices locally first so errors point directly to rows
     const invalidTextLines = eligibleForBulkCreate.filter(
-      (l) => !l.designation.trim() || !l.description.trim() || !l.unitCode.trim()
+      (l) =>
+        !l.designation.trim() || !l.description.trim() || !l.unitCode.trim(),
     );
     if (invalidTextLines.length > 0) {
       setBlockingLineNumbers(invalidTextLines.map((l) => l.sourceLineNumber));
       setReviewBannerError(
-        `Certaines lignes cochées pour Items & Pricing manquent d'une désignation, d'une description ou d'une unité valide (Lignes #${invalidTextLines
+        `Some lines checked for Items & Pricing are missing a valid designation, description, or unit (Lines #${invalidTextLines
           .map((l) => l.sourceLineNumber)
-          .join(", #")}).`
+          .join(", #")}).`,
       );
       return;
     }
@@ -339,7 +342,7 @@ export function RFQImporter({
     for (const l of eligibleForBulkCreate) {
       const supplyCheck = validateOptionalCatalogPrice(
         l.supplyPrice,
-        "Supplier Price (USD)"
+        "Supplier Price (USD)",
       );
       if (!supplyCheck.ok) {
         priceErrors.push({
@@ -351,7 +354,7 @@ export function RFQImporter({
 
       const quotedCheck = validateOptionalCatalogPrice(
         l.quotedPrice,
-        "Quoted Price (USD)"
+        "Quoted Price (USD)",
       );
       if (!quotedCheck.ok) {
         priceErrors.push({
@@ -374,9 +377,9 @@ export function RFQImporter({
     if (priceErrors.length > 0) {
       setBlockingLineNumbers(priceErrors.map((e) => e.lineNumber));
       setReviewBannerError(
-        `Prix catalogue invalide sur ${priceErrors
-          .map((e) => `Ligne #${e.lineNumber} (${e.message})`)
-          .join(" ; ")}.`
+        `Invalid catalog price on ${priceErrors
+          .map((e) => `Line #${e.lineNumber} (${e.message})`)
+          .join("; ")}.`,
       );
       return;
     }
@@ -388,7 +391,7 @@ export function RFQImporter({
       if (res.createdItems.length > 0) {
         const nowIso = new Date().toISOString();
         const createdByLine = new Map(
-          res.createdItems.map((c) => [c.sourceLineNumber, c.item])
+          res.createdItems.map((c) => [c.sourceLineNumber, c.item]),
         );
 
         setCatalogItems((prev) => {
@@ -441,13 +444,13 @@ export function RFQImporter({
               createError: null,
               duplicateSuggestion: null,
             };
-          })
+          }),
         );
       }
 
       if (res.failures.length > 0) {
         const failureMap = new Map(
-          res.failures.map((f) => [f.sourceLineNumber, f])
+          res.failures.map((f) => [f.sourceLineNumber, f]),
         );
         setBlockingLineNumbers(res.failures.map((f) => f.sourceLineNumber));
         setReviewLines((prev) =>
@@ -459,11 +462,11 @@ export function RFQImporter({
               createError: fail.error,
               duplicateSuggestion: fail.duplicateItem ?? null,
             };
-          })
+          }),
         );
         setReviewBannerError(
           res.error ||
-            `${res.failures.length} article(s) n'ont pas pu être créés dans Items & Pricing. Corrigez les lignes signalées ci-dessous et relancez sans risque de doublon.`
+            `${res.failures.length} item(s) could not be created in Items & Pricing. Correct the flagged lines below and try again without duplicate risk.`,
         );
       }
 
@@ -474,9 +477,7 @@ export function RFQImporter({
         });
       }
     } catch {
-      setReviewBannerError(
-        "Erreur lors de la création groupée des articles."
-      );
+      setReviewBannerError("Error during bulk item creation.");
     } finally {
       setIsCreatingBulk(false);
     }
@@ -492,7 +493,20 @@ export function RFQImporter({
       return;
     }
 
-    const orderedDrafts = buildOrderedQuotationDraftLines(reviewLines);
+    const catalogPriceByItemId = new Map<string, RFQCatalogPrice>(
+      catalogItems.map((item) => [
+        item.id,
+        {
+          supplyPrice: item.supplyPrice ?? null,
+          quotedPrice: item.quotedPrice ?? null,
+        },
+      ]),
+    );
+
+    const orderedDrafts = buildOrderedQuotationDraftLines(
+      reviewLines,
+      catalogPriceByItemId,
+    );
     setPreparedDraftLines(orderedDrafts);
     setBlockingLineNumbers([]);
     setStage("wizard");
@@ -504,25 +518,19 @@ export function RFQImporter({
       <div className="space-y-4">
         <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-start gap-2.5 text-xs">
-            <Sparkles className="size-4 text-accent shrink-0 mt-0.5" />
             <div>
               <p className="font-black text-primary">
-                Devis prérempli depuis l&apos;import RFQ ({preparedDraftLines.length}{" "}
-                ligne{preparedDraftLines.length > 1 ? "s" : ""} dans l&apos;ordre
-                d&apos;origine)
+                Pre-filled quote from the RFQ import (
+                {preparedDraftLines.length} lines in the original order)
               </p>
               <p className="text-muted-foreground mt-0.5">
-                Tous les prix de vente démarrent à{" "}
-                <span className="font-mono font-bold text-foreground">
-                  0,00 $
-                </span>{" "}
-                pour saisie commerciale manuelle. Aucun fichier RFQ n&apos;a été
-                enregistré.
+                Registered catalog prices are applied according to MIS SARL
+                priority.
               </p>
             </div>
           </div>
           <span className="font-mono text-[10px] font-bold bg-card border border-border px-2.5 py-1 rounded-lg text-muted-foreground shrink-0">
-            Ordre source préservé (1 → {preparedDraftLines.length})
+            Original source order preserved (1 → {preparedDraftLines.length})
           </span>
         </div>
 
@@ -533,7 +541,7 @@ export function RFQImporter({
           initialDraftLines={preparedDraftLines}
           initialRfqNumber={analysisMeta?.clientRfqReference || undefined}
           onBack={() => setStage("review")}
-          backLabel="Retour à la révision des lignes RFQ"
+          backLabel="Back to RFQ lines review"
         />
       </div>
     );
@@ -542,50 +550,67 @@ export function RFQImporter({
   return (
     <div className="space-y-6">
       {/* Navigation Back Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3.5 border-b border-border">
         <Link
           href="/dashboard/quotes"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-primary transition-colors shrink-0 w-fit"
         >
-          <ArrowLeft className="size-3.5" /> Retour à la liste des devis
+          <ArrowLeft className="size-3.5" />
+          <span>Back to quotes list</span>
         </Link>
 
-        {/* Stage Indicator */}
-        <div className="flex items-center gap-2 text-[11px] font-bold">
-          <span
-            className={`px-2.5 py-1 rounded-lg border ${
-              stage === "upload"
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary text-muted-foreground border-border"
-            }`}
-          >
-            1. Document
-          </span>
-          <span className="text-muted-foreground">→</span>
-          <span
-            className={`px-2.5 py-1 rounded-lg border ${
-              stage === "analyzing"
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary text-muted-foreground border-border"
-            }`}
-          >
-            2. Extraction IA
-          </span>
-          <span className="text-muted-foreground">→</span>
-          <span
-            className={`px-2.5 py-1 rounded-lg border ${
-              stage === "review"
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary text-muted-foreground border-border"
-            }`}
-          >
-            3. Correspondances
-          </span>
-          <span className="text-muted-foreground">→</span>
-          <span className="px-2.5 py-1 rounded-lg border bg-secondary text-muted-foreground border-border">
-            4. Devis
-          </span>
-        </div>
+        {/* Stage Indicator (scrollable horizontally on small screens, smooth on desktop) */}
+        <nav
+          aria-label="Import progress"
+          className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar text-[11px] font-bold"
+        >
+          {[
+            { key: "upload", step: "1", label: "Document" },
+            { key: "analyzing", step: "2", label: "AI Extraction" },
+            { key: "review", step: "3", label: "Matches" },
+            { key: "quote", step: "4", label: "Quote" },
+          ].map((item, idx, arr) => {
+            const isActive = stage === item.key;
+            const currentIdx = arr.findIndex((s) => s.key === stage);
+            const isCompleted = currentIdx > idx;
+
+            return (
+              <div
+                key={item.key}
+                className="flex items-center gap-1.5 sm:gap-2 shrink-0"
+              >
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-2xs"
+                      : isCompleted
+                        ? "bg-primary/10 text-primary border-primary/25"
+                        : "bg-card text-muted-foreground border-border"
+                  }`}
+                >
+                  <span
+                    className={`flex size-4 items-center justify-center rounded-full text-[10px] font-black ${
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : isCompleted
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    {item.step}
+                  </span>
+                  <span className="whitespace-nowrap">{item.label}</span>
+                </div>
+
+                {idx < arr.length - 1 && (
+                  <span className="text-muted-foreground/60 select-none">
+                    →
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </nav>
       </div>
 
       {/* ── Stage 1: Upload & Privacy Notice ───────────────────────────────── */}
@@ -600,7 +625,7 @@ export function RFQImporter({
                 1
               </span>
               <h2 className="text-sm font-black text-primary">
-                Document RFQ client &amp; destinataire
+                Customer RFQ Document &amp; Recipient
               </h2>
             </div>
 
@@ -620,7 +645,7 @@ export function RFQImporter({
                 htmlFor="rfq-client-select"
                 className="block text-xs font-bold text-foreground mb-1.5"
               >
-                Client destinataire *
+                Recipient Client *
               </label>
               <select
                 id="rfq-client-select"
@@ -640,7 +665,7 @@ export function RFQImporter({
             {/* File Dropzone */}
             <div>
               <label className="block text-xs font-bold text-foreground mb-1.5">
-                Fichier RFQ client (PDF, JPEG ou PNG — max 4 Mo) *
+                Customer RFQ File (PDF, JPEG or PNG — max 4 MB) *
               </label>
               <input
                 ref={fileInputRef}
@@ -676,10 +701,11 @@ export function RFQImporter({
                 >
                   <UploadCloud className="size-9 mx-auto text-primary mb-3" />
                   <p className="text-xs font-black text-foreground">
-                    Glissez-déposez votre RFQ ici ou cliquez pour parcourir
+                    Drag and drop your RFQ here, or click to browse
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Formats acceptés : PDF multi-pages, JPEG, PNG • Taille maximale : 4 MB
+                    Accepted formats: Multi-page PDF, JPEG, PNG • Maximum size:
+                    4 MB
                   </p>
                 </div>
               ) : (
@@ -704,7 +730,7 @@ export function RFQImporter({
                       onClick={() => fileInputRef.current?.click()}
                       className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-card text-[11px] font-bold text-foreground hover:bg-secondary cursor-pointer"
                     >
-                      <RefreshCw className="size-3.5 text-primary" /> Remplacer
+                      <RefreshCw className="size-3.5 text-primary" /> Replace
                     </button>
                     <button
                       type="button"
@@ -714,7 +740,7 @@ export function RFQImporter({
                       }}
                       className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-destructive/30 bg-destructive/5 text-[11px] font-bold text-destructive hover:bg-destructive/10 cursor-pointer"
                     >
-                      <Trash2 className="size-3.5" /> Retirer
+                      <Trash2 className="size-3.5" /> Remove
                     </button>
                   </div>
                 </div>
@@ -727,14 +753,12 @@ export function RFQImporter({
                 <ShieldCheck className="size-4 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-black text-primary">
-                    Traitement temporaire par Google Gemini
+                    Temporary Processing by Google Gemini
                   </p>
                   <p className="text-muted-foreground leading-relaxed">
-                    Ce document est analysé en mémoire vive uniquement par le
-                    serveur MIS SARL via l&apos;API Google Gemini afin d&apos;en
-                    extraire les lignes d&apos;articles. Le fichier n&apos;est
-                    jamais enregistré en base de données ni dans un stockage
-                    externe.
+                    This document is analyzed in memory only by the MIS SARL
+                    server via Google Gemini API to extract line items. The file
+                    is never stored in any database or external storage.
                   </p>
                 </div>
               </div>
@@ -747,8 +771,8 @@ export function RFQImporter({
                   className="mt-0.5 size-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer"
                 />
                 <span className="text-xs font-bold text-foreground">
-                  Je confirme l&apos;envoi temporaire de cette RFQ client à
-                  Google Gemini pour extraction des lignes.
+                  I confirm the temporary submission of this customer RFQ to
+                  Google Gemini for line extraction.
                 </span>
               </label>
             </div>
@@ -759,7 +783,7 @@ export function RFQImporter({
                 disabled={!clientId || !selectedFile || !acknowledged}
                 className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Sparkles className="size-4 text-accent" /> Analyser avec Gemini
+                <Sparkles className="size-4 text-accent" /> Analyze with Gemini
               </button>
             </div>
           </div>
@@ -767,31 +791,22 @@ export function RFQImporter({
           {/* Rules Summary Side Card */}
           <div className="lg:col-span-4 rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3 text-xs">
             <h3 className="font-black text-primary flex items-center gap-2 pb-2 border-b border-border">
-              <FileText className="size-4 text-accent" /> Règles d&apos;import MIS SARL
+              <FileText className="size-4 text-accent" /> MIS SARL Import Rules
             </h3>
             <ul className="space-y-2 text-muted-foreground leading-relaxed">
               <li>
-                <strong className="text-foreground">Ordre exact :</strong>{" "}
-                toutes les pages et lignes sont conservées dans l&apos;ordre du
-                document client.
+                <strong className="text-foreground">Exact Order:</strong> all
+                pages and line items are preserved in the customer
+                document&apos;s order.
               </li>
               <li>
-                <strong className="text-foreground">Rapprochement texte :</strong>{" "}
-                comparaison stricte sur la{" "}
-                <em>désignation</em> et la <em>description</em> du catalogue
-                actif uniquement.
+                <strong className="text-foreground">Text Matching:</strong>{" "}
+                strict comparison on <em>designation</em> and{" "}
+                <em>description</em> from active catalog only.
               </li>
               <li>
-                <strong className="text-foreground">Aucun prix imposé :</strong>{" "}
-                les lignes préremplies dans le devis démarrent toujours à{" "}
-                <span className="font-mono font-bold text-foreground">
-                  0,00 $
-                </span>
-                .
-              </li>
-              <li>
-                <strong className="text-foreground">Unités vérifiées :</strong>{" "}
-                toute unité inconnue est signalée pour sélection manuelle.
+                <strong className="text-foreground">Verified Units:</strong> any
+                unknown unit is flagged for manual selection.
               </li>
             </ul>
           </div>
@@ -806,26 +821,26 @@ export function RFQImporter({
           </div>
           <div>
             <h2 className="text-base font-black text-primary">
-              Analyse de la RFQ en cours avec Gemini...
+              Analyzing RFQ with Gemini...
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              {selectedFile?.name} — Extraction complète multi-pages et
-              rapprochement catalogue.
+              {selectedFile?.name} — Full multi-page extraction and catalog
+              matching.
             </p>
           </div>
 
           <div className="space-y-2 text-left rounded-xl border border-border bg-secondary/30 p-4 text-xs">
             <div className="flex items-center gap-2 text-foreground font-semibold">
               <CheckCircle2 className="size-4 text-success shrink-0" />
-              Validation binaire du document et transmission sécurisée serveur
+              Binary document validation and secure server transmission
             </div>
             <div className="flex items-center gap-2 text-primary font-bold">
               <Loader2 className="size-4 animate-spin shrink-0" />
-              Extraction structurée de toutes les lignes d&apos;articles...
+              Structured extraction of all line items...
             </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <HelpCircle className="size-4 shrink-0" />
-              Rapprochement par désignation et description avec le catalogue MIS
+              Matching by designation and description against MIS catalog
             </div>
           </div>
         </div>
@@ -839,15 +854,15 @@ export function RFQImporter({
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-                  Résultat d&apos;extraction • Modèle {analysisMeta.model}
+                  Extraction Result • Model {analysisMeta.model}
                 </p>
                 <h2 className="text-base font-black text-primary mt-0.5">
-                  {summaryCounts.total} ligne{summaryCounts.total > 1 ? "s" : ""}{" "}
-                  extraite{summaryCounts.total > 1 ? "s" : ""} de la RFQ
+                  {summaryCounts.total} line
+                  {summaryCounts.total > 1 ? "s" : ""} extracted from RFQ
                 </h2>
                 {analysisMeta.documentTitle && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Objet : {analysisMeta.documentTitle}
+                    Subject: {analysisMeta.documentTitle}
                   </p>
                 )}
               </div>
@@ -855,7 +870,7 @@ export function RFQImporter({
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-1.5 text-xs">
                   <span className="font-bold text-muted-foreground">
-                    Réf RFQ client :
+                    Customer RFQ Ref:
                   </span>
                   <input
                     type="text"
@@ -864,10 +879,10 @@ export function RFQImporter({
                       setAnalysisMeta((prev) =>
                         prev
                           ? { ...prev, clientRfqReference: e.target.value }
-                          : prev
+                          : prev,
                       )
                     }
-                    placeholder="ex: 14425"
+                    placeholder="e.g., 14425"
                     className="h-7 w-40 rounded-lg border border-border bg-card px-2 font-mono text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
@@ -881,7 +896,7 @@ export function RFQImporter({
                   }}
                   className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs font-bold text-foreground hover:bg-secondary cursor-pointer"
                 >
-                  <RefreshCw className="size-3.5" /> Changer de document
+                  <RefreshCw className="size-3.5" /> Change Document
                 </button>
               </div>
             </div>
@@ -890,7 +905,7 @@ export function RFQImporter({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
               <div className="rounded-xl border border-accent/30 bg-accent/10 p-3">
                 <span className="text-[10px] font-black uppercase text-muted-foreground block">
-                  Nouveaux articles
+                  New Items
                 </span>
                 <span className="text-lg font-black text-primary tabular-nums">
                   {summaryCounts.newCount}
@@ -898,7 +913,7 @@ export function RFQImporter({
               </div>
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
                 <span className="text-[10px] font-black uppercase text-muted-foreground block">
-                  Correspondances possibles
+                  Possible Matches
                 </span>
                 <span className="text-lg font-black text-amber-700 dark:text-amber-300 tabular-nums">
                   {summaryCounts.possibleMatchCount}
@@ -906,7 +921,7 @@ export function RFQImporter({
               </div>
               <div className="rounded-xl border border-success/30 bg-success/10 p-3">
                 <span className="text-[10px] font-black uppercase text-muted-foreground block">
-                  Reconnus au catalogue
+                  Catalog Matches
                 </span>
                 <span className="text-lg font-black text-success tabular-nums">
                   {summaryCounts.matchedCount}
@@ -914,7 +929,7 @@ export function RFQImporter({
               </div>
               <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3">
                 <span className="text-[10px] font-black uppercase text-muted-foreground block">
-                  À vérifier
+                  Needs Review
                 </span>
                 <span className="text-lg font-black text-destructive tabular-nums">
                   {summaryCounts.needsReviewCount}
@@ -932,14 +947,14 @@ export function RFQImporter({
                       onClick={() => handleToggleSelectAllNew(true)}
                       className="h-8 px-3 rounded-lg border border-border bg-secondary/50 text-[11px] font-bold text-foreground hover:bg-secondary cursor-pointer"
                     >
-                      Tout ajouter (nouveaux)
+                      Add All (New)
                     </button>
                     <button
                       type="button"
                       onClick={() => handleToggleSelectAllNew(false)}
                       className="h-8 px-3 rounded-lg border border-border bg-card text-[11px] font-bold text-muted-foreground hover:bg-secondary cursor-pointer"
                     >
-                      Ne rien ajouter
+                      Deselect All
                     </button>
                   </>
                 )}
@@ -956,7 +971,7 @@ export function RFQImporter({
                   ) : (
                     <PackagePlus className="size-3.5" />
                   )}
-                  Ajouter à Items &amp; Pricing ({eligibleForBulkCreate.length})
+                  Add to Items &amp; Pricing ({eligibleForBulkCreate.length})
                 </button>
               </div>
 
@@ -965,7 +980,7 @@ export function RFQImporter({
                 onClick={handlePrepareQuotation}
                 className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-success text-success-foreground text-xs font-bold hover:bg-success/90 transition-colors shadow-xs cursor-pointer"
               >
-                Préparer le devis <ArrowRight className="size-4" />
+                Prepare Quote <ArrowRight className="size-4" />
               </button>
             </div>
           </div>
@@ -987,11 +1002,13 @@ export function RFQImporter({
                   <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
                   <div>
                     <p>
-                      {bulkCreateResult.created.length} article(s) ajouté(s) à la base Items &amp; Pricing.
+                      {bulkCreateResult.created.length} item(s) added to Items
+                      &amp; Pricing database.
                     </p>
                     {bulkCreateResult.failureCount > 0 && (
                       <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 mt-0.5">
-                        {bulkCreateResult.failureCount} autre(s) ligne(s) ont échoué et restent sélectionnées pour correction.
+                        {bulkCreateResult.failureCount} other line(s) failed and
+                        remain selected for correction.
                       </p>
                     )}
                   </div>
@@ -1000,7 +1017,8 @@ export function RFQImporter({
                   href="/dashboard/items"
                   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors shrink-0"
                 >
-                  Voir dans Items &amp; Pricing <ExternalLink className="size-3.5" />
+                  View in Items &amp; Pricing{" "}
+                  <ExternalLink className="size-3.5" />
                 </Link>
               </div>
 
@@ -1015,7 +1033,7 @@ export function RFQImporter({
                         {item.skuRef}
                       </span>
                       <span className="font-mono text-[10px] text-muted-foreground">
-                        Ligne #{sourceLineNumber}
+                        Line #{sourceLineNumber}
                       </span>
                     </div>
                     <p className="font-bold text-foreground line-clamp-1">
@@ -1029,10 +1047,10 @@ export function RFQImporter({
                             : "text-muted-foreground font-sans"
                         }
                       >
-                        Supplier :{" "}
+                        Supplier:{" "}
                         {item.supplyPrice !== null
                           ? `$ ${item.supplyPrice.toFixed(2)}`
-                          : "Prix non configuré"}
+                          : "Price not set"}
                       </span>
                       <span
                         className={
@@ -1041,10 +1059,10 @@ export function RFQImporter({
                             : "text-muted-foreground font-sans"
                         }
                       >
-                        Quoted :{" "}
+                        Quoted:{" "}
                         {item.quotedPrice !== null
                           ? `$ ${item.quotedPrice.toFixed(2)}`
-                          : "Prix non configuré"}
+                          : "Price not set"}
                       </span>
                     </div>
                   </div>
@@ -1086,7 +1104,7 @@ export function RFQImporter({
                   <div className="divide-y divide-border/70">
                     {rows.map((line) => {
                       const isBlocking = blockingLineNumbers.includes(
-                        line.sourceLineNumber
+                        line.sourceLineNumber,
                       );
                       const willAddToCatalog =
                         line.resolutionMode === "CREATE_NEW" &&
@@ -1096,13 +1114,13 @@ export function RFQImporter({
                       const supplyValidation = willAddToCatalog
                         ? validateOptionalCatalogPrice(
                             line.supplyPrice,
-                            "Supplier Price (USD)"
+                            "Supplier Price (USD)",
                           )
                         : { ok: true as const, value: null };
                       const quotedValidation = willAddToCatalog
                         ? validateOptionalCatalogPrice(
                             line.quotedPrice,
-                            "Quoted Price (USD)"
+                            "Quoted Price (USD)",
                           )
                         : { ok: true as const, value: null };
 
@@ -1113,15 +1131,15 @@ export function RFQImporter({
                             isIgnored
                               ? "opacity-55 bg-secondary/20"
                               : isBlocking
-                              ? "bg-destructive/5"
-                              : ""
+                                ? "bg-destructive/5"
+                                : ""
                           }`}
                         >
                           {/* Row Top Header */}
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-mono text-xs font-black bg-primary text-primary-foreground px-2 py-0.5 rounded-md">
-                                Ligne #{line.sourceLineNumber}
+                                Line #{line.sourceLineNumber}
                               </span>
                               {line.pageNumber && (
                                 <span className="font-mono text-[10px] font-bold bg-secondary border border-border px-2 py-0.5 rounded-md text-muted-foreground">
@@ -1129,22 +1147,22 @@ export function RFQImporter({
                                 </span>
                               )}
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-border bg-card text-muted-foreground">
-                                Confiance :{" "}
+                                Confidence:{" "}
                                 {line.confidence === "high"
-                                  ? "Élevée"
+                                  ? "High"
                                   : line.confidence === "medium"
-                                  ? "Moyenne"
-                                  : "Faible"}
+                                    ? "Medium"
+                                    : "Low"}
                               </span>
                               {line.linkedSkuRef &&
                                 line.resolutionMode === "LINK_EXISTING" && (
                                   <span className="font-mono text-[10px] font-black bg-success/15 text-success border border-success/30 px-2 py-0.5 rounded-md">
-                                    Lié : {line.linkedSkuRef}
+                                    Linked: {line.linkedSkuRef}
                                   </span>
                                 )}
                               {line.createdInSession && (
                                 <span className="text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md">
-                                  Enregistré dans Items &amp; Pricing
+                                  Saved in Items &amp; Pricing
                                 </span>
                               )}
                             </div>
@@ -1156,14 +1174,13 @@ export function RFQImporter({
                                     type="checkbox"
                                     checked={line.addToCatalog}
                                     onChange={(e) =>
-                                      updateReviewLine(
-                                        line.sourceLineNumber,
-                                        { addToCatalog: e.target.checked }
-                                      )
+                                      updateReviewLine(line.sourceLineNumber, {
+                                        addToCatalog: e.target.checked,
+                                      })
                                     }
                                     className="size-3.5 rounded border-border cursor-pointer"
                                   />
-                                  Ajouter aussi à Items &amp; Pricing
+                                  Also add to Items &amp; Pricing
                                 </label>
                               )}
 
@@ -1178,7 +1195,7 @@ export function RFQImporter({
                                   }
                                   className="size-3.5 rounded border-border cursor-pointer"
                                 />
-                                Inclure dans le devis
+                                Include in quote
                               </label>
                             </div>
                           </div>
@@ -1191,14 +1208,14 @@ export function RFQImporter({
                             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
                               {line.needsReviewReason && (
                                 <p className="font-bold">
-                                  À vérifier : {line.needsReviewReason}
+                                  Needs review: {line.needsReviewReason}
                                 </p>
                               )}
                               {line.unitMatchWarning && !line.unitCode && (
                                 <p>{line.unitMatchWarning}</p>
                               )}
                               {line.extractionNotes && (
-                                <p>Note IA : {line.extractionNotes}</p>
+                                <p>AI Note: {line.extractionNotes}</p>
                               )}
                               {line.createError && (
                                 <div className="flex flex-wrap items-center gap-2 text-destructive font-bold pt-1">
@@ -1207,24 +1224,30 @@ export function RFQImporter({
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        updateReviewLine(line.sourceLineNumber, {
-                                          resolutionMode: "LINK_EXISTING",
-                                          linkedItemId:
-                                            line.duplicateSuggestion!.id,
-                                          linkedSkuRef:
-                                            line.duplicateSuggestion!.skuRef,
-                                          linkedDesignation:
-                                            line.duplicateSuggestion!
-                                              .designation,
-                                          addToCatalog: false,
-                                          possibleMatchConfirmed: true,
-                                          createError: null,
-                                          duplicateSuggestion: null,
-                                        })
+                                        updateReviewLine(
+                                          line.sourceLineNumber,
+                                          {
+                                            resolutionMode: "LINK_EXISTING",
+                                            linkedItemId:
+                                              line.duplicateSuggestion!.id,
+                                            linkedSkuRef:
+                                              line.duplicateSuggestion!.skuRef,
+                                            linkedDesignation:
+                                              line.duplicateSuggestion!
+                                                .designation,
+                                            addToCatalog: false,
+                                            createdInSession: false,
+                                            createdSupplyPrice: null,
+                                            createdQuotedPrice: null,
+                                            possibleMatchConfirmed: true,
+                                            createError: null,
+                                            duplicateSuggestion: null,
+                                          },
+                                        )
                                       }
                                       className="h-6 px-2 rounded-md bg-primary text-primary-foreground text-[10px] font-bold cursor-pointer"
                                     >
-                                      Associer {line.duplicateSuggestion.skuRef}
+                                      Link {line.duplicateSuggestion.skuRef}
                                     </button>
                                   )}
                                 </div>
@@ -1236,7 +1259,7 @@ export function RFQImporter({
                           <div className="grid gap-3 sm:grid-cols-12">
                             <div className="sm:col-span-4">
                               <label className="block text-[11px] font-bold text-foreground mb-1">
-                                Désignation *
+                                Designation *
                               </label>
                               <input
                                 type="text"
@@ -1252,7 +1275,7 @@ export function RFQImporter({
 
                             <div className="sm:col-span-4">
                               <label className="block text-[11px] font-bold text-foreground mb-1">
-                                Description technique *
+                                Technical Description *
                               </label>
                               <input
                                 type="text"
@@ -1268,7 +1291,7 @@ export function RFQImporter({
 
                             <div className="sm:col-span-2">
                               <label className="block text-[11px] font-bold text-foreground mb-1">
-                                Quantité *
+                                Quantity *
                               </label>
                               <input
                                 type="number"
@@ -1277,7 +1300,8 @@ export function RFQImporter({
                                 value={line.quantity ?? ""}
                                 onChange={(e) => {
                                   const raw = e.target.value;
-                                  const num = raw === "" ? null : parseFloat(raw);
+                                  const num =
+                                    raw === "" ? null : parseFloat(raw);
                                   updateReviewLine(line.sourceLineNumber, {
                                     quantity:
                                       num !== null && Number.isFinite(num)
@@ -1285,7 +1309,7 @@ export function RFQImporter({
                                         : null,
                                   });
                                 }}
-                                placeholder="Ex: 5"
+                                placeholder="e.g., 5"
                                 className={`h-9 w-full rounded-xl border bg-card px-3 font-mono text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                   line.quantity === null || line.quantity <= 0
                                     ? "border-destructive text-destructive"
@@ -1297,7 +1321,7 @@ export function RFQImporter({
                             <div className="sm:col-span-2">
                               <div className="flex items-center justify-between gap-1 mb-1">
                                 <label className="block text-[11px] font-bold text-foreground">
-                                  Unité *
+                                  Unit *
                                 </label>
                                 {line.rawUnit && (
                                   <span className="font-mono text-[10px] text-muted-foreground truncate">
@@ -1318,7 +1342,7 @@ export function RFQImporter({
                                     : "border-border text-foreground"
                                 }`}
                               >
-                                <option value="">-- Choisir --</option>
+                                <option value="">-- Select --</option>
                                 {units.map((u) => (
                                   <option key={u.code} value={u.code}>
                                     {u.code} ({u.labelFr})
@@ -1333,10 +1357,11 @@ export function RFQImporter({
                             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2.5">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="text-[11px] font-black text-primary">
-                                  Tarification catalogue Items &amp; Pricing (optionnel, en USD)
+                                  Items &amp; Pricing Catalog Rates (Optional,
+                                  in USD)
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  Laisser vide si non encore connu (le devis reste à 0,00 $)
+                                  Leave blank if not yet known ($0.00 otherwise)
                                 </span>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1345,7 +1370,7 @@ export function RFQImporter({
                                     Supplier Price (USD)
                                   </label>
                                   <p className="text-[10px] text-muted-foreground mb-1">
-                                    Coût d&apos;achat fournisseur
+                                    Supplier purchase cost
                                   </p>
                                   <div className="relative">
                                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
@@ -1362,10 +1387,10 @@ export function RFQImporter({
                                           {
                                             supplyPrice: e.target.value,
                                             createError: null,
-                                          }
+                                          },
                                         )
                                       }
-                                      placeholder="Optionnel (ex: 125.50)"
+                                      placeholder="Optional (e.g., 125.50)"
                                       className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                         !supplyValidation.ok
                                           ? "border-destructive text-destructive"
@@ -1385,7 +1410,7 @@ export function RFQImporter({
                                     Quoted Price (USD)
                                   </label>
                                   <p className="text-[10px] text-muted-foreground mb-1">
-                                    Prix de référence devisé au client
+                                    Reference price quoted to customer
                                   </p>
                                   <div className="relative">
                                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
@@ -1402,10 +1427,10 @@ export function RFQImporter({
                                           {
                                             quotedPrice: e.target.value,
                                             createError: null,
-                                          }
+                                          },
                                         )
                                       }
-                                      placeholder="Optionnel (ex: 175.00)"
+                                      placeholder="Optional (e.g., 175.00)"
                                       className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                         !quotedValidation.ok
                                           ? "border-destructive text-destructive"
@@ -1430,7 +1455,8 @@ export function RFQImporter({
                             <div className="rounded-xl border border-border bg-secondary/20 p-3 space-y-2">
                               <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="text-[11px] font-black text-primary">
-                                  Suggestions catalogue (désignation &amp; description uniquement)
+                                  Catalog Suggestions (Designation &amp;
+                                  Description only)
                                 </span>
                                 {line.status === "POSSIBLE_MATCH" &&
                                   line.resolutionMode === "LINK_EXISTING" && (
@@ -1444,12 +1470,12 @@ export function RFQImporter({
                                             {
                                               possibleMatchConfirmed:
                                                 e.target.checked,
-                                            }
+                                            },
                                           )
                                         }
                                         className="size-3.5 rounded border-border cursor-pointer"
                                       />
-                                      Confirmer cette association
+                                      Confirm this match
                                     </label>
                                   )}
                               </div>
@@ -1472,8 +1498,11 @@ export function RFQImporter({
                                             linkedSkuRef: cand.skuRef,
                                             linkedDesignation: cand.designation,
                                             addToCatalog: false,
+                                            createdInSession: false,
+                                            createdSupplyPrice: null,
+                                            createdQuotedPrice: null,
                                             possibleMatchConfirmed: true,
-                                          }
+                                          },
                                         )
                                       }
                                       className={`text-left rounded-xl border p-2.5 text-xs transition-colors cursor-pointer ${
@@ -1510,6 +1539,9 @@ export function RFQImporter({
                                       linkedSkuRef: null,
                                       linkedDesignation: null,
                                       addToCatalog: true,
+                                      createdInSession: false,
+                                      createdSupplyPrice: null,
+                                      createdQuotedPrice: null,
                                       possibleMatchConfirmed: true,
                                     })
                                   }
@@ -1521,11 +1553,11 @@ export function RFQImporter({
                                 >
                                   <div className="flex items-center gap-1.5 font-black text-primary mb-1">
                                     <PackagePlus className="size-3.5 text-accent" />
-                                    <span>Créer un nouvel article</span>
+                                    <span>Create as new item</span>
                                   </div>
                                   <p className="text-[10px] text-muted-foreground">
-                                    Ne pas associer aux suggestions et ajouter
-                                    comme nouvel article catalogue.
+                                    Do not link to suggestions; add as a new
+                                    catalog item.
                                   </p>
                                 </button>
                               </div>

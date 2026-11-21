@@ -3,7 +3,6 @@ import { getClients } from "@/lib/db/clients";
 import { getItems, getUnits } from "@/lib/db/items";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
 import { RFQImporter } from "@/components/dashboard/rfq-importer";
-import { Sparkles } from "lucide-react";
 
 export default async function ImportRfqQuotationPage({
   searchParams,
@@ -22,9 +21,8 @@ export default async function ImportRfqQuotationPage({
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <PageHeader
-        title="Importer une RFQ client avec Gemini"
-        description="Analysez un PDF ou une image RFQ client, rapprochez les articles sur désignation et description, créez les articles manquants puis préremplissez le devis dans l'ordre d'origine."
-        icon={Sparkles}
+        title="Import a Customer RFQ with Gemini"
+        description="Analyze a PDF or image of a customer RFQ, match items by designation and description, create any missing items, and then pre-fill the quote in the original order."
       />
 
       <RFQImporter
