@@ -257,7 +257,8 @@ export async function generateStatementPdf(
 
   // ── Helper: Draw Table Header ─────────────────────────────────────────────
   function drawTableHeader(page: PDFPage, topY: number): number {
-    const headerHeight = 18.0;
+    const headerHeight = 12.0; // Même hauteur compacte que le BL (~11-12 pt)
+    const headerFontSize = 7.2; // Ou 7.5 / 8.04 selon l'espace dans les colonnes étroites
     const yBottom = topY - headerHeight;
 
     const headers = [
@@ -281,15 +282,15 @@ export async function generateStatementPdf(
         borderColor: BLACK,
       });
 
-      // Centered label in bold black
-      const labelW = fontBold.widthOfTextAtSize(h.label, 7.2);
+      // Centered label horizontally & vertically in bold black
+      const labelW = fontBold.widthOfTextAtSize(h.label, headerFontSize);
       const labelX = h.x + (h.w - labelW) / 2;
-      const labelY = yBottom + 5.5;
+      const labelY = yBottom + (headerHeight - headerFontSize) / 2 + 0.8;
 
       page.drawText(h.label, {
         x: labelX,
         y: labelY,
-        size: 7.2,
+        size: headerFontSize,
         font: fontBold,
         color: BLACK,
       });
@@ -548,8 +549,8 @@ export async function generateStatementPdf(
       page.drawImage(sealImage, {
         x: sigX - 45.0,
         y: stampY,
-        width: 62.0,
-        height: 62.0,
+        width: 73.0,
+        height: 73.0,
       });
     }
 
@@ -558,8 +559,8 @@ export async function generateStatementPdf(
       page.drawImage(signatureImage, {
         x: sigX + 15.0,
         y: stampY + 14.0,
-        width: 78.0,
-        height: 42.0,
+        width: 88.0,
+        height: 48.0,
       });
     }
   }
