@@ -2,8 +2,9 @@
 
 // ============================================================================
 // Server Action: Bulk Create Missing Catalogue Items from RFQ Import
-// Enforces SUPER_ADMIN / ADMIN only. Creates items using ONLY designation,
-// description, and unitCode (no prices, offers, brands, MPNs, or identifiers).
+// Enforces SUPER_ADMIN / ADMIN only. Creates permanent rows in `items` with
+// designation, description, unitCode, and optional supplyPrice / quotedPrice
+// (never creates supplier_offers, MPNs, brands, or client/supplier codes).
 // ============================================================================
 
 import { revalidatePath } from "next/cache";
@@ -14,12 +15,13 @@ import {
   findDesignationDescriptionDuplicates,
   getActiveCatalogueSummariesForMatching,
 } from "@/lib/db/rfq-item-matching";
-import type {
-  BulkCreateImportedItemFailure,
-  BulkCreateImportedItemInput,
-  BulkCreateImportedItemSuccess,
-  BulkCreateImportedItemsResult,
-  CatalogueItemSummary,
+import {
+  validateOptionalCatalogPrice,
+  type BulkCreateImportedItemFailure,
+  type BulkCreateImportedItemInput,
+  type BulkCreateImportedItemSuccess,
+  type BulkCreateImportedItemsResult,
+  type CatalogueItemSummary,
 } from "@/lib/rfq-import-types";
 
 export async function createImportedItemsAction(
@@ -56,6 +58,14 @@ export async function createImportedItemsAction(
     const requestedUnit = (input.unitCode || "").trim().toUpperCase();
     const validUnitCode = validUnitMap.get(requestedUnit);
 
+    if (!Number.isInteger(sourceLineNumber) || sourceLineNumber <= 0) {
+      failures.push({
+        sourceLineNumber: Number.isFinite(sourceLineNumber) ? sourceLineNumber : 0,
+        error: "Numéro de ligne source invalide.",
+      });
+      continue;
+    }
+
     if (!designation || designation.length < 2) {
       failures.push({
         sourceLineNumber,
@@ -80,6 +90,30 @@ export async function createImportedItemsAction(
       continue;
     }
 
+    const supplyPriceCheck = validateOptionalCatalogPrice(
+      input.supplyPrice,
+      "Supplier Price (USD)"
+    );
+    if (!supplyPriceCheck.ok) {
+      failures.push({
+        sourceLineNumber,
+        error: supplyPriceCheck.error,
+      });
+      continue;
+    }
+
+    const quotedPriceCheck = validateOptionalCatalogPrice(
+      input.quotedPrice,
+      "Quoted Price (USD)"
+    );
+    if (!quotedPriceCheck.ok) {
+      failures.push({
+        sourceLineNumber,
+        error: quotedPriceCheck.error,
+      });
+      continue;
+    }
+
     // Recheck for near-duplicates on designation + description right before insert
     const dupMap = findDesignationDescriptionDuplicates(
       [{ sourceLineNumber, designation, description }],
@@ -100,6 +134,8 @@ export async function createImportedItemsAction(
         designation,
         description,
         unitCode: validUnitCode,
+        supplyPrice: supplyPriceCheck.value,
+        quotedPrice: quotedPriceCheck.value,
       });
 
       const createdSummary: CatalogueItemSummary = {
@@ -120,6 +156,14 @@ export async function createImportedItemsAction(
           designation: created.designation || designation,
           description: created.description || description,
           unitCode: created.unitCode || validUnitCode,
+          supplyPrice:
+            created.supplyPrice !== undefined && created.supplyPrice !== null
+              ? Number(created.supplyPrice)
+              : supplyPriceCheck.value,
+          quotedPrice:
+            created.quotedPrice !== undefined && created.quotedPrice !== null
+              ? Number(created.quotedPrice)
+              : quotedPriceCheck.value,
         },
       });
     } catch (err: unknown) {
@@ -151,7 +195,7 @@ export async function createImportedItemsAction(
   }
 
   return {
-    success: createdItems.length > 0 || failures.length === 0,
+    success: createdItems.length > 0 && failures.length === 0,
     createdItems,
     failures,
   };

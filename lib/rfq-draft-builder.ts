@@ -37,8 +37,13 @@ export interface EditableRFQReviewLine {
   linkedSkuRef: string | null;
   linkedDesignation: string | null;
   possibleMatchConfirmed: boolean;
-  selectedForCreate: boolean;
+  addToCatalog: boolean;
+  supplyPrice: string;
+  quotedPrice: string;
   includedInQuote: boolean;
+  createdInSession?: boolean;
+  createdSupplyPrice?: number | null;
+  createdQuotedPrice?: number | null;
   createError: string | null;
   duplicateSuggestion: {
     id: string;
@@ -100,8 +105,13 @@ export function createInitialReviewLines(
         linkedSkuRef,
         linkedDesignation,
         possibleMatchConfirmed: line.status !== "POSSIBLE_MATCH",
-        selectedForCreate: line.status === "NEW",
+        addToCatalog: line.status === "NEW",
+        supplyPrice: "",
+        quotedPrice: "",
         includedInQuote: true,
+        createdInSession: false,
+        createdSupplyPrice: null,
+        createdQuotedPrice: null,
         createError: null,
         duplicateSuggestion: null,
       };

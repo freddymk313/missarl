@@ -303,18 +303,26 @@ export function QuotationWizard({
     }
     return "";
   });
-  const [isFetchingRef, setIsFetchingRef] = useState(false);
+  const [isFetchingRef, setIsFetchingRef] = useState(!isEdit && Boolean(clientId));
 
   // On mount (create mode): fetch the next suggested reference from the server
   useEffect(() => {
     if (!isEdit && clientId) {
-      setIsFetchingRef(true);
-      getNextQuotationReferenceAction(clientId).then((res) => {
-        if (res.success && res.reference) {
-          setInternalRef(res.reference);
-        }
-        setIsFetchingRef(false);
-      });
+      let cancelled = false;
+      getNextQuotationReferenceAction(clientId)
+        .then((res) => {
+          if (!cancelled && res.success && res.reference) {
+            setInternalRef(res.reference);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsFetchingRef(false);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

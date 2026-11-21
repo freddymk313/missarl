@@ -104,6 +104,9 @@ export interface MockItem {
   mpn: string | null;
   mpn_normalized: string | null;
   unit_code: string | null;
+  supply_price?: number | null;
+  quoted_price?: number | null;
+  vat_included?: boolean;
   specs: Record<string, unknown> | null;
   notes: string | null;
   is_active: boolean;

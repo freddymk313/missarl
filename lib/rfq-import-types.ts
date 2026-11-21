@@ -103,6 +103,8 @@ export interface BulkCreateImportedItemInput {
   designation: string;
   description: string;
   unitCode: string;
+  supplyPrice?: number | null;
+  quotedPrice?: number | null;
 }
 
 export interface BulkCreateImportedItemSuccess {
@@ -113,6 +115,8 @@ export interface BulkCreateImportedItemSuccess {
     designation: string;
     description: string;
     unitCode: string;
+    supplyPrice: number | null;
+    quotedPrice: number | null;
   };
 }
 
@@ -127,6 +131,61 @@ export interface BulkCreateImportedItemsResult {
   createdItems: BulkCreateImportedItemSuccess[];
   failures: BulkCreateImportedItemFailure[];
   error?: string;
+}
+
+/**
+ * Validates and normalizes an optional USD catalog price.
+ * - Empty string, null, or undefined -> null (no price configured)
+ * - Explicit 0 -> 0
+ * - Negative, NaN, Infinity, or non-numeric input -> validation error
+ */
+export function validateOptionalCatalogPrice(
+  raw: unknown,
+  fieldLabel: string
+): { ok: true; value: number | null } | { ok: false; error: string } {
+  if (raw === undefined || raw === null) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof raw === "number") {
+    if (!Number.isFinite(raw)) {
+      return { ok: false, error: `${fieldLabel} invalide.` };
+    }
+    if (raw < 0) {
+      return {
+        ok: false,
+        error: `${fieldLabel} ne peut pas être négatif.`,
+      };
+    }
+    return { ok: true, value: Math.round(raw * 10000) / 10000 };
+  }
+
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      return { ok: true, value: null };
+    }
+    const normalized = trimmed.replace(/\s+/g, "").replace(",", ".");
+    if (!/^[+-]?\d+(\.\d+)?$/.test(normalized)) {
+      return {
+        ok: false,
+        error: `${fieldLabel} doit être un nombre valide en USD.`,
+      };
+    }
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) {
+      return { ok: false, error: `${fieldLabel} invalide.` };
+    }
+    if (parsed < 0) {
+      return {
+        ok: false,
+        error: `${fieldLabel} ne peut pas être négatif.`,
+      };
+    }
+    return { ok: true, value: Math.round(parsed * 10000) / 10000 };
+  }
+
+  return { ok: false, error: `${fieldLabel} invalide.` };
 }
 
 const KNOWN_UNIT_SYNONYMS: Record<string, string> = {

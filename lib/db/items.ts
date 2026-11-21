@@ -122,6 +122,16 @@ export interface ItemStats {
   itemsWithoutOffer: number;
 }
 
+export type ItemsSortOption = "recent" | "designation";
+
+export interface PaginatedItemsResult {
+  items: ItemRecord[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ---------------------------------------------------------------------------
 // Reference data
 // ---------------------------------------------------------------------------
@@ -232,8 +242,388 @@ export async function getItemStats(): Promise<ItemStats> {
 }
 
 // ---------------------------------------------------------------------------
-// Search
+// Search & Pagination Helpers
 // ---------------------------------------------------------------------------
+
+type RawSearchRow = {
+  id: string;
+  skuRef: string;
+  designation: string | null;
+  description: string;
+  categoryId: string | null;
+  categoryCode: string | null;
+  categoryName: string | null;
+  brandId: string | null;
+  brandName: string | null;
+  manufacturerPartNumber: string | null;
+  unitCode: string | null;
+  supplyPrice: number | null;
+  quotedPrice: number | null;
+  vatIncluded: boolean;
+  specs: Record<string, string>;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  matchType: string;
+  matchLabel: string | null;
+  totalCount?: number;
+};
+
+async function mapAndAttachCheapestOffers(
+  typedRows: RawSearchRow[]
+): Promise<ItemRecord[]> {
+  const mappedItems: ItemRecord[] = typedRows.map((row) => {
+    let matchBadge: MatchBadge;
+    if (row.matchType === "CLIENT_CODE") {
+      matchBadge = { type: "CLIENT_CODE", clientName: row.matchLabel || "Client" };
+    } else if (row.matchType === "MPN") {
+      matchBadge = { type: "MPN" };
+    } else if (row.matchType === "SUPPLIER_CODE") {
+      matchBadge = {
+        type: "SUPPLIER_CODE",
+        supplierName: row.matchLabel || "Supplier",
+      };
+    } else if (row.matchType === "SKU") {
+      matchBadge = { type: "SKU" };
+    } else {
+      matchBadge = { type: "FUZZY" };
+    }
+
+    return {
+      id: row.id,
+      skuRef: row.skuRef,
+      designation: row.designation,
+      description: row.description,
+      categoryId: row.categoryId,
+      categoryCode: row.categoryCode,
+      categoryName: row.categoryName,
+      brandId: row.brandId,
+      brandName: row.brandName,
+      manufacturerPartNumber: row.manufacturerPartNumber,
+      unitCode: row.unitCode,
+      supplyPrice: row.supplyPrice != null ? Number(row.supplyPrice) : null,
+      quotedPrice: row.quotedPrice != null ? Number(row.quotedPrice) : null,
+      vatIncluded: Boolean(row.vatIncluded),
+      specs: row.specs ?? {},
+      isActive: row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      matchBadge,
+      cheapestOfferUsd: null,
+    };
+  });
+
+  if (mappedItems.length > 0) {
+    const itemIds = mappedItems.map((m) => m.id);
+    const offerRows = await sql`
+      SELECT
+        so.item_id as "itemId",
+        MIN(so.unit_price * COALESCE(er.rate_to_usd, 1))::float as "cheapestOfferUsd"
+      FROM supplier_offers so
+      LEFT JOIN LATERAL (
+        SELECT rate_to_usd FROM exchange_rates
+        WHERE currency_code = so.currency_code
+        ORDER BY effective_on DESC LIMIT 1
+      ) er ON TRUE
+      WHERE so.item_id = ANY(${itemIds}::uuid[])
+        AND so.is_current = TRUE
+      GROUP BY so.item_id
+    `;
+
+    const offerMap = new Map<string, number>();
+    for (const r of offerRows as unknown as Array<{
+      itemId: string;
+      cheapestOfferUsd: number;
+    }>) {
+      offerMap.set(r.itemId, r.cheapestOfferUsd);
+    }
+
+    for (const item of mappedItems) {
+      if (offerMap.has(item.id)) {
+        item.cheapestOfferUsd = offerMap.get(item.id) ?? null;
+      }
+    }
+  }
+
+  return mappedItems;
+}
+
+export async function searchItemsPaginated(
+  q: string,
+  options?: {
+    categoryId?: string;
+    brandId?: string;
+    supplierId?: string;
+    currencyCode?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: ItemsSortOption;
+    activeOnly?: boolean;
+  }
+): Promise<PaginatedItemsResult> {
+  const trimmedQ = (q || "").trim();
+  const normalized = trimmedQ ? normalizeCode(trimmedQ) : null;
+  const fuzzy = trimmedQ ? `%${trimmedQ.toLowerCase()}%` : null;
+  const catId = options?.categoryId || null;
+  const brandId = options?.brandId || null;
+  const supplierId = options?.supplierId || null;
+  const activeOnly = options?.activeOnly !== false;
+  const sort: ItemsSortOption =
+    options?.sort === "designation" ? "designation" : "recent";
+
+  const requestedPage = Number(options?.page ?? 1);
+  const page =
+    Number.isFinite(requestedPage) && requestedPage >= 1
+      ? Math.floor(requestedPage)
+      : 1;
+  const requestedSize = Number(options?.pageSize ?? 25);
+  const pageSize =
+    Number.isFinite(requestedSize) && requestedSize >= 1
+      ? Math.min(100, Math.floor(requestedSize))
+      : 25;
+  const offset = (page - 1) * pageSize;
+
+  if (!fuzzy || !normalized) {
+    const countRows = await sql`
+      -- PAGINATED_ITEMS_COUNT
+      SELECT COUNT(*)::int as total
+      FROM items i
+      WHERE (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
+        AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
+        AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
+        AND (
+          ${supplierId}::uuid IS NULL
+          OR EXISTS (
+            SELECT 1 FROM supplier_offers so_f
+            WHERE so_f.item_id = i.id
+              AND so_f.supplier_id = ${supplierId}::uuid
+              AND so_f.is_current = TRUE
+          )
+        )
+    `;
+    const totalCount =
+      Number((countRows as unknown as Array<{ total: number }>)[0]?.total ?? 0);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const safeOffset = (safePage - 1) * pageSize;
+
+    const rows =
+      sort === "designation"
+        ? await sql`
+            -- PAGINATED_ITEMS_LIST_DESIGNATION
+            SELECT
+              i.id,
+              i.sku_ref as "skuRef",
+              i.designation,
+              i.description,
+              i.category_id as "categoryId",
+              ic.code as "categoryCode",
+              ic.name_fr as "categoryName",
+              i.brand_id as "brandId",
+              b.name as "brandName",
+              i.manufacturer_part_number as "manufacturerPartNumber",
+              i.unit_code as "unitCode",
+              i.supply_price::float as "supplyPrice",
+              (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+              COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
+              i.specs,
+              i.is_active as "isActive",
+              i.created_at as "createdAt",
+              i.updated_at as "updatedAt",
+              'FUZZY' as "matchType",
+              NULL as "matchLabel"
+            FROM items i
+            LEFT JOIN item_categories ic ON ic.id = i.category_id
+            LEFT JOIN brands b ON b.id = i.brand_id
+            WHERE (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
+              AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
+              AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
+              AND (
+                ${supplierId}::uuid IS NULL
+                OR EXISTS (
+                  SELECT 1 FROM supplier_offers so_f
+                  WHERE so_f.item_id = i.id
+                    AND so_f.supplier_id = ${supplierId}::uuid
+                    AND so_f.is_current = TRUE
+                )
+              )
+            ORDER BY LOWER(COALESCE(i.designation, i.description)) ASC, i.created_at DESC, i.id ASC
+            LIMIT ${pageSize} OFFSET ${safeOffset}
+          `
+        : await sql`
+            -- PAGINATED_ITEMS_LIST_RECENT
+            SELECT
+              i.id,
+              i.sku_ref as "skuRef",
+              i.designation,
+              i.description,
+              i.category_id as "categoryId",
+              ic.code as "categoryCode",
+              ic.name_fr as "categoryName",
+              i.brand_id as "brandId",
+              b.name as "brandName",
+              i.manufacturer_part_number as "manufacturerPartNumber",
+              i.unit_code as "unitCode",
+              i.supply_price::float as "supplyPrice",
+              (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+              COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
+              i.specs,
+              i.is_active as "isActive",
+              i.created_at as "createdAt",
+              i.updated_at as "updatedAt",
+              'FUZZY' as "matchType",
+              NULL as "matchLabel"
+            FROM items i
+            LEFT JOIN item_categories ic ON ic.id = i.category_id
+            LEFT JOIN brands b ON b.id = i.brand_id
+            WHERE (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
+              AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
+              AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
+              AND (
+                ${supplierId}::uuid IS NULL
+                OR EXISTS (
+                  SELECT 1 FROM supplier_offers so_f
+                  WHERE so_f.item_id = i.id
+                    AND so_f.supplier_id = ${supplierId}::uuid
+                    AND so_f.is_current = TRUE
+                )
+              )
+            ORDER BY i.created_at DESC, i.id ASC
+            LIMIT ${pageSize} OFFSET ${safeOffset}
+          `;
+
+    const items = await mapAndAttachCheapestOffers(
+      rows as unknown as RawSearchRow[]
+    );
+
+    return {
+      items,
+      totalCount,
+      page: safePage,
+      pageSize,
+      totalPages,
+    };
+  }
+
+  // Query search across ALL matching items (exact codes first, then fuzzy designation/description/SKU)
+  const searchRows = await sql`
+    -- PAGINATED_ITEMS_SEARCH
+    WITH matched AS (
+      SELECT DISTINCT ON (m.id)
+        m.id,
+        m.match_type,
+        m.match_label,
+        m.rank_priority
+      FROM (
+        SELECT i.id, 'CLIENT_CODE'::text AS match_type, cl.name AS match_label, 1 AS rank_priority
+        FROM item_identifiers ii
+        JOIN items i ON i.id = ii.item_id
+        LEFT JOIN clients cl ON cl.id = ii.client_id
+        WHERE ii.value_normalized = ${normalized}
+          AND ii.kind = 'CLIENT_CODE'
+
+        UNION ALL
+
+        SELECT i.id, 'MPN'::text AS match_type, NULL::text AS match_label, 2 AS rank_priority
+        FROM items i
+        WHERE i.mpn_normalized = ${normalized}
+
+        UNION ALL
+
+        SELECT i.id, 'SUPPLIER_CODE'::text AS match_type, s.name AS match_label, 3 AS rank_priority
+        FROM supplier_offers so
+        JOIN items i ON i.id = so.item_id
+        JOIN suppliers s ON s.id = so.supplier_id
+        WHERE so.supplier_item_code_normalized = ${normalized}
+          AND (${supplierId}::uuid IS NULL OR so.supplier_id = ${supplierId}::uuid)
+
+        UNION ALL
+
+        SELECT i.id, 'SKU'::text AS match_type, NULL::text AS match_label, 4 AS rank_priority
+        FROM items i
+        WHERE UPPER(i.sku_ref) = ${normalized}
+
+        UNION ALL
+
+        SELECT i.id, 'FUZZY'::text AS match_type, NULL::text AS match_label, 5 AS rank_priority
+        FROM items i
+        WHERE (
+          LOWER(COALESCE(i.designation, '')) LIKE ${fuzzy}
+          OR LOWER(COALESCE(i.description, '')) LIKE ${fuzzy}
+          OR LOWER(COALESCE(i.sku_ref, '')) LIKE ${fuzzy}
+        )
+      ) m
+      ORDER BY m.id, m.rank_priority ASC
+    )
+    SELECT
+      i.id,
+      i.sku_ref as "skuRef",
+      i.designation,
+      i.description,
+      i.category_id as "categoryId",
+      ic.code as "categoryCode",
+      ic.name_fr as "categoryName",
+      i.brand_id as "brandId",
+      b.name as "brandName",
+      i.manufacturer_part_number as "manufacturerPartNumber",
+      i.unit_code as "unitCode",
+      i.supply_price::float as "supplyPrice",
+      (to_jsonb(i)->>'quoted_price')::numeric::float as "quotedPrice",
+      COALESCE((to_jsonb(i)->>'vat_included')::boolean, FALSE) as "vatIncluded",
+      i.specs,
+      i.is_active as "isActive",
+      i.created_at as "createdAt",
+      i.updated_at as "updatedAt",
+      matched.match_type as "matchType",
+      matched.match_label as "matchLabel",
+      COUNT(*) OVER()::int as "totalCount"
+    FROM matched
+    JOIN items i ON i.id = matched.id
+    LEFT JOIN item_categories ic ON ic.id = i.category_id
+    LEFT JOIN brands b ON b.id = i.brand_id
+    WHERE (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
+      AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
+      AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
+      AND (
+        ${supplierId}::uuid IS NULL
+        OR EXISTS (
+          SELECT 1 FROM supplier_offers so_f
+          WHERE so_f.item_id = i.id
+            AND so_f.supplier_id = ${supplierId}::uuid
+            AND so_f.is_current = TRUE
+        )
+      )
+    ORDER BY
+      matched.rank_priority ASC,
+      CASE WHEN ${sort} = 'designation' THEN LOWER(COALESCE(i.designation, i.description)) END ASC,
+      i.created_at DESC,
+      i.id ASC
+    LIMIT ${pageSize} OFFSET ${offset}
+  `;
+
+  const rawRows = searchRows as unknown as RawSearchRow[];
+  const totalCount =
+    rawRows.length > 0 ? Number(rawRows[0].totalCount ?? rawRows.length) : 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // If caller requested a page beyond totalPages, clamp to last page and requery once
+  if (totalCount > 0 && page > totalPages) {
+    return searchItemsPaginated(q, {
+      ...options,
+      page: totalPages,
+      pageSize,
+    });
+  }
+
+  const items = await mapAndAttachCheapestOffers(rawRows);
+  return {
+    items,
+    totalCount,
+    page: Math.min(page, totalPages),
+    pageSize,
+    totalPages,
+  };
+}
 
 export async function searchItems(
   q: string,
@@ -242,6 +632,7 @@ export async function searchItems(
     brandId?: string;
     supplierId?: string;
     currencyCode?: string;
+    activeOnly?: boolean;
   }
 ): Promise<ItemRecord[]> {
   const normalized = q ? normalizeCode(q) : null;
@@ -249,12 +640,11 @@ export async function searchItems(
   const catId = filters?.categoryId || null;
   const brandId = filters?.brandId || null;
   const supplierId = filters?.supplierId || null;
+  const activeOnly = filters?.activeOnly === true;
 
   // Phase 1: exact normalized match (client codes, MPN, supplier codes, SKU)
-  // We union three sources and label the match.
   const exactRows = normalized
     ? await sql`
-        -- Match by client identifier code
         SELECT
           i.id,
           i.sku_ref as "skuRef",
@@ -283,12 +673,12 @@ export async function searchItems(
         LEFT JOIN clients cl ON cl.id = ii.client_id
         WHERE ii.value_normalized = ${normalized}
           AND ii.kind = 'CLIENT_CODE'
+          AND (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
           AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
 
         UNION
 
-        -- Match by MPN
         SELECT
           i.id,
           i.sku_ref as "skuRef",
@@ -314,12 +704,12 @@ export async function searchItems(
         LEFT JOIN item_categories ic ON ic.id = i.category_id
         LEFT JOIN brands b ON b.id = i.brand_id
         WHERE i.mpn_normalized = ${normalized}
+          AND (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
           AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
 
         UNION
 
-        -- Match by supplier item code
         SELECT
           i.id,
           i.sku_ref as "skuRef",
@@ -347,13 +737,13 @@ export async function searchItems(
         LEFT JOIN item_categories ic ON ic.id = i.category_id
         LEFT JOIN brands b ON b.id = i.brand_id
         WHERE so.supplier_item_code_normalized = ${normalized}
+          AND (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
           AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
           AND (${supplierId}::uuid IS NULL OR so.supplier_id = ${supplierId}::uuid)
 
         UNION
 
-        -- Match by internal SKU
         SELECT
           i.id,
           i.sku_ref as "skuRef",
@@ -379,6 +769,7 @@ export async function searchItems(
         LEFT JOIN item_categories ic ON ic.id = i.category_id
         LEFT JOIN brands b ON b.id = i.brand_id
         WHERE UPPER(i.sku_ref) = ${normalized}
+          AND (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
           AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
       `
@@ -386,7 +777,7 @@ export async function searchItems(
 
   const exactIds = new Set((exactRows as { id: string }[]).map((r) => r.id));
 
-  // Phase 2: fuzzy on designation / description (exclude already found)
+  // Phase 2: fuzzy on designation / description / sku_ref
   const fuzzyRows = fuzzy
     ? await sql`
         SELECT
@@ -418,14 +809,23 @@ export async function searchItems(
           OR LOWER(i.description) LIKE ${fuzzy}
           OR LOWER(i.sku_ref) LIKE ${fuzzy}
         )
+          AND (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
           AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
-        ORDER BY i.designation ASC
-        LIMIT 50
+          AND (
+            ${supplierId}::uuid IS NULL
+            OR EXISTS (
+              SELECT 1 FROM supplier_offers so_f
+              WHERE so_f.item_id = i.id
+                AND so_f.supplier_id = ${supplierId}::uuid
+                AND so_f.is_current = TRUE
+            )
+          )
+        ORDER BY i.created_at DESC, i.designation ASC
+        LIMIT 200
       `
     : ([] as unknown[]);
 
-  // When no search query, return all items
   const allRows = fuzzy
     ? [
         ...((exactRows as unknown[]) as Array<{
@@ -464,106 +864,22 @@ export async function searchItems(
         FROM items i
         LEFT JOIN item_categories ic ON ic.id = i.category_id
         LEFT JOIN brands b ON b.id = i.brand_id
-        WHERE (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
+        WHERE (${activeOnly}::boolean = FALSE OR i.is_active = TRUE)
+          AND (${catId}::uuid IS NULL OR i.category_id = ${catId}::uuid)
           AND (${brandId}::uuid IS NULL OR i.brand_id = ${brandId}::uuid)
-        ORDER BY i.designation ASC
-        LIMIT 100
+          AND (
+            ${supplierId}::uuid IS NULL
+            OR EXISTS (
+              SELECT 1 FROM supplier_offers so_f
+              WHERE so_f.item_id = i.id
+                AND so_f.supplier_id = ${supplierId}::uuid
+                AND so_f.is_current = TRUE
+            )
+          )
+        ORDER BY i.created_at DESC, i.designation ASC
       `;
 
-  // Optionally filter by supplier and currency if we couldn't do it in the query
-  const typedRows = allRows as Array<{
-    id: string;
-    skuRef: string;
-    designation: string | null;
-    description: string;
-    categoryId: string | null;
-    categoryCode: string | null;
-    categoryName: string | null;
-    brandId: string | null;
-    brandName: string | null;
-    manufacturerPartNumber: string | null;
-    unitCode: string | null;
-    supplyPrice: number | null;
-    quotedPrice: number | null;
-    vatIncluded: boolean;
-    specs: Record<string, string>;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string;
-    matchType: string;
-    matchLabel: string | null;
-  }>;
-
-  // Map basic rows
-  const mappedItems: ItemRecord[] = typedRows.map((row) => {
-    let matchBadge: MatchBadge;
-    if (row.matchType === "CLIENT_CODE") {
-      matchBadge = { type: "CLIENT_CODE", clientName: row.matchLabel || "Client" };
-    } else if (row.matchType === "MPN") {
-      matchBadge = { type: "MPN" };
-    } else if (row.matchType === "SUPPLIER_CODE") {
-      matchBadge = { type: "SUPPLIER_CODE", supplierName: row.matchLabel || "Supplier" };
-    } else if (row.matchType === "SKU") {
-      matchBadge = { type: "SKU" };
-    } else {
-      matchBadge = { type: "FUZZY" };
-    }
-
-    return {
-      id: row.id,
-      skuRef: row.skuRef,
-      designation: row.designation,
-      description: row.description,
-      categoryId: row.categoryId,
-      categoryCode: row.categoryCode,
-      categoryName: row.categoryName,
-      brandId: row.brandId,
-      brandName: row.brandName,
-      manufacturerPartNumber: row.manufacturerPartNumber,
-      unitCode: row.unitCode,
-      supplyPrice: row.supplyPrice != null ? Number(row.supplyPrice) : null,
-      quotedPrice: row.quotedPrice != null ? Number(row.quotedPrice) : null,
-      vatIncluded: Boolean(row.vatIncluded),
-      specs: row.specs ?? {},
-      isActive: row.isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      matchBadge,
-      cheapestOfferUsd: null,
-    };
-  });
-
-  // Attach cheapest offers if items exist
-  if (mappedItems.length > 0) {
-    const itemIds = mappedItems.map((m) => m.id);
-    const offerRows = await sql`
-      SELECT
-        so.item_id as "itemId",
-        MIN(so.unit_price * COALESCE(er.rate_to_usd, 1))::float as "cheapestOfferUsd"
-      FROM supplier_offers so
-      LEFT JOIN LATERAL (
-        SELECT rate_to_usd FROM exchange_rates
-        WHERE currency_code = so.currency_code
-        ORDER BY effective_on DESC LIMIT 1
-      ) er ON TRUE
-      WHERE so.item_id = ANY(${itemIds}::uuid[])
-        AND so.is_current = TRUE
-      GROUP BY so.item_id
-    `;
-
-    const offerMap = new Map<string, number>();
-    for (const r of (offerRows as unknown as Array<{ itemId: string; cheapestOfferUsd: number }>)) {
-      offerMap.set(r.itemId, r.cheapestOfferUsd);
-    }
-
-    for (const item of mappedItems) {
-      if (offerMap.has(item.id)) {
-        item.cheapestOfferUsd = offerMap.get(item.id) ?? null;
-      }
-    }
-  }
-
-  return mappedItems;
+  return mapAndAttachCheapestOffers(allRows as unknown as RawSearchRow[]);
 }
 
 // ---------------------------------------------------------------------------
@@ -579,6 +895,7 @@ export async function getItems(options?: {
   return searchItems(options?.search || "", {
     categoryId: options?.category,
     supplierId: options?.supplierId,
+    activeOnly: options?.activeOnly,
   });
 }
 
@@ -766,6 +1083,8 @@ export async function createItem(data: {
   }
   const item = rows[0] as unknown as ItemRecord;
   item.specs = item.specs ?? {};
+  item.supplyPrice = item.supplyPrice != null ? Number(item.supplyPrice) : null;
+  item.quotedPrice = item.quotedPrice != null ? Number(item.quotedPrice) : null;
   return item;
 }
 

@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/db/audit";
 import {
   searchItems,
+  searchItemsPaginated,
   getItemById,
   createItem,
   updateItem,
@@ -14,6 +15,8 @@ import {
   addSupplierOffer,
   upsertExchangeRate,
   findOrCreateBrand,
+  type ItemsSortOption,
+  type PaginatedItemsResult,
 } from "@/lib/db/items";
 
 // ---------------------------------------------------------------------------
@@ -38,6 +41,49 @@ export async function searchItemsAction(
       success: false,
       error: err instanceof Error ? err.message : "Search failed.",
       items: [],
+    };
+  }
+}
+
+export async function searchItemsPaginatedAction(
+  q: string,
+  options?: {
+    categoryId?: string;
+    brandId?: string;
+    supplierId?: string;
+    currencyCode?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: ItemsSortOption;
+  }
+): Promise<
+  | ({ success: true } & PaginatedItemsResult)
+  | {
+      success: false;
+      error: string;
+      items: [];
+      totalCount: 0;
+      page: 1;
+      pageSize: number;
+      totalPages: 1;
+    }
+> {
+  await requireSession(["SUPER_ADMIN", "ADMIN", "PRICE_COLLECTOR"]);
+  try {
+    const result = await searchItemsPaginated(q, {
+      ...options,
+      activeOnly: true,
+    });
+    return { success: true, ...result };
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Search failed.",
+      items: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: options?.pageSize ?? 25,
+      totalPages: 1,
     };
   }
 }

@@ -12,7 +12,7 @@ import {
   validateRFQDocumentFile,
 } from "../lib/rfq-file-validation";
 import { normalizeExtractedRFQPayload } from "../lib/gemini/rfq-extractor";
-import { normalizeUnitFromCatalog } from "../lib/rfq-import-types";
+import { normalizeUnitFromCatalog, validateOptionalCatalogPrice } from "../lib/rfq-import-types";
 import {
   findDesignationDescriptionDuplicates,
   getActiveCatalogueSummariesForMatching,
@@ -25,7 +25,14 @@ import {
   REVIEW_GROUP_ORDER,
   validateReviewLinesForQuote,
 } from "../lib/rfq-draft-builder";
-import { createItem, getUnits } from "../lib/db/items";
+import {
+  createItem,
+  getItemById,
+  getItems,
+  getUnits,
+  searchItemsPaginated,
+  updateItem,
+} from "../lib/db/items";
 import { createQuotation, getQuotationById } from "../lib/db/quotations";
 import { mockDb } from "../lib/mock-db";
 
@@ -400,6 +407,279 @@ async function run() {
   }
   console.log("[PASS] 6. Quotation saved with exact line order (1..6) and explicit unitPrice = 0");
 
+  // --------------------------------------------------------------------------
+  // 7. Scenarios A-H: Decoupled checkboxes, optional USD pricing, >100 items pagination
+  // --------------------------------------------------------------------------
+  // Price validator edge cases (Scenarios D, E, negatives, non-numeric)
+  assert.deepEqual(validateOptionalCatalogPrice("", "Supplier Price (USD)"), {
+    ok: true,
+    value: null,
+  });
+  assert.deepEqual(validateOptionalCatalogPrice(null, "Quoted Price (USD)"), {
+    ok: true,
+    value: null,
+  });
+  assert.deepEqual(validateOptionalCatalogPrice("0", "Supplier Price (USD)"), {
+    ok: true,
+    value: 0,
+  });
+  assert.deepEqual(validateOptionalCatalogPrice(0, "Quoted Price (USD)"), {
+    ok: true,
+    value: 0,
+  });
+  assert.deepEqual(validateOptionalCatalogPrice("125.50", "Supplier Price (USD)"), {
+    ok: true,
+    value: 125.5,
+  });
+  assert.equal(
+    validateOptionalCatalogPrice("-10", "Supplier Price (USD)").ok,
+    false
+  );
+  assert.equal(
+    validateOptionalCatalogPrice("12abc", "Quoted Price (USD)").ok,
+    false
+  );
+
+  // Scenario A: Both checked with Supplier Price = 125.50 & Quoted Price = 175.00
+  const itemA = await createItem({
+    designation: "POMPE DOSEUSE CHIMIQUE 24V",
+    description: "Pompe doseuse membrane PTFE 10 L/h",
+    unitCode: "EA",
+    supplyPrice: 125.5,
+    quotedPrice: 175.0,
+  });
+  assert.equal(itemA.supplyPrice, 125.5);
+  assert.equal(itemA.quotedPrice, 175.0);
+  const fetchedA = await getItemById(itemA.id);
+  assert.equal(fetchedA?.supplyPrice, 125.5);
+  assert.equal(fetchedA?.quotedPrice, 175.0);
+
+  // Scenario D: Empty prices -> NULL (never 0)
+  const itemD = await createItem({
+    designation: "FILTRE HYDRAULIQUE HAUTE PRESSION",
+    description: "Élément filtrant 10 microns fibre de verre",
+    unitCode: "EA",
+    supplyPrice: null,
+    quotedPrice: null,
+  });
+  assert.equal(itemD.supplyPrice, null);
+  assert.equal(itemD.quotedPrice, null);
+
+  // Scenario E: Explicit zero prices -> 0 (never NULL)
+  const itemE = await createItem({
+    designation: "RONDELLE PLATE INOX M12",
+    description: "Rondelle plate acier inoxydable A4 DIN 125",
+    unitCode: "EA",
+    supplyPrice: 0,
+    quotedPrice: 0,
+  });
+  assert.equal(itemE.supplyPrice, 0);
+  assert.equal(itemE.quotedPrice, 0);
+  const fetchedE = await getItemById(itemE.id);
+  assert.equal(fetchedE?.supplyPrice, 0);
+  assert.equal(fetchedE?.quotedPrice, 0);
+
+  // Update item test preserving 0 / null
+  const updatedE = await updateItem(itemE.id, {
+    supplyPrice: 0,
+    quotedPrice: null,
+  });
+  assert.equal(updatedE?.supplyPrice, 0);
+  assert.equal(updatedE?.quotedPrice, null);
+
+  // Scenarios A, B, C, H review state independence
+  const multiScenarioLines = createInitialReviewLines([
+    {
+      sourceLineNumber: 1,
+      pageNumber: 1,
+      extractedDesignation: itemA.designation!,
+      extractedDescription: itemA.description,
+      quantity: 2,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 2,
+      pageNumber: 1,
+      extractedDesignation: "ART_B_CATALOG_ONLY",
+      extractedDescription: "Article B ajouté uniquement au catalogue",
+      quantity: 4,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 3,
+      pageNumber: 1,
+      extractedDesignation: "ART_C_QUOTE_ONLY",
+      extractedDescription: "Article C inclus au devis sans création catalogue",
+      quantity: 7,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "NEW",
+      needsReviewReason: null,
+      matchedItem: null,
+      candidates: [],
+    },
+    {
+      sourceLineNumber: 4,
+      pageNumber: 1,
+      extractedDesignation: "AS-Interface flat cable seal Part No: E70413",
+      extractedDescription: "Matched existing item",
+      quantity: 1,
+      rawUnit: "EA",
+      normalizedUnitCode: "EA",
+      unitMatchWarning: null,
+      confidence: "high",
+      extractionNotes: null,
+      status: "MATCHED",
+      needsReviewReason: null,
+      matchedItem: {
+        itemId: "item-0001",
+        skuRef: "MIS-ELM-0001",
+        designation: "AS-Interface flat cable seal",
+        description: "AS-Interface flat cable seal",
+        unitCode: "EA",
+        score: 0.96,
+        matchReason: "Match",
+      },
+      candidates: [],
+    },
+  ]);
+
+  // Scenario H: MATCHED defaults to LINK_EXISTING & addToCatalog = false
+  assert.equal(multiScenarioLines[3].resolutionMode, "LINK_EXISTING");
+  assert.equal(multiScenarioLines[3].addToCatalog, false);
+
+  // Scenario A: link created itemA & keep includedInQuote = true
+  multiScenarioLines[0].resolutionMode = "LINK_EXISTING";
+  multiScenarioLines[0].linkedItemId = itemA.id;
+  multiScenarioLines[0].linkedSkuRef = itemA.skuRef;
+  multiScenarioLines[0].addToCatalog = false;
+
+  // Scenario B: addToCatalog = true, includedInQuote = false (independent!)
+  multiScenarioLines[1].addToCatalog = true;
+  multiScenarioLines[1].includedInQuote = false;
+  assert.equal(
+    multiScenarioLines[1].addToCatalog,
+    true,
+    "Unchecking includedInQuote must never silently clear addToCatalog"
+  );
+
+  // Scenario C: addToCatalog = false, includedInQuote = true
+  multiScenarioLines[2].addToCatalog = false;
+  multiScenarioLines[2].includedInQuote = true;
+
+  const scenarioDrafts = buildOrderedQuotationDraftLines(multiScenarioLines);
+  // Line 2 (Scenario B) is excluded; Lines 1, 3, 4 are included
+  assert.equal(scenarioDrafts.length, 3);
+  assert.equal(scenarioDrafts[0].itemId, itemA.id);
+  assert.equal(
+    scenarioDrafts[0].unitPrice,
+    0,
+    "Scenario A: Quoted Price in catalog must NOT overwrite quotation unitPrice"
+  );
+  assert.equal(
+    scenarioDrafts[0].supplyPrice,
+    0,
+    "Scenario A: Supplier Price in catalog must NOT overwrite quotation supplyPrice"
+  );
+  assert.equal(
+    scenarioDrafts[1].itemId,
+    undefined,
+    "Scenario C: Quote-only line must have undefined itemId"
+  );
+  assert.equal(scenarioDrafts[2].itemId, "item-0001");
+
+  // Scenario F: >100 items pagination & search visibility (fixes old LIMIT 100 cutoff)
+  const baseTs = Date.now();
+  for (let i = 1; i <= 115; i++) {
+    mockDb.items.push({
+      id: `bulk-pag-item-${i}`,
+      sku: `MIS-PAG-${String(i).padStart(4, "0")}`,
+      designation: `AAA ARTICLE PAGINATION ${String(i).padStart(3, "0")}`,
+      description: `Description pagination test ${i}`,
+      category_id: "c1",
+      brand_id: null,
+      mpn: null,
+      mpn_normalized: null,
+      unit_code: "EA",
+      supply_price: null,
+      quoted_price: null,
+      vat_included: false,
+      specs: {},
+      notes: null,
+      is_active: true,
+      created_at: new Date(baseTs - 100_000 + i * 100).toISOString(),
+      updated_at: new Date(baseTs - 100_000 + i * 100).toISOString(),
+    });
+  }
+
+  // Create an alphabetically late item ("ZZZ...") after >100 items already exist
+  const lateItem = await createItem({
+    designation: "ZZZ VANNE CRYOGENIQUE IMPORT RFQ",
+    description: "Vanne spéciale fin alphabet au-delà du rang 100",
+    unitCode: "EA",
+    supplyPrice: 410.25,
+    quotedPrice: 540.0,
+  });
+
+  // Page 1 sorted by most recent must surface lateItem first
+  const page1Recent = await searchItemsPaginated("", {
+    page: 1,
+    pageSize: 25,
+    sort: "recent",
+    activeOnly: true,
+  });
+  assert.ok(page1Recent.totalCount >= 120);
+  assert.ok(page1Recent.totalPages >= 5);
+  assert.equal(page1Recent.items[0].id, lateItem.id);
+  assert.equal(page1Recent.items[0].supplyPrice, 410.25);
+  assert.equal(page1Recent.items[0].quotedPrice, 540.0);
+
+  // Alphabetical last page also contains ZZZ item (proving >100 items reachable)
+  const lastAlpha = await searchItemsPaginated("", {
+    page: 99, // clamped to last page
+    pageSize: 25,
+    sort: "designation",
+    activeOnly: true,
+  });
+  assert.equal(lastAlpha.page, lastAlpha.totalPages);
+  assert.ok(
+    lastAlpha.items.some((it) => it.id === lateItem.id),
+    "ZZZ item beyond rank 100 must be reachable via pagination"
+  );
+
+  // Search query must find ZZZ item even with >100 items in catalog
+  const searchLate = await searchItemsPaginated("ZZZ VANNE CRYOGENIQUE", {
+    page: 1,
+    pageSize: 25,
+    activeOnly: true,
+  });
+  assert.equal(searchLate.totalCount, 1);
+  assert.equal(searchLate.items[0].id, lateItem.id);
+
+  // Unpaginated getItems({ activeOnly: true }) for importer matching must also exceed 100
+  const allActive = await getItems({ activeOnly: true });
+  assert.ok(allActive.length >= 120);
+
+  console.log("[PASS] 7. Scenarios A-H: optional USD prices, independent checkboxes, and >100 items pagination");
   console.log("\n=== ALL RFQ IMPORT TESTS PASSED SUCCESSFULLY ===");
 }
 

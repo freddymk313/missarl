@@ -12,6 +12,7 @@ import {
   MockInvoice,
   MockQuotation,
 } from "./mock-db";
+import { normalizeCode } from "./db/normalize";
 
 export async function executeMockSql(
   queryText: string,
@@ -478,10 +479,57 @@ export async function executeMockSql(
     }));
   }
 
+  if (lowerQ.includes('as "totalitems"') && lowerQ.includes("from items")) {
+    const activeItems = mockDb.items.filter((i) => i.is_active);
+    const categoriesUsed = new Set(
+      activeItems.map((i) => i.category_id).filter(Boolean)
+    ).size;
+    const currentOffers = mockDb.supplierOffers.filter((so) => so.is_current);
+    const suppliersReferenced = new Set(currentOffers.map((so) => so.supplier_id))
+      .size;
+    const itemsWithOffer = new Set(currentOffers.map((so) => so.item_id));
+    const itemsWithoutOffer = mockDb.items.filter(
+      (i) => !itemsWithOffer.has(i.id)
+    ).length;
+    return [
+      {
+        totalItems: activeItems.length,
+        categoriesUsed,
+        suppliersReferenced,
+        itemsWithoutOffer,
+      },
+    ];
+  }
+
   if (lowerQ.includes("count(*)::int as total") && lowerQ.includes("from items")) {
     const activeItems = mockDb.items.filter((i) => i.is_active);
     const catCount = new Set(activeItems.map((i) => i.category_id)).size;
     return [{ total: activeItems.length, categories: catCount || 1 }];
+  }
+
+  if (
+    lowerQ.includes("from supplier_offers") &&
+    lowerQ.includes('as "cheapestofferusd"')
+  ) {
+    const ids = Array.isArray(values[0]) ? (values[0] as string[]) : [];
+    const rateMap = new Map<string, number>();
+    for (const xr of mockDb.exchangeRates) {
+      rateMap.set(xr.currency_code, xr.rate_to_usd);
+    }
+    const grouped = new Map<string, number>();
+    for (const so of mockDb.supplierOffers) {
+      if (!so.is_current || !ids.includes(so.item_id)) continue;
+      const rate = rateMap.get(so.currency_code) ?? 1;
+      const usd = so.unit_price * rate;
+      const prev = grouped.get(so.item_id);
+      if (prev === undefined || usd < prev) {
+        grouped.set(so.item_id, usd);
+      }
+    }
+    return Array.from(grouped.entries()).map(([itemId, cheapestOfferUsd]) => ({
+      itemId,
+      cheapestOfferUsd,
+    }));
   }
 
   if (lowerQ.startsWith("insert into items")) {
@@ -494,6 +542,20 @@ export async function executeMockSql(
     const brandId = (values[5] as string | null) ?? null;
     const mpn = (values[6] as string | null) ?? null;
     const mpnNormalized = (values[7] as string | null) ?? null;
+    const supplyPriceVal =
+      values[8] !== undefined &&
+      values[8] !== null &&
+      Number.isFinite(Number(values[8]))
+        ? Number(values[8])
+        : null;
+    const quotedPriceVal =
+      hasQuotedPrice &&
+      values[9] !== undefined &&
+      values[9] !== null &&
+      Number.isFinite(Number(values[9]))
+        ? Number(values[9])
+        : null;
+    const vatIncludedVal = hasQuotedPrice ? values[10] === true : false;
     const specsRaw = hasQuotedPrice ? values[11] : values[9];
     const isActiveRaw = hasQuotedPrice ? values[12] : values[10];
 
@@ -508,9 +570,15 @@ export async function executeMockSql(
       specsObj = specsRaw as Record<string, unknown>;
     }
 
-    const seqNum = mockDb.items.length + 1;
+    let seqNum = mockDb.items.length + 1;
+    let sku = `MIS-${String(seqNum).padStart(6, "0")}`;
+    const existingSkus = new Set(mockDb.items.map((it) => it.sku));
+    while (existingSkus.has(sku)) {
+      seqNum += 1;
+      sku = `MIS-${String(seqNum).padStart(6, "0")}`;
+    }
+
     const id = crypto.randomUUID ? crypto.randomUUID() : `item-${Date.now()}-${seqNum}`;
-    const sku = `MIS-${String(seqNum).padStart(6, "0")}`;
     const now = new Date().toISOString();
     const cat = categoryId ? mockDb.categories.find((c) => c.id === categoryId) : undefined;
     const brand = brandId ? mockDb.brands.find((b) => b.id === brandId) : undefined;
@@ -526,6 +594,9 @@ export async function executeMockSql(
       mpn,
       mpn_normalized: mpnNormalized,
       unit_code: unitCode,
+      supply_price: supplyPriceVal,
+      quoted_price: quotedPriceVal,
+      vat_included: vatIncludedVal,
       specs: specsObj,
       notes: null,
       is_active: isActiveRaw !== false,
@@ -548,15 +619,379 @@ export async function executeMockSql(
         manufacturerPartNumber: mpn,
         mpnNormalized,
         unitCode,
-        supplyPrice: null,
-        quotedPrice: null,
-        vatIncluded: false,
+        supplyPrice: supplyPriceVal,
+        quotedPrice: quotedPriceVal,
+        vatIncluded: vatIncludedVal,
         specs: specsObj,
         isActive: isActiveRaw !== false,
         createdAt: now,
         updatedAt: now,
       },
     ];
+  }
+
+  if (lowerQ.startsWith("update items set supply_price = coalesce(")) {
+    const price =
+      values[0] !== undefined && values[0] !== null && Number.isFinite(Number(values[0]))
+        ? Number(values[0])
+        : null;
+    const id = values[1] as string;
+    const it = mockDb.items.find((item) => item.id === id);
+    if (it && price !== null) {
+      it.supply_price = price;
+      it.updated_at = new Date().toISOString();
+    }
+    return [];
+  }
+
+  if (lowerQ.startsWith("update items set")) {
+    const hasQuotedPrice = lowerQ.includes("quoted_price");
+    let idx = 0;
+    const unitSet = Boolean(values[idx++]);
+    const unitVal = (values[idx++] as string) || "EA";
+    const unitCodeSet = Boolean(values[idx++]);
+    const unitCodeVal = (values[idx++] as string | null) ?? null;
+    const supplySet = Boolean(values[idx++]);
+    const supplyVal = values[idx++];
+    const quotedSet = hasQuotedPrice ? Boolean(values[idx++]) : false;
+    const quotedVal = hasQuotedPrice ? values[idx++] : null;
+    const vatSet = hasQuotedPrice ? Boolean(values[idx++]) : false;
+    const vatVal = hasQuotedPrice ? Boolean(values[idx++]) : false;
+    const designationVal = (values[idx++] as string | null) ?? null;
+    const descriptionVal = (values[idx++] as string | null) ?? null;
+    const categorySet = Boolean(values[idx++]);
+    const categoryVal = (values[idx++] as string | null) ?? null;
+    const brandSet = Boolean(values[idx++]);
+    const brandVal = (values[idx++] as string | null) ?? null;
+    const mpnSet = Boolean(values[idx++]);
+    const mpnVal = (values[idx++] as string | null) ?? null;
+    const mpnNormSet = Boolean(values[idx++]);
+    const mpnNormVal = (values[idx++] as string | null) ?? null;
+    const specsSet = Boolean(values[idx++]);
+    const specsRaw = values[idx++];
+    const isActiveVal = values[idx++] as boolean | null;
+    const id = values[idx] as string;
+
+    const it = mockDb.items.find((item) => item.id === id);
+    if (!it) return [];
+
+    if (unitSet) void unitVal;
+    if (unitCodeSet) {
+      it.unit_code = unitCodeVal;
+      const unitRec = unitCodeVal
+        ? mockDb.units.find((u) => u.code === unitCodeVal)
+        : undefined;
+      it.unit_label = unitRec?.label_fr;
+    }
+    if (supplySet) {
+      it.supply_price =
+        supplyVal !== undefined &&
+        supplyVal !== null &&
+        Number.isFinite(Number(supplyVal))
+          ? Number(supplyVal)
+          : null;
+    }
+    if (hasQuotedPrice && quotedSet) {
+      it.quoted_price =
+        quotedVal !== undefined &&
+        quotedVal !== null &&
+        Number.isFinite(Number(quotedVal))
+          ? Number(quotedVal)
+          : null;
+    }
+    if (hasQuotedPrice && vatSet) {
+      it.vat_included = vatVal;
+    }
+    if (designationVal !== null) it.designation = designationVal;
+    if (descriptionVal !== null) it.description = descriptionVal;
+    if (categorySet) {
+      it.category_id = categoryVal;
+      const cat = categoryVal
+        ? mockDb.categories.find((c) => c.id === categoryVal)
+        : undefined;
+      it.category_code = cat?.code;
+      it.category_name = cat?.name_fr;
+    }
+    if (brandSet) {
+      it.brand_id = brandVal;
+      const brand = brandVal
+        ? mockDb.brands.find((b) => b.id === brandVal)
+        : undefined;
+      it.brand_name = brand?.name ?? null;
+    }
+    if (mpnSet) it.mpn = mpnVal;
+    if (mpnNormSet) it.mpn_normalized = mpnNormVal;
+    if (specsSet && typeof specsRaw === "string") {
+      try {
+        it.specs = JSON.parse(specsRaw) as Record<string, unknown>;
+      } catch {
+        // ignore invalid json
+      }
+    }
+    if (isActiveVal !== null && isActiveVal !== undefined) {
+      it.is_active = isActiveVal;
+    }
+    it.updated_at = new Date().toISOString();
+
+    return [
+      {
+        id: it.id,
+        skuRef: it.sku,
+        designation: it.designation,
+        description: it.description ?? it.designation,
+        categoryId: it.category_id,
+        brandId: it.brand_id,
+        manufacturerPartNumber: it.mpn,
+        unitCode: it.unit_code,
+        supplyPrice: it.supply_price ?? null,
+        quotedPrice: it.quoted_price ?? null,
+        vatIncluded: Boolean(it.vat_included),
+        specs: it.specs ?? {},
+        isActive: it.is_active,
+        createdAt: it.created_at,
+        updatedAt: it.updated_at,
+      },
+    ];
+  }
+
+  if (lowerQ.includes("-- paginated_items_count")) {
+    const activeOnly = Boolean(values[0]);
+    const catId = (values[1] as string | null) ?? null;
+    const brandId = (values[3] as string | null) ?? null;
+    const supplierId = (values[5] as string | null) ?? null;
+
+    const filtered = mockDb.items.filter((it) => {
+      if (activeOnly && !it.is_active) return false;
+      if (catId && it.category_id !== catId) return false;
+      if (brandId && it.brand_id !== brandId) return false;
+      if (
+        supplierId &&
+        !mockDb.supplierOffers.some(
+          (so) =>
+            so.item_id === it.id &&
+            so.supplier_id === supplierId &&
+            so.is_current
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    return [{ total: filtered.length }];
+  }
+
+  if (
+    lowerQ.includes("-- paginated_items_list_designation") ||
+    lowerQ.includes("-- paginated_items_list_recent")
+  ) {
+    const isDesignationSort = lowerQ.includes("-- paginated_items_list_designation");
+    const activeOnly = Boolean(values[0]);
+    const catId = (values[1] as string | null) ?? null;
+    const brandId = (values[3] as string | null) ?? null;
+    const supplierId = (values[5] as string | null) ?? null;
+    const limit = Math.max(1, Number(values[7] ?? 25));
+    const offset = Math.max(0, Number(values[8] ?? 0));
+
+    const filtered = mockDb.items.filter((it) => {
+      if (activeOnly && !it.is_active) return false;
+      if (catId && it.category_id !== catId) return false;
+      if (brandId && it.brand_id !== brandId) return false;
+      if (
+        supplierId &&
+        !mockDb.supplierOffers.some(
+          (so) =>
+            so.item_id === it.id &&
+            so.supplier_id === supplierId &&
+            so.is_current
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (isDesignationSort) {
+        const nameA = (a.designation || a.description || "").toLowerCase();
+        const nameB = (b.designation || b.description || "").toLowerCase();
+        const cmp = nameA.localeCompare(nameB);
+        if (cmp !== 0) return cmp;
+      }
+      const timeCmp =
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (timeCmp !== 0) return timeCmp;
+      return a.id.localeCompare(b.id);
+    });
+
+    return sorted.slice(offset, offset + limit).map((it) => ({
+      id: it.id,
+      skuRef: it.sku,
+      designation: it.designation,
+      description: it.description ?? it.designation,
+      categoryId: it.category_id,
+      categoryCode: it.category_code || null,
+      categoryName: it.category_name || null,
+      brandId: it.brand_id,
+      brandName: it.brand_name || null,
+      manufacturerPartNumber: it.mpn,
+      unitCode: it.unit_code,
+      supplyPrice: it.supply_price ?? null,
+      quotedPrice: it.quoted_price ?? null,
+      vatIncluded: Boolean(it.vat_included),
+      specs: it.specs ?? {},
+      isActive: it.is_active,
+      createdAt: it.created_at,
+      updatedAt: it.updated_at,
+      matchType: "FUZZY",
+      matchLabel: null,
+    }));
+  }
+
+  if (lowerQ.includes("-- paginated_items_search")) {
+    const normalized = String(values[0] || "");
+    const supplierFilterForSub = (values[3] as string | null) ?? null;
+    const fuzzyRaw = String(values[6] || "").replace(/%/g, "").toLowerCase();
+    const activeOnly = Boolean(values[9]);
+    const catId = (values[10] as string | null) ?? null;
+    const brandId = (values[12] as string | null) ?? null;
+    const supplierId = (values[14] as string | null) ?? null;
+    const sort = String(values[16] || "recent");
+    const limit = Math.max(1, Number(values[17] ?? 25));
+    const offset = Math.max(0, Number(values[18] ?? 0));
+
+    type MatchedEntry = {
+      item: (typeof mockDb.items)[number];
+      matchType: string;
+      matchLabel: string | null;
+      rankPriority: number;
+    };
+
+    const bestMatchByItem = new Map<string, MatchedEntry>();
+    const registerMatch = (
+      item: (typeof mockDb.items)[number],
+      matchType: string,
+      matchLabel: string | null,
+      rankPriority: number
+    ) => {
+      const existing = bestMatchByItem.get(item.id);
+      if (!existing || rankPriority < existing.rankPriority) {
+        bestMatchByItem.set(item.id, { item, matchType, matchLabel, rankPriority });
+      }
+    };
+
+    const itemById = new Map(mockDb.items.map((it) => [it.id, it]));
+
+    for (const ii of mockDb.itemIdentifiers) {
+      if (ii.type === "CLIENT_CODE" && ii.value_normalized === normalized) {
+        const it = itemById.get(ii.item_id);
+        if (it) {
+          const cl = ii.client_id
+            ? mockDb.clients.find((c) => c.id === ii.client_id)
+            : undefined;
+          registerMatch(it, "CLIENT_CODE", cl?.name || null, 1);
+        }
+      }
+    }
+
+    for (const it of mockDb.items) {
+      if (it.mpn_normalized && it.mpn_normalized === normalized) {
+        registerMatch(it, "MPN", null, 2);
+      }
+    }
+
+    for (const so of mockDb.supplierOffers) {
+      if (
+        supplierFilterForSub &&
+        so.supplier_id !== supplierFilterForSub
+      ) {
+        continue;
+      }
+      if (
+        so.supplier_item_code &&
+        normalizeCode(so.supplier_item_code) === normalized
+      ) {
+        const it = itemById.get(so.item_id);
+        const sup = mockDb.suppliers.find((s) => s.id === so.supplier_id);
+        if (it) {
+          registerMatch(it, "SUPPLIER_CODE", sup?.name || null, 3);
+        }
+      }
+    }
+
+    for (const it of mockDb.items) {
+      if ((it.sku || "").toUpperCase() === normalized) {
+        registerMatch(it, "SKU", null, 4);
+      }
+      if (fuzzyRaw) {
+        const desMatch = (it.designation || "").toLowerCase().includes(fuzzyRaw);
+        const descMatch = (it.description || "").toLowerCase().includes(fuzzyRaw);
+        const skuMatch = (it.sku || "").toLowerCase().includes(fuzzyRaw);
+        if (desMatch || descMatch || skuMatch) {
+          registerMatch(it, "FUZZY", null, 5);
+        }
+      }
+    }
+
+    const filtered = Array.from(bestMatchByItem.values()).filter(({ item }) => {
+      if (activeOnly && !item.is_active) return false;
+      if (catId && item.category_id !== catId) return false;
+      if (brandId && item.brand_id !== brandId) return false;
+      if (
+        supplierId &&
+        !mockDb.supplierOffers.some(
+          (so) =>
+            so.item_id === item.id &&
+            so.supplier_id === supplierId &&
+            so.is_current
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (a.rankPriority !== b.rankPriority) {
+        return a.rankPriority - b.rankPriority;
+      }
+      if (sort === "designation") {
+        const nameA = (a.item.designation || a.item.description || "").toLowerCase();
+        const nameB = (b.item.designation || b.item.description || "").toLowerCase();
+        const cmp = nameA.localeCompare(nameB);
+        if (cmp !== 0) return cmp;
+      }
+      const timeCmp =
+        new Date(b.item.created_at).getTime() -
+        new Date(a.item.created_at).getTime();
+      if (timeCmp !== 0) return timeCmp;
+      return a.item.id.localeCompare(b.item.id);
+    });
+
+    const totalCount = filtered.length;
+    return filtered.slice(offset, offset + limit).map(({ item: it, matchType, matchLabel }) => ({
+      id: it.id,
+      skuRef: it.sku,
+      designation: it.designation,
+      description: it.description ?? it.designation,
+      categoryId: it.category_id,
+      categoryCode: it.category_code || null,
+      categoryName: it.category_name || null,
+      brandId: it.brand_id,
+      brandName: it.brand_name || null,
+      manufacturerPartNumber: it.mpn,
+      unitCode: it.unit_code,
+      supplyPrice: it.supply_price ?? null,
+      quotedPrice: it.quoted_price ?? null,
+      vatIncluded: Boolean(it.vat_included),
+      specs: it.specs ?? {},
+      isActive: it.is_active,
+      createdAt: it.created_at,
+      updatedAt: it.updated_at,
+      matchType,
+      matchLabel,
+      totalCount,
+    }));
   }
 
   if (lowerQ.includes("from items") && lowerQ.includes("where is_active = true")) {
@@ -578,7 +1013,10 @@ export async function executeMockSql(
       .map((item) => ({ id: item.id }));
   }
 
-  if (lowerQ.includes("from items") && lowerQ.includes("where id =")) {
+  if (
+    lowerQ.includes("from items") &&
+    (lowerQ.includes("where id =") || lowerQ.includes("where i.id ="))
+  ) {
     const id = values[0] as string;
     const it = mockDb.items.find((item) => item.id === id);
     if (!it) return [];
@@ -598,6 +1036,9 @@ export async function executeMockSql(
         mpn: it.mpn,
         unitCode: it.unit_code,
         unitLabel: it.unit_label || it.unit_code || "Pièce",
+        supplyPrice: it.supply_price ?? null,
+        quotedPrice: it.quoted_price ?? null,
+        vatIncluded: Boolean(it.vat_included),
         specs: it.specs ?? {},
         notes: it.notes,
         isActive: it.is_active,
@@ -611,14 +1052,40 @@ export async function executeMockSql(
   }
 
   if (lowerQ.includes("from items")) {
-    const search = values[0] ? String(values[0]).replace(/%/g, "").toLowerCase() : "";
+    const isFilterQuery = typeof values[0] === "boolean";
+    const activeOnly = isFilterQuery ? Boolean(values[0]) : false;
+    const catId = isFilterQuery ? ((values[1] as string | null) ?? null) : null;
+    const brandId = isFilterQuery ? ((values[3] as string | null) ?? null) : null;
+    const supplierId = isFilterQuery ? ((values[5] as string | null) ?? null) : null;
+    const search =
+      !isFilterQuery && values[0]
+        ? String(values[0]).replace(/%/g, "").toLowerCase()
+        : "";
     let list = mockDb.items;
-    if (search) {
+    if (isFilterQuery) {
+      list = list.filter((it) => {
+        if (activeOnly && !it.is_active) return false;
+        if (catId && it.category_id !== catId) return false;
+        if (brandId && it.brand_id !== brandId) return false;
+        if (
+          supplierId &&
+          !mockDb.supplierOffers.some(
+            (so) =>
+              so.item_id === it.id &&
+              so.supplier_id === supplierId &&
+              so.is_current
+          )
+        ) {
+          return false;
+        }
+        return true;
+      });
+    } else if (search) {
       list = list.filter(
         (it) =>
-          it.designation.toLowerCase().includes(search) ||
+          (it.designation || "").toLowerCase().includes(search) ||
           (it.description && it.description.toLowerCase().includes(search)) ||
-          it.sku.toLowerCase().includes(search) ||
+          (it.sku || "").toLowerCase().includes(search) ||
           (it.mpn && it.mpn.toLowerCase().includes(search))
       );
     }
@@ -637,6 +1104,9 @@ export async function executeMockSql(
       mpn: it.mpn,
       unitCode: it.unit_code,
       unitLabel: it.unit_label || it.unit_code || "Pièce",
+      supplyPrice: it.supply_price ?? null,
+      quotedPrice: it.quoted_price ?? null,
+      vatIncluded: Boolean(it.vat_included),
       specs: it.specs ?? {},
       notes: it.notes,
       isActive: it.is_active,

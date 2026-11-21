@@ -19,6 +19,8 @@ import {
   Hash,
   Barcode,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   ItemRecord,
@@ -27,6 +29,8 @@ import {
   BrandRecord,
   UnitRecord,
   ItemStats,
+  ItemsSortOption,
+  PaginatedItemsResult,
 } from "@/lib/db/items";
 import { SupplierRecord } from "@/lib/db/suppliers";
 import { ClientRecord } from "@/lib/db/clients";
@@ -37,9 +41,10 @@ import {
   updateItemAction,
   deleteItemAction,
   addSupplierOfferAction,
-  searchItemsAction,
+  searchItemsPaginatedAction,
   getItemAction,
 } from "@/actions/items";
+import { validateOptionalCatalogPrice } from "@/lib/rfq-import-types";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
@@ -49,7 +54,11 @@ import { StatTile } from "@/components/dashboard/ui/stat-tile";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface ArticlesManagerProps {
-  initialItems: ItemRecord[];
+  initialPageData: PaginatedItemsResult;
+  initialQuery?: string;
+  initialCategoryId?: string;
+  initialSupplierId?: string;
+  initialSort?: ItemsSortOption;
   stats: ItemStats;
   categories: CategoryRecord[];
   brands: BrandRecord[];
@@ -241,7 +250,11 @@ function ClientCodesEditor({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ArticlesManager({
-  initialItems,
+  initialPageData,
+  initialQuery = "",
+  initialCategoryId = "",
+  initialSupplierId = "",
+  initialSort = "recent",
   stats,
   categories,
   brands,
@@ -254,11 +267,16 @@ export function ArticlesManager({
   const canManage = role === "SUPER_ADMIN" || role === "ADMIN";
 
   // State
-  const [items, setItems] = useState<ItemRecord[]>(initialItems);
+  const [items, setItems] = useState<ItemRecord[]>(initialPageData.items);
+  const [totalCount, setTotalCount] = useState<number>(initialPageData.totalCount);
+  const [page, setPage] = useState<number>(initialPageData.page);
+  const [pageSize, setPageSize] = useState<number>(initialPageData.pageSize);
+  const [totalPages, setTotalPages] = useState<number>(initialPageData.totalPages);
   const [currentStats, setCurrentStats] = useState<ItemStats>(stats);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterSupplier, setFilterSupplier] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [filterCategory, setFilterCategory] = useState(initialCategoryId);
+  const [filterSupplier, setFilterSupplier] = useState(initialSupplierId);
+  const [sortBy, setSortBy] = useState<ItemsSortOption>(initialSort);
 
   const [isSearching, startSearch] = useTransition();
   const [isSubmitting, startSubmit] = useTransition();
@@ -393,19 +411,86 @@ export function ArticlesManager({
     }
   };
 
-  const handleSearch = () => {
+  const fetchPage = (overrides?: {
+    q?: string;
+    categoryId?: string;
+    supplierId?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: ItemsSortOption;
+  }) => {
+    const nextQ = overrides?.q !== undefined ? overrides.q : searchQuery;
+    const nextCat =
+      overrides?.categoryId !== undefined
+        ? overrides.categoryId
+        : filterCategory;
+    const nextSup =
+      overrides?.supplierId !== undefined
+        ? overrides.supplierId
+        : filterSupplier;
+    const nextPage = overrides?.page !== undefined ? overrides.page : page;
+    const nextSize =
+      overrides?.pageSize !== undefined ? overrides.pageSize : pageSize;
+    const nextSort = overrides?.sort !== undefined ? overrides.sort : sortBy;
+
     startSearch(async () => {
-      const res = await searchItemsAction(searchQuery, {
-        categoryId: filterCategory || undefined,
-        supplierId: filterSupplier || undefined,
+      const res = await searchItemsPaginatedAction(nextQ, {
+        categoryId: nextCat || undefined,
+        supplierId: nextSup || undefined,
+        page: nextPage,
+        pageSize: nextSize,
+        sort: nextSort,
       });
-      if (res.success) setItems(res.items);
+      if (res.success) {
+        setItems(res.items);
+        setTotalCount(res.totalCount);
+        setPage(res.page);
+        setPageSize(res.pageSize);
+        setTotalPages(res.totalPages);
+
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams();
+          if (nextQ.trim()) params.set("q", nextQ.trim());
+          if (nextCat) params.set("categoryId", nextCat);
+          if (nextSup) params.set("supplierId", nextSup);
+          if (res.page > 1) params.set("page", String(res.page));
+          if (res.pageSize !== 25) params.set("pageSize", String(res.pageSize));
+          if (nextSort !== "recent") params.set("sort", nextSort);
+          const qs = params.toString();
+          const nextUrl = qs
+            ? `${window.location.pathname}?${qs}`
+            : window.location.pathname;
+          window.history.replaceState(null, "", nextUrl);
+        }
+      }
     });
+  };
+
+  const handleSearch = () => {
+    fetchPage({ page: 1 });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
+
+    const supplyCheck = validateOptionalCatalogPrice(
+      supplyPrice,
+      "Supply Price ($)"
+    );
+    if (!supplyCheck.ok) {
+      setFormError(supplyCheck.error);
+      return;
+    }
+
+    const quotedCheck = validateOptionalCatalogPrice(
+      quotedPrice,
+      "Quoted Price ($)"
+    );
+    if (!quotedCheck.ok) {
+      setFormError(quotedCheck.error);
+      return;
+    }
 
     startSubmit(async () => {
       if (editingItem) {
@@ -416,8 +501,8 @@ export function ArticlesManager({
           brandName: brandName || null,
           manufacturerPartNumber: mpn || null,
           unitCode: unitCode || null,
-          supplyPrice: supplyPrice ? parseFloat(supplyPrice) : null,
-          quotedPrice: quotedPrice ? parseFloat(quotedPrice) : null,
+          supplyPrice: supplyCheck.value,
+          quotedPrice: quotedCheck.value,
           specs,
         });
         if (!res.success) {
@@ -430,6 +515,21 @@ export function ArticlesManager({
           setModalOpen(false);
         }
       } else {
+        const offerSupplyFallback =
+          supplyCheck.value === null && offerPrice.trim() !== ""
+            ? validateOptionalCatalogPrice(offerPrice, "Supplier Price ($)")
+            : null;
+        if (offerSupplyFallback && !offerSupplyFallback.ok) {
+          setFormError(offerSupplyFallback.error);
+          return;
+        }
+        const effectiveSupplyPrice =
+          supplyCheck.value !== null
+            ? supplyCheck.value
+            : offerSupplyFallback && offerSupplyFallback.ok
+            ? offerSupplyFallback.value
+            : null;
+
         const res = await createItemAction({
           designation,
           description,
@@ -437,16 +537,12 @@ export function ArticlesManager({
           brandName: brandName || undefined,
           manufacturerPartNumber: mpn || undefined,
           unitCode,
-          supplyPrice: supplyPrice
-            ? parseFloat(supplyPrice)
-            : offerPrice
-            ? parseFloat(offerPrice)
-            : undefined,
-          quotedPrice: quotedPrice ? parseFloat(quotedPrice) : undefined,
+          supplyPrice: effectiveSupplyPrice,
+          quotedPrice: quotedCheck.value,
           specs,
           clientCodes,
           offer:
-            includeOffer && offerSupplierId && offerPrice
+            includeOffer && offerSupplierId && offerPrice.trim() !== ""
               ? {
                   supplierId: offerSupplierId,
                   supplierItemCode: offerSupplierCode || undefined,
@@ -468,7 +564,6 @@ export function ArticlesManager({
         if (!res.success) {
           setFormError(res.error || "Creation failed.");
         } else if (res.item) {
-          setItems((prev) => [res.item!, ...prev]);
           setCurrentStats((prev) => ({
             ...prev,
             totalItems: prev.totalItems + 1,
@@ -479,6 +574,7 @@ export function ArticlesManager({
           }));
           setModalOpen(false);
           resetForm();
+          fetchPage({ page: 1 });
         }
       }
     });
@@ -492,12 +588,12 @@ export function ArticlesManager({
       if (!res.success) {
         setDeleteError(res.error || "Delete failed.");
       } else {
-        setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
         setCurrentStats((prev) => ({
           ...prev,
           totalItems: Math.max(0, prev.totalItems - 1),
         }));
         setDeleteTarget(null);
+        fetchPage({ page });
       }
     });
   };
@@ -589,68 +685,131 @@ export function ArticlesManager({
       )}
 
       {/* Search & Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
-        <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-3">
-          <div className="relative flex-1 min-w-50">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by client code, manufacturer P/N, supplier code, description…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-            />
+      <div className="flex flex-col gap-3 bg-card p-4 rounded-2xl border border-border shadow-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2.5">
+            <div className="relative flex-1 min-w-50">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by client code, manufacturer P/N, supplier code, description…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                const nextCat = e.target.value;
+                setFilterCategory(nextCat);
+                fetchPage({ categoryId: nextCat, page: 1 });
+              }}
+              className="h-9 w-full sm:w-auto rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nameFr}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterSupplier}
+              onChange={(e) => {
+                const nextSup = e.target.value;
+                setFilterSupplier(nextSup);
+                fetchPage({ supplierId: nextSup, page: 1 });
+              }}
+              className="h-9 w-full sm:w-auto rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
+            >
+              <option value="">All suppliers</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                const nextSort =
+                  e.target.value === "designation" ? "designation" : "recent";
+                setSortBy(nextSort);
+                fetchPage({ sort: nextSort, page: 1 });
+              }}
+              aria-label="Sort items"
+              className="h-9 w-full sm:w-auto rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
+            >
+              <option value="recent">Sort: Most recent</option>
+              <option value="designation">Sort: Alphabetical</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="h-9 px-4 rounded-xl bg-secondary border border-border text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer disabled:opacity-55 shrink-0 flex items-center justify-center"
+            >
+              {isSearching ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Search"
+              )}
+            </button>
           </div>
-          
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="h-9 w-full sm:w-auto rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
-          >
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nameFr}
-              </option>
-            ))}
-          </select>
 
-          <select
-            value={filterSupplier}
-            onChange={(e) => setFilterSupplier(e.target.value)}
-            className="h-9 w-full sm:w-auto rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 shrink-0"
-          >
-            <option value="">All suppliers</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="h-9 px-4 rounded-xl bg-secondary border border-border text-xs font-bold text-foreground hover:bg-secondary/80 transition-colors cursor-pointer disabled:opacity-55 shrink-0 flex items-center justify-center"
-          >
-            {isSearching ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              "Search"
-            )}
-          </button>
+          {canManage && (
+            <button
+              onClick={openCreate}
+              className="inline-flex items-center justify-center text-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
+            >
+              <Plus className="size-4" /> <span>New Item</span>
+            </button>
+          )}
         </div>
 
-        {canManage && (
-          <button
-            onClick={openCreate}
-            className="inline-flex items-center justify-center text-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 cursor-pointer"
-          >
-            <Plus className="size-4" /> <span>New Item</span>
-          </button>
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-[11px] text-muted-foreground">
+          <div>
+            {totalCount === 0 ? (
+              <span>0 items matching current criteria</span>
+            ) : (
+              <span>
+                Showing{" "}
+                <strong className="text-foreground tabular-nums">
+                  {(page - 1) * pageSize + 1}–
+                  {Math.min(page * pageSize, totalCount)}
+                </strong>{" "}
+                of{" "}
+                <strong className="text-foreground tabular-nums">
+                  {totalCount}
+                </strong>{" "}
+                items
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span>Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const nextSize = Number(e.target.value);
+                setPageSize(nextSize);
+                fetchPage({ pageSize: nextSize, page: 1 });
+              }}
+              aria-label="Items per page"
+              className="h-7 rounded-lg border border-border bg-card px-2 text-[11px] font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+            >
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Results Table & Mobile Cards */}
@@ -907,6 +1066,39 @@ export function ArticlesManager({
             ))
           )}
         </div>
+
+        {/* Pagination Footer */}
+        {totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t border-border bg-secondary/20 text-xs">
+            <span className="text-muted-foreground">
+              Page{" "}
+              <strong className="text-foreground tabular-nums">{page}</strong>{" "}
+              of{" "}
+              <strong className="text-foreground tabular-nums">
+                {totalPages}
+              </strong>{" "}
+              (<span className="tabular-nums">{totalCount}</span> total items)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isSearching || page <= 1}
+                onClick={() => fetchPage({ page: page - 1 })}
+                className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border bg-card text-xs font-bold text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="size-3.5" /> Previous
+              </button>
+              <button
+                type="button"
+                disabled={isSearching || page >= totalPages}
+                onClick={() => fetchPage({ page: page + 1 })}
+                className="inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-border bg-card text-xs font-bold text-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── DETAIL SHEET ── */}

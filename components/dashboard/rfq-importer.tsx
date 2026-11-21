@@ -17,6 +17,7 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
+  ExternalLink,
 } from "lucide-react";
 import type { ClientRecord } from "@/lib/db/clients";
 import type { ItemRecord, UnitRecord } from "@/lib/db/items";
@@ -26,11 +27,13 @@ import {
   ALLOWED_RFQ_MIME_TYPES,
   MAX_RFQ_FILE_BYTES,
 } from "@/lib/rfq-file-validation";
-import type {
-  BulkCreateImportedItemInput,
-  QuotationDraftLineInput,
-  RFQAnalysisResponse,
-  RFQMatchStatus,
+import {
+  validateOptionalCatalogPrice,
+  type BulkCreateImportedItemInput,
+  type BulkCreateImportedItemSuccess,
+  type QuotationDraftLineInput,
+  type RFQAnalysisResponse,
+  type RFQMatchStatus,
 } from "@/lib/rfq-import-types";
 import {
   buildOrderedQuotationDraftLines,
@@ -144,9 +147,10 @@ export function RFQImporter({
   const [catalogItems, setCatalogItems] = useState<ItemRecord[]>(initialItems);
   const [reviewLines, setReviewLines] = useState<EditableRFQReviewLine[]>([]);
   const [reviewBannerError, setReviewBannerError] = useState<string | null>(null);
-  const [reviewBannerSuccess, setReviewBannerSuccess] = useState<string | null>(
-    null
-  );
+  const [bulkCreateResult, setBulkCreateResult] = useState<{
+    created: BulkCreateImportedItemSuccess[];
+    failureCount: number;
+  } | null>(null);
   const [isCreatingBulk, setIsCreatingBulk] = useState(false);
   const [blockingLineNumbers, setBlockingLineNumbers] = useState<number[]>([]);
 
@@ -239,7 +243,7 @@ export function RFQImporter({
       });
       setReviewLines(createInitialReviewLines(payload.lines));
       setReviewBannerError(null);
-      setReviewBannerSuccess(null);
+      setBulkCreateResult(null);
       setBlockingLineNumbers([]);
       setStage("review");
     } catch {
@@ -285,19 +289,21 @@ export function RFQImporter({
   const eligibleForBulkCreate = useMemo(
     () =>
       reviewLines.filter(
-        (l) =>
-          l.includedInQuote &&
-          l.resolutionMode === "CREATE_NEW" &&
-          l.selectedForCreate
+        (l) => l.resolutionMode === "CREATE_NEW" && l.addToCatalog
       ),
+    [reviewLines]
+  );
+
+  const hasAnyCreateCandidate = useMemo(
+    () => reviewLines.some((l) => l.resolutionMode === "CREATE_NEW"),
     [reviewLines]
   );
 
   const handleToggleSelectAllNew = (checked: boolean) => {
     setReviewLines((prev) =>
       prev.map((line) =>
-        line.resolutionMode === "CREATE_NEW" && line.includedInQuote
-          ? { ...line, selectedForCreate: checked }
+        line.resolutionMode === "CREATE_NEW"
+          ? { ...line, addToCatalog: checked }
           : line
       )
     );
@@ -305,40 +311,78 @@ export function RFQImporter({
 
   const handleBulkCreateItems = async () => {
     setReviewBannerError(null);
-    setReviewBannerSuccess(null);
 
     if (eligibleForBulkCreate.length === 0) {
       setReviewBannerError(
-        "Cochez au moins un nouvel article à créer dans le catalogue."
+        "Cochez « Ajouter aussi à Items & Pricing » sur au moins un nouvel article."
       );
       return;
     }
 
-    // Check units & designations locally first so errors point directly to rows
-    const invalidLocal = eligibleForBulkCreate.filter(
+    // Check units, designations, and optional prices locally first so errors point directly to rows
+    const invalidTextLines = eligibleForBulkCreate.filter(
       (l) => !l.designation.trim() || !l.description.trim() || !l.unitCode.trim()
     );
-    if (invalidLocal.length > 0) {
-      setBlockingLineNumbers(invalidLocal.map((l) => l.sourceLineNumber));
+    if (invalidTextLines.length > 0) {
+      setBlockingLineNumbers(invalidTextLines.map((l) => l.sourceLineNumber));
       setReviewBannerError(
-        `Certaines lignes cochées pour création manquent d'une désignation, d'une description ou d'une unité valide (Lignes #${invalidLocal
+        `Certaines lignes cochées pour Items & Pricing manquent d'une désignation, d'une description ou d'une unité valide (Lignes #${invalidTextLines
           .map((l) => l.sourceLineNumber)
           .join(", #")}).`
       );
       return;
     }
 
+    const payload: BulkCreateImportedItemInput[] = [];
+    const priceErrors: Array<{ lineNumber: number; message: string }> = [];
+
+    for (const l of eligibleForBulkCreate) {
+      const supplyCheck = validateOptionalCatalogPrice(
+        l.supplyPrice,
+        "Supplier Price (USD)"
+      );
+      if (!supplyCheck.ok) {
+        priceErrors.push({
+          lineNumber: l.sourceLineNumber,
+          message: supplyCheck.error,
+        });
+        continue;
+      }
+
+      const quotedCheck = validateOptionalCatalogPrice(
+        l.quotedPrice,
+        "Quoted Price (USD)"
+      );
+      if (!quotedCheck.ok) {
+        priceErrors.push({
+          lineNumber: l.sourceLineNumber,
+          message: quotedCheck.error,
+        });
+        continue;
+      }
+
+      payload.push({
+        sourceLineNumber: l.sourceLineNumber,
+        designation: l.designation.trim(),
+        description: l.description.trim(),
+        unitCode: l.unitCode.trim(),
+        supplyPrice: supplyCheck.value,
+        quotedPrice: quotedCheck.value,
+      });
+    }
+
+    if (priceErrors.length > 0) {
+      setBlockingLineNumbers(priceErrors.map((e) => e.lineNumber));
+      setReviewBannerError(
+        `Prix catalogue invalide sur ${priceErrors
+          .map((e) => `Ligne #${e.lineNumber} (${e.message})`)
+          .join(" ; ")}.`
+      );
+      return;
+    }
+
     setIsCreatingBulk(true);
     try {
-      const payload: BulkCreateImportedItemInput[] = eligibleForBulkCreate.map(
-        (l) => ({
-          sourceLineNumber: l.sourceLineNumber,
-          designation: l.designation.trim(),
-          description: l.description.trim(),
-          unitCode: l.unitCode.trim(),
-        })
-      );
-
       const res = await createImportedItemsAction(payload);
 
       if (res.createdItems.length > 0) {
@@ -363,8 +407,8 @@ export function RFQImporter({
               brandName: null,
               manufacturerPartNumber: null,
               unitCode: c.item.unitCode,
-              supplyPrice: null,
-              quotedPrice: null,
+              supplyPrice: c.item.supplyPrice,
+              quotedPrice: c.item.quotedPrice,
               vatIncluded: false,
               specs: {},
               isActive: true,
@@ -380,14 +424,19 @@ export function RFQImporter({
             if (!created) return line;
             return {
               ...line,
-              status: line.status === "NEEDS_REVIEW" && (line.quantity === null || line.quantity <= 0)
-                ? "NEEDS_REVIEW"
-                : "MATCHED",
+              status:
+                line.status === "NEEDS_REVIEW" &&
+                (line.quantity === null || line.quantity <= 0)
+                  ? "NEEDS_REVIEW"
+                  : "MATCHED",
               resolutionMode: "LINK_EXISTING",
               linkedItemId: created.id,
               linkedSkuRef: created.skuRef,
               linkedDesignation: created.designation,
-              selectedForCreate: false,
+              addToCatalog: false,
+              createdInSession: true,
+              createdSupplyPrice: created.supplyPrice,
+              createdQuotedPrice: created.quotedPrice,
               possibleMatchConfirmed: true,
               createError: null,
               duplicateSuggestion: null,
@@ -400,6 +449,7 @@ export function RFQImporter({
         const failureMap = new Map(
           res.failures.map((f) => [f.sourceLineNumber, f])
         );
+        setBlockingLineNumbers(res.failures.map((f) => f.sourceLineNumber));
         setReviewLines((prev) =>
           prev.map((line) => {
             const fail = failureMap.get(line.sourceLineNumber);
@@ -413,14 +463,15 @@ export function RFQImporter({
         );
         setReviewBannerError(
           res.error ||
-            `${res.failures.length} article(s) n'ont pas pu être créés. Vérifiez les alertes ci-dessous.`
+            `${res.failures.length} article(s) n'ont pas pu être créés dans Items & Pricing. Corrigez les lignes signalées ci-dessous et relancez sans risque de doublon.`
         );
       }
 
       if (res.createdItems.length > 0) {
-        setReviewBannerSuccess(
-          `${res.createdItems.length} article(s) créé(s) dans le catalogue MIS SARL et associé(s) automatiquement.`
-        );
+        setBulkCreateResult({
+          created: res.createdItems,
+          failureCount: res.failures.length,
+        });
       }
     } catch {
       setReviewBannerError(
@@ -433,7 +484,6 @@ export function RFQImporter({
 
   const handlePrepareQuotation = () => {
     setReviewBannerError(null);
-    setReviewBannerSuccess(null);
 
     const validation = validateReviewLinesForQuote(reviewLines);
     if (!validation.ok) {
@@ -827,7 +877,7 @@ export function RFQImporter({
                   onClick={() => {
                     setStage("upload");
                     setReviewBannerError(null);
-                    setReviewBannerSuccess(null);
+                    setBulkCreateResult(null);
                   }}
                   className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border bg-card text-xs font-bold text-foreground hover:bg-secondary cursor-pointer"
                 >
@@ -875,20 +925,24 @@ export function RFQImporter({
             {/* Bulk & Quote Actions Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border">
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleToggleSelectAllNew(true)}
-                  className="h-8 px-3 rounded-lg border border-border bg-secondary/50 text-[11px] font-bold text-foreground hover:bg-secondary cursor-pointer"
-                >
-                  Tout sélectionner (nouveaux)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleToggleSelectAllNew(false)}
-                  className="h-8 px-3 rounded-lg border border-border bg-card text-[11px] font-bold text-muted-foreground hover:bg-secondary cursor-pointer"
-                >
-                  Tout désélectionner
-                </button>
+                {hasAnyCreateCandidate && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectAllNew(true)}
+                      className="h-8 px-3 rounded-lg border border-border bg-secondary/50 text-[11px] font-bold text-foreground hover:bg-secondary cursor-pointer"
+                    >
+                      Tout ajouter (nouveaux)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectAllNew(false)}
+                      className="h-8 px-3 rounded-lg border border-border bg-card text-[11px] font-bold text-muted-foreground hover:bg-secondary cursor-pointer"
+                    >
+                      Ne rien ajouter
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   disabled={
@@ -902,7 +956,7 @@ export function RFQImporter({
                   ) : (
                     <PackagePlus className="size-3.5" />
                   )}
-                  Créer les articles sélectionnés ({eligibleForBulkCreate.length})
+                  Ajouter à Items &amp; Pricing ({eligibleForBulkCreate.length})
                 </button>
               </div>
 
@@ -926,10 +980,76 @@ export function RFQImporter({
             </div>
           )}
 
-          {reviewBannerSuccess && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 p-3.5 text-xs font-bold text-success">
-              <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-              <span>{reviewBannerSuccess}</span>
+          {bulkCreateResult && bulkCreateResult.created.length > 0 && (
+            <div className="rounded-2xl border border-success/35 bg-success/10 p-4 space-y-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-start gap-2 text-success font-black">
+                  <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p>
+                      {bulkCreateResult.created.length} article(s) ajouté(s) à la base Items &amp; Pricing.
+                    </p>
+                    {bulkCreateResult.failureCount > 0 && (
+                      <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 mt-0.5">
+                        {bulkCreateResult.failureCount} autre(s) ligne(s) ont échoué et restent sélectionnées pour correction.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  href="/dashboard/items"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors shrink-0"
+                >
+                  Voir dans Items &amp; Pricing <ExternalLink className="size-3.5" />
+                </Link>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {bulkCreateResult.created.map(({ sourceLineNumber, item }) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-success/25 bg-card p-2.5 space-y-1"
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="font-mono text-[10px] font-black text-primary">
+                        {item.skuRef}
+                      </span>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        Ligne #{sourceLineNumber}
+                      </span>
+                    </div>
+                    <p className="font-bold text-foreground line-clamp-1">
+                      {item.designation}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] font-mono">
+                      <span
+                        className={
+                          item.supplyPrice !== null
+                            ? "text-foreground font-semibold"
+                            : "text-muted-foreground font-sans"
+                        }
+                      >
+                        Supplier :{" "}
+                        {item.supplyPrice !== null
+                          ? `$ ${item.supplyPrice.toFixed(2)}`
+                          : "Prix non configuré"}
+                      </span>
+                      <span
+                        className={
+                          item.quotedPrice !== null
+                            ? "text-primary font-bold"
+                            : "text-muted-foreground font-sans"
+                        }
+                      >
+                        Quoted :{" "}
+                        {item.quotedPrice !== null
+                          ? `$ ${item.quotedPrice.toFixed(2)}`
+                          : "Prix non configuré"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -968,12 +1088,29 @@ export function RFQImporter({
                       const isBlocking = blockingLineNumbers.includes(
                         line.sourceLineNumber
                       );
+                      const willAddToCatalog =
+                        line.resolutionMode === "CREATE_NEW" &&
+                        line.addToCatalog;
+                      const isIgnored =
+                        !line.includedInQuote && !willAddToCatalog;
+                      const supplyValidation = willAddToCatalog
+                        ? validateOptionalCatalogPrice(
+                            line.supplyPrice,
+                            "Supplier Price (USD)"
+                          )
+                        : { ok: true as const, value: null };
+                      const quotedValidation = willAddToCatalog
+                        ? validateOptionalCatalogPrice(
+                            line.quotedPrice,
+                            "Quoted Price (USD)"
+                          )
+                        : { ok: true as const, value: null };
 
                       return (
                         <div
                           key={line.sourceLineNumber}
                           className={`p-4 sm:p-5 space-y-3 ${
-                            !line.includedInQuote
+                            isIgnored
                               ? "opacity-55 bg-secondary/20"
                               : isBlocking
                               ? "bg-destructive/5"
@@ -1005,26 +1142,30 @@ export function RFQImporter({
                                     Lié : {line.linkedSkuRef}
                                   </span>
                                 )}
+                              {line.createdInSession && (
+                                <span className="text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md">
+                                  Enregistré dans Items &amp; Pricing
+                                </span>
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-3 text-xs">
-                              {line.resolutionMode === "CREATE_NEW" &&
-                                line.includedInQuote && (
-                                  <label className="inline-flex items-center gap-1.5 font-bold text-primary cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={line.selectedForCreate}
-                                      onChange={(e) =>
-                                        updateReviewLine(
-                                          line.sourceLineNumber,
-                                          { selectedForCreate: e.target.checked }
-                                        )
-                                      }
-                                      className="size-3.5 rounded border-border cursor-pointer"
-                                    />
-                                    Créer au catalogue
-                                  </label>
-                                )}
+                            <div className="flex flex-wrap items-center gap-4 text-xs">
+                              {line.resolutionMode === "CREATE_NEW" && (
+                                <label className="inline-flex items-center gap-1.5 font-bold text-primary cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={line.addToCatalog}
+                                    onChange={(e) =>
+                                      updateReviewLine(
+                                        line.sourceLineNumber,
+                                        { addToCatalog: e.target.checked }
+                                      )
+                                    }
+                                    className="size-3.5 rounded border-border cursor-pointer"
+                                  />
+                                  Ajouter aussi à Items &amp; Pricing
+                                </label>
+                              )}
 
                               <label className="inline-flex items-center gap-1.5 font-semibold text-muted-foreground cursor-pointer">
                                 <input
@@ -1075,7 +1216,7 @@ export function RFQImporter({
                                           linkedDesignation:
                                             line.duplicateSuggestion!
                                               .designation,
-                                          selectedForCreate: false,
+                                          addToCatalog: false,
                                           possibleMatchConfirmed: true,
                                           createError: null,
                                           duplicateSuggestion: null,
@@ -1187,6 +1328,101 @@ export function RFQImporter({
                             </div>
                           </div>
 
+                          {/* Optional Catalog Pricing Fields (shown only when Adding to Items & Pricing) */}
+                          {willAddToCatalog && (
+                            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[11px] font-black text-primary">
+                                  Tarification catalogue Items &amp; Pricing (optionnel, en USD)
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Laisser vide si non encore connu (le devis reste à 0,00 $)
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-[11px] font-bold text-foreground">
+                                    Supplier Price (USD)
+                                  </label>
+                                  <p className="text-[10px] text-muted-foreground mb-1">
+                                    Coût d&apos;achat fournisseur
+                                  </p>
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                                      $
+                                    </span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={line.supplyPrice}
+                                      onChange={(e) =>
+                                        updateReviewLine(
+                                          line.sourceLineNumber,
+                                          {
+                                            supplyPrice: e.target.value,
+                                            createError: null,
+                                          }
+                                        )
+                                      }
+                                      placeholder="Optionnel (ex: 125.50)"
+                                      className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
+                                        !supplyValidation.ok
+                                          ? "border-destructive text-destructive"
+                                          : "border-border"
+                                      }`}
+                                    />
+                                  </div>
+                                  {!supplyValidation.ok && (
+                                    <p className="text-[10px] font-semibold text-destructive mt-1">
+                                      {supplyValidation.error}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label className="block text-[11px] font-bold text-foreground">
+                                    Quoted Price (USD)
+                                  </label>
+                                  <p className="text-[10px] text-muted-foreground mb-1">
+                                    Prix de référence devisé au client
+                                  </p>
+                                  <div className="relative">
+                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                                      $
+                                    </span>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={line.quotedPrice}
+                                      onChange={(e) =>
+                                        updateReviewLine(
+                                          line.sourceLineNumber,
+                                          {
+                                            quotedPrice: e.target.value,
+                                            createError: null,
+                                          }
+                                        )
+                                      }
+                                      placeholder="Optionnel (ex: 175.00)"
+                                      className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
+                                        !quotedValidation.ok
+                                          ? "border-destructive text-destructive"
+                                          : "border-border"
+                                      }`}
+                                    />
+                                  </div>
+                                  {!quotedValidation.ok && (
+                                    <p className="text-[10px] font-semibold text-destructive mt-1">
+                                      {quotedValidation.error}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Candidates & Resolution Picker (up to 3 candidates) */}
                           {(line.candidates.length > 0 ||
                             line.status === "POSSIBLE_MATCH" ||
@@ -1235,7 +1471,7 @@ export function RFQImporter({
                                             linkedItemId: cand.itemId,
                                             linkedSkuRef: cand.skuRef,
                                             linkedDesignation: cand.designation,
-                                            selectedForCreate: false,
+                                            addToCatalog: false,
                                             possibleMatchConfirmed: true,
                                           }
                                         )
@@ -1273,7 +1509,7 @@ export function RFQImporter({
                                       linkedItemId: null,
                                       linkedSkuRef: null,
                                       linkedDesignation: null,
-                                      selectedForCreate: true,
+                                      addToCatalog: true,
                                       possibleMatchConfirmed: true,
                                     })
                                   }

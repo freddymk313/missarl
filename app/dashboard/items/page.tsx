@@ -1,24 +1,49 @@
 import { requireSession } from "@/lib/auth";
 import {
-  searchItems,
+  searchItemsPaginated,
   getItemStats,
   getItemCategories,
   getBrands,
   getUnits,
   getCurrencies,
   getExchangeRates,
+  type ItemsSortOption,
 } from "@/lib/db/items";
 import { getSuppliers } from "@/lib/db/suppliers";
 import { getClients } from "@/lib/db/clients";
-import { Package } from "lucide-react";
 import { ArticlesManager } from "@/components/dashboard/articles-manager";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
 
-export default async function ItemsPage() {
+export default async function ItemsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+    pageSize?: string;
+    categoryId?: string;
+    supplierId?: string;
+    sort?: string;
+  }>;
+}) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN", "PRICE_COLLECTOR"]);
+  const sp = await searchParams;
+
+  const q = (sp.q || "").trim();
+  const parsedPage = Number(sp.page || 1);
+  const page = Number.isFinite(parsedPage) && parsedPage >= 1 ? Math.floor(parsedPage) : 1;
+  const parsedSize = Number(sp.pageSize || 25);
+  const pageSize =
+    parsedSize === 25 || parsedSize === 50 || parsedSize === 100
+      ? parsedSize
+      : 25;
+  const sort: ItemsSortOption =
+    sp.sort === "designation" ? "designation" : "recent";
+  const categoryId = sp.categoryId || "";
+  const supplierId = sp.supplierId || "";
 
   const [
-    items,
+    initialPageData,
     stats,
     categories,
     brands,
@@ -28,7 +53,14 @@ export default async function ItemsPage() {
     currencies,
     exchangeRates,
   ] = await Promise.all([
-    searchItems(""),
+    searchItemsPaginated(q, {
+      categoryId: categoryId || undefined,
+      supplierId: supplierId || undefined,
+      page,
+      pageSize,
+      sort,
+      activeOnly: true,
+    }),
     getItemStats(),
     getItemCategories(),
     getBrands(),
@@ -47,7 +79,11 @@ export default async function ItemsPage() {
       />
 
       <ArticlesManager
-        initialItems={items}
+        initialPageData={initialPageData}
+        initialQuery={q}
+        initialCategoryId={categoryId}
+        initialSupplierId={supplierId}
+        initialSort={sort}
         stats={stats}
         categories={categories}
         brands={brands}
