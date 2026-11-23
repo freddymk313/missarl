@@ -26,8 +26,8 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   },
   EXPIRED: {
     label: "Expired",
-    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
-    dotClasses: "bg-bronze",
+    pillClasses: "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40",
+    dotClasses: "bg-bronze dark:bg-accent",
   },
   REJECTED: {
     label: "Rejected",
@@ -44,8 +44,8 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   // Orders
   PENDING: {
     label: "Pending",
-    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
-    dotClasses: "bg-bronze",
+    pillClasses: "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40",
+    dotClasses: "bg-bronze dark:bg-accent",
   },
   CONFIRMED: {
     label: "Confirmed",
@@ -54,8 +54,8 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   },
   PARTIALLY_DELIVERED: {
     label: "Partially Delivered",
-    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
-    dotClasses: "bg-bronze",
+    pillClasses: "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40",
+    dotClasses: "bg-bronze dark:bg-accent",
   },
   COMPLETED: {
     label: "Completed",
@@ -71,8 +71,8 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   },
   PARTIALLY_PAID: {
     label: "Partially Paid",
-    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
-    dotClasses: "bg-bronze",
+    pillClasses: "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40",
+    dotClasses: "bg-bronze dark:bg-accent",
   },
   PAID: {
     label: "Paid",
@@ -127,8 +127,8 @@ export const STATUS_MAP: Record<string, StatusConfig> = {
   },
   MODIFIED: {
     label: "Modified",
-    pillClasses: "bg-accent/20 text-accent-foreground border-accent/40",
-    dotClasses: "bg-bronze",
+    pillClasses: "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40",
+    dotClasses: "bg-bronze dark:bg-accent",
   },
 };
 

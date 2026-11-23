@@ -26,6 +26,7 @@ import {
 import { siteConfig } from "@/app/config/site";
 import { UserSession, isRouteAllowed, ROLES } from "@/lib/permissions";
 import { logoutAction } from "@/actions/auth";
+import { DashboardThemeMenuSwitch } from "@/components/dashboard/appearance-settings";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -109,7 +110,7 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
       {mobileOpen && (
         <div
           onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-navy-dark/40 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-navy-dark/40 dark:bg-black/60 backdrop-blur-xs lg:hidden"
           aria-hidden="true"
         />
       )}
@@ -181,6 +182,8 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
                       {roleMeta.label}
                     </p>
                   </div>
+
+                  <DashboardThemeMenuSwitch />
 
                   <div className="py-1">
                     {user.role === "SUPER_ADMIN" && (
@@ -368,9 +371,9 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
         {/* 4. Promotional-style Card Pinned to the Bottom (Fixed) */}
         <div className="shrink-0 p-3 border-t border-border bg-card">
           {user.role === "PRICE_COLLECTOR" ? (
-            <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
+            <div className="rounded-2xl bg-primary text-primary-foreground dark:bg-navy-dark dark:text-foreground dark:border dark:border-border p-4 shadow-sm">
               <p className="text-xs font-bold leading-tight">Find an item</p>
-              <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
+              <p className="text-[11px] text-primary-foreground/75 dark:text-muted-foreground mt-1 leading-normal">
                 Browse technical datasheets and live catalog prices.
               </p>
               <Link
@@ -383,9 +386,9 @@ export function Sidebar({ user, mobileOpen, onCloseMobile }: SidebarProps) {
               </Link>
             </div>
           ) : (
-            <div className="rounded-2xl bg-primary text-primary-foreground p-4 shadow-sm">
+            <div className="rounded-2xl bg-primary text-primary-foreground dark:bg-navy-dark dark:text-foreground dark:border dark:border-border p-4 shadow-sm">
               <p className="text-xs font-bold leading-tight">New Quotation</p>
-              <p className="text-[11px] text-primary-foreground/75 mt-1 leading-normal">
+              <p className="text-[11px] text-primary-foreground/75 dark:text-muted-foreground mt-1 leading-normal">
                 Respond to a request for quotation (RFQ) in minutes.
               </p>
               <Link

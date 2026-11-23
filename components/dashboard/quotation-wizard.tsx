@@ -1648,7 +1648,7 @@ export function QuotationWizard({
               <button
                 type="submit"
                 disabled={isSubmitting || isAnyLineUploading}
-                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-success text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-success text-success-foreground text-xs font-bold hover:bg-success/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CheckCircle2 className="size-4" />
                 {isAnyLineUploading
@@ -1679,7 +1679,7 @@ export function QuotationWizard({
         <button
           type="submit"
           disabled={isSubmitting || isAnyLineUploading}
-          className="h-10 px-5 rounded-xl bg-success text-white text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-10 px-5 rounded-xl bg-success text-success-foreground text-xs font-bold hover:bg-success/90 transition-colors shadow-xs inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckCircle2 className="size-4" />
           {isAnyLineUploading

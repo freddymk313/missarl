@@ -497,7 +497,7 @@ export function InvoicesManager({ initialInvoices }: InvoicesManagerProps) {
                   Standardized Invoice Number (Fiscal / Tax ID)
                 </label>
                 {selectedInvoice.normalizedInvoiceNumber ? (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground font-bold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-accent/20 text-accent-foreground dark:text-accent font-bold">
                     Assigned
                   </span>
                 ) : (

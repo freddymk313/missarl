@@ -75,7 +75,7 @@ export function ResponsiveModal({
       >
         {/* Backdrop */}
         <div
-          className="absolute inset-0 bg-foreground/40 backdrop-blur-xs"
+          className="absolute inset-0 bg-navy-dark/50 dark:bg-black/65 backdrop-blur-xs"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -130,7 +130,7 @@ export function ResponsiveModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-xs"
+        className="absolute inset-0 bg-navy-dark/50 dark:bg-black/65 backdrop-blur-xs"
         onClick={onClose}
         aria-hidden="true"
       />

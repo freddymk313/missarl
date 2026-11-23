@@ -249,7 +249,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                             title={u.isActive ? "Désactiver le compte" : "Activer le compte"}
                             className={`inline-flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border ${
                               u.isActive
-                                ? "bg-accent/20 text-accent-foreground border-accent/40 hover:bg-accent/30"
+                                ? "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40 hover:bg-accent/30"
                                 : "bg-success/15 text-success border-success/30 hover:bg-success/25"
                             }`}
                           >
@@ -345,7 +345,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                     onClick={() => handleToggleActive(u.id, u.isActive)}
                     className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold transition-colors border ${
                       u.isActive
-                        ? "bg-accent/20 text-accent-foreground border-accent/40"
+                        ? "bg-accent/20 text-accent-foreground dark:text-accent border-accent/40"
                         : "bg-success/15 text-success border-success/30"
                     }`}
                   >

@@ -289,7 +289,7 @@ export default async function DashboardPage() {
           <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
             <Link
               href="/dashboard/quotes/new"
-              className="inline-flex items-center justify-center gap-2 h-9 flex-1 sm:flex-initial px-3.5 rounded-xl bg-primary text-white text-xs font-bold shadow-xs hover:bg-accent/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 flex-1 sm:flex-initial px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors"
             >
               <FileSpreadsheet className="size-3.5" /> New Quote
             </Link>

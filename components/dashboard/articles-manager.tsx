@@ -91,7 +91,7 @@ function MatchBadgeChip({ badge }: { badge: MatchBadge }) {
   }
   if (badge.type === "SUPPLIER_CODE") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 border border-accent/40 px-2 py-0.5 text-[10px] font-bold text-accent-foreground dark:text-accent">
         <Truck className="size-3" />
         {badge.supplierName}
       </span>

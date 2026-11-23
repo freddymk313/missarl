@@ -1,7 +1,11 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-
+import {
+  DASHBOARD_THEME_STORAGE_KEY,
+  type DashboardTheme,
+} from "@/lib/dashboard-theme";
 
 export default async function DashboardLayout({
   children,
@@ -14,5 +18,13 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell user={session}>{children}</DashboardShell>;
+  const cookieStore = await cookies();
+  const rawTheme = cookieStore.get(DASHBOARD_THEME_STORAGE_KEY)?.value;
+  const initialTheme: DashboardTheme = rawTheme === "dark" ? "dark" : "light";
+
+  return (
+    <DashboardShell user={session} initialTheme={initialTheme}>
+      {children}
+    </DashboardShell>
+  );
 }

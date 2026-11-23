@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { formatFrenchDate } from "@/lib/formatters";
 import { ExchangeRatesCard } from "@/components/dashboard/exchange-rates-card";
+import { AppearanceSettings } from "@/components/dashboard/appearance-settings";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
 
 interface MigrationRow {
@@ -37,6 +38,9 @@ export default async function SettingsPage() {
         title="System Settings"
         description="Financial rules, exchange rates, Neon PostgreSQL database status, and audit log."
       />
+
+      {/* Appearance Settings */}
+      <AppearanceSettings />
 
       {/* Grid: Financial Rules & Exchange Rates */}
       <div className="grid gap-6 md:grid-cols-2">
