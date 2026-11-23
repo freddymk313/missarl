@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(payload, { status: 200 });
   } catch (err: unknown) {
+    console.error("[RFQ Import Analyze] Erreur extraction:", err);
     if (err instanceof RFQExtractionError) {
       return NextResponse.json(
         { error: err.message },

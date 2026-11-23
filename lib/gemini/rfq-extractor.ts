@@ -12,7 +12,10 @@ import type {
 } from "@/lib/rfq-import-types";
 
 export const DEFAULT_GEMINI_RFQ_MODEL = "gemini-3.5-flash-lite";
-export const FALLBACK_GEMINI_RFQ_MODELS = ["gemini-3.1-flash-lite"];
+export const FALLBACK_GEMINI_RFQ_MODELS = [
+  "gemini-3.1-flash-lite",
+  "gemini-3.8-flash",
+];
 const EXTRACTION_TIMEOUT_MS = 45_000;
 
 export class RFQExtractionError extends Error {
@@ -258,7 +261,14 @@ function getErrorHttpStatus(err: unknown): number | undefined {
 
 function isTransientError(err: unknown): boolean {
   const status = getErrorHttpStatus(err);
-  if (status === 503 || status === 502 || status === 500) return true;
+  if (
+    status === 503 ||
+    status === 502 ||
+    status === 500 ||
+    status === 429
+  ) {
+    return true;
+  }
   if (err instanceof Error) {
     const msg = err.message.toLowerCase();
     return (
@@ -266,7 +276,11 @@ function isTransientError(err: unknown): boolean {
       msg.includes("econnreset") ||
       msg.includes("etimedout") ||
       msg.includes("temporarily unavailable") ||
-      msg.includes("service unavailable")
+      msg.includes("service unavailable") ||
+      msg.includes("high demand") ||
+      msg.includes("overloaded") ||
+      msg.includes("resource_exhausted") ||
+      msg.includes("rate limit")
     );
   }
   return false;
@@ -298,8 +312,21 @@ function mapGeminiError(err: unknown): RFQExtractionError {
     rawMessage.includes("rate limit")
   ) {
     return new RFQExtractionError(
-      "Quota API Gemini temporairement dépassé. Veuillez réessayer dans quelques instants.",
+      "Quota API Gemini temporairement dépassé (429 Rate Limit). Veuillez patienter quelques instants avant de relancer.",
       429
+    );
+  }
+
+  if (
+    status === 503 ||
+    rawMessage.includes("high demand") ||
+    rawMessage.includes("overloaded") ||
+    rawMessage.includes("temporarily unavailable") ||
+    rawMessage.includes("service unavailable")
+  ) {
+    return new RFQExtractionError(
+      "Les serveurs Google Gemini subissent une forte affluence temporaire (503 High Demand). Veuillez réessayer dans quelques secondes.",
+      503
     );
   }
 
@@ -402,7 +429,10 @@ export async function extractRFQWithGemini(input: {
       },
     };
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const maxAttempts = 3;
+    const retryDelaysMs = [1500, 3000];
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await runWithTimeout(
           ai.models.generateContent(requestParams),
@@ -428,14 +458,31 @@ export async function extractRFQWithGemini(input: {
         }
 
         const extracted = normalizeExtractedRFQPayload(parsedJson);
+        if (attempt > 0) {
+          console.info(
+            `[Gemini RFQ] Extraction réussie avec le modèle ${model} (tentative ${attempt + 1}/${maxAttempts}).`
+          );
+        }
         return { extracted, model };
       } catch (err) {
         lastError = err;
-        // If transient error and first attempt on this model, wait briefly and retry
-        if (attempt === 0 && isTransientError(err)) {
-          await new Promise((resolve) => setTimeout(resolve, 650));
+        const transient = isTransientError(err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+
+        // If transient error (e.g. 503 high demand or 429) and attempts remaining on this model, wait with backoff
+        if (transient && attempt < maxAttempts - 1) {
+          const delay = retryDelaysMs[attempt] || 2500;
+          console.warn(
+            `[Gemini RFQ] Modèle ${model} tentative ${attempt + 1}/${maxAttempts} temporairement indisponible (${errMsg.slice(0, 120)}). Nouvelle tentative dans ${delay}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
+
+        console.warn(
+          `[Gemini RFQ] Échec du modèle ${model} à la tentative ${attempt + 1}/${maxAttempts}:`,
+          errMsg.slice(0, 160)
+        );
         // Break to try next candidate model if available
         break;
       }
