@@ -73,9 +73,13 @@ export interface RFQAnalysisSummary {
   needsReviewCount: number;
 }
 
+export type RFQProviderName = "gemini" | "openrouter";
+
 export interface RFQAnalysisResponse {
   success: true;
   model: string;
+  provider: RFQProviderName;
+  fallbackAttempted: boolean;
   clientId: string;
   clientRfqReference: string | null;
   documentTitle: string | null;

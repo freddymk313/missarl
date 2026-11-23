@@ -13,9 +13,9 @@ import { getUnits } from "@/lib/db/items";
 import { logAudit } from "@/lib/db/audit";
 import { validateRFQDocumentFile } from "@/lib/rfq-file-validation";
 import {
-  extractRFQWithGemini,
-  RFQExtractionError,
-} from "@/lib/gemini/rfq-extractor";
+  extractRFQ,
+} from "@/lib/rfq/extractor";
+import { RFQExtractionError } from "@/lib/gemini/rfq-extractor";
 import {
   getActiveCatalogueSummariesForMatching,
   matchExtractedRFQItems,
@@ -106,12 +106,20 @@ export async function POST(request: NextRequest) {
         : null) ||
       `rfq-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // 7. Extract structured RFQ lines via Gemini (in memory only) & match against catalogue
-    const { extracted, model } = await extractRFQWithGemini({
-      bytes: fileValidation.bytes,
-      mimeType: fileValidation.mimeType,
-      requestId,
-    });
+    // 7. Extract structured RFQ lines via the provider orchestrator (in memory
+    // only) & match against catalogue
+    const { extracted, provider, model, fallbackAttempted } =
+      await extractRFQ({
+        bytes: fileValidation.bytes,
+        mimeType: fileValidation.mimeType,
+        requestId,
+      });
+
+    if (fallbackAttempted) {
+      console.warn(
+        `[RFQ Import Analyze][${requestId}] OpenRouter free fallback used. Free-tier endpoints are not approved for confidential customer documents.`
+      );
+    }
 
     const [catalogueItems, units] = await Promise.all([
       getActiveCatalogueSummariesForMatching(),
@@ -145,6 +153,8 @@ export async function POST(request: NextRequest) {
     const payload: RFQAnalysisResponse = {
       success: true,
       model,
+      provider,
+      fallbackAttempted,
       clientId: client.id,
       clientRfqReference: extracted.clientRfqReference,
       documentTitle: extracted.documentTitle,

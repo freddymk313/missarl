@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -34,6 +34,7 @@ import {
   type QuotationDraftLineInput,
   type RFQAnalysisResponse,
   type RFQMatchStatus,
+  type RFQProviderName,
 } from "@/lib/rfq-import-types";
 import {
   buildOrderedQuotationDraftLines,
@@ -133,6 +134,37 @@ export function RFQImporter({
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Fallback provider disclosure state (fetched from server, non-sensitive)
+  const [fallbackStatus, setFallbackStatus] = useState<{
+    fallbackReady: boolean;
+    fallbackModel: string | null;
+  } | null>(null);
+  const [analysisProvider, setAnalysisProvider] = useState<RFQProviderName>(
+    "gemini",
+  );
+  const [fallbackAttemptedLive, setFallbackAttemptedLive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/quotes/rfq-import/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data === "object") {
+          setFallbackStatus({
+            fallbackReady: Boolean(data.fallbackReady),
+            fallbackModel:
+              typeof data.fallbackModel === "string" ? data.fallbackModel : null,
+          });
+        }
+      })
+      .catch(() => {
+        // Status is purely informational; silently keep defaults (disabled)
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Analysis & Review state
   const [analysisMeta, setAnalysisMeta] = useState<{
@@ -256,6 +288,10 @@ export function RFQImporter({
         documentTitle: payload.documentTitle,
         totalExtractedItems: payload.totalExtractedItems,
       });
+      setAnalysisProvider(
+        payload.provider === "openrouter" ? "openrouter" : "gemini",
+      );
+      setFallbackAttemptedLive(Boolean(payload.fallbackAttempted));
       setReviewLines(createInitialReviewLines(payload.lines));
       setReviewBannerError(null);
       setBulkCreateResult(null);
@@ -805,8 +841,9 @@ export function RFQImporter({
                   className="mt-0.5 size-4 rounded border-border text-primary focus:ring-primary/30 cursor-pointer"
                 />
                 <span className="text-xs font-bold text-foreground">
-                  I confirm the temporary submission of this customer RFQ to
-                  Google Gemini for line extraction.
+                  {fallbackStatus?.fallbackReady
+                    ? `I confirm the temporary submission of this customer RFQ to Google Gemini for line extraction, with a single possible retry via OpenRouter's free NVIDIA model (${fallbackStatus.fallbackModel}) if Gemini is unavailable. The free NVIDIA model explicitly warns against submitting confidential information or personal data.`
+                    : "I confirm the temporary submission of this customer RFQ to Google Gemini for line extraction."}
                 </span>
               </label>
             </div>
@@ -871,6 +908,15 @@ export function RFQImporter({
             </p>
           </div>
 
+          {fallbackStatus?.fallbackReady && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 leading-relaxed">
+              Free OpenRouter fallback ({fallbackStatus.fallbackModel}) is
+              enabled for this environment. If Gemini is overloaded, this
+              document may be sent to OpenRouter's free NVIDIA model, which is
+              not intended for confidential documents.
+            </p>
+          )}
+
           <div className="space-y-2 text-left rounded-xl border border-border bg-secondary/30 p-4 text-xs">
             <div className="flex items-center gap-2 text-foreground font-semibold">
               <CheckCircle2 className="size-4 text-success shrink-0" />
@@ -878,8 +924,15 @@ export function RFQImporter({
             </div>
             <div className="flex items-center gap-2 text-primary font-bold">
               <Loader2 className="size-4 animate-spin shrink-0" />
-              Structured extraction of all line items...
+              Structured extraction of all line items with Google Gemini...
             </div>
+            {fallbackStatus?.fallbackReady && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <HelpCircle className="size-4 shrink-0" />
+                If Gemini is unavailable, one attempt via OpenRouter free
+                fallback ({fallbackStatus.fallbackModel})
+              </div>
+            )}
             <div className="flex items-center gap-2 text-muted-foreground">
               <HelpCircle className="size-4 shrink-0" />
               Matching by designation and description against MIS catalog
@@ -896,7 +949,11 @@ export function RFQImporter({
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-                  Extraction Result • Model {analysisMeta.model}
+                  Extraction Result •{" "}
+                  {analysisProvider === "openrouter"
+                    ? "OpenRouter Free Fallback"
+                    : "Gemini"}{" "}
+                  Model {analysisMeta.model}
                 </p>
                 <h2 className="text-base font-black text-primary mt-0.5">
                   {summaryCounts.total} line
