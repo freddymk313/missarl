@@ -12,6 +12,7 @@ import React, {
 import { cn } from "@/lib/utils";
 import {
   DASHBOARD_THEME_STORAGE_KEY,
+  normalizeDashboardTheme,
   type DashboardTheme,
 } from "@/lib/dashboard-theme";
 
@@ -47,7 +48,7 @@ export function readStoredDashboardTheme(): DashboardTheme {
   if (typeof window === "undefined") return "light";
   try {
     const raw = window.localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
-    return raw === "dark" ? "dark" : "light";
+    return normalizeDashboardTheme(raw);
   } catch {
     return "light";
   }
@@ -107,13 +108,12 @@ export function DashboardThemeProvider({
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
 
   const setTheme = useCallback((next: DashboardTheme) => {
-    const normalized: DashboardTheme = next === "dark" ? "dark" : "light";
-    writeStoredDashboardTheme(normalized);
+    writeStoredDashboardTheme(normalizeDashboardTheme(next));
   }, []);
 
   const toggleTheme = useCallback(() => {
     const current = readStoredDashboardTheme();
-    writeStoredDashboardTheme(current === "dark" ? "light" : "dark");
+    writeStoredDashboardTheme(current === "light" ? "dark" : "light");
   }, []);
 
   // Keep /dashboard cookie mirrored to localStorage & sync DOM root strictly inside dashboard
@@ -121,13 +121,9 @@ export function DashboardThemeProvider({
     mirrorThemeCookie(theme);
     const root = document.getElementById("dashboard-theme-root");
     if (!root) return;
-    if (theme === "dark") {
-      root.classList.add("dark");
-      root.setAttribute("data-dashboard-theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      root.setAttribute("data-dashboard-theme", "light");
-    }
+    root.classList.toggle("dark", theme === "dark" || theme === "midnight");
+    root.classList.toggle("theme-midnight", theme === "midnight");
+    root.setAttribute("data-dashboard-theme", theme);
   }, [theme]);
 
   const value = useMemo<DashboardThemeContextValue>(
@@ -148,7 +144,8 @@ export function DashboardThemeProvider({
         suppressHydrationWarning
         className={cn(
           "dashboard-theme fixed inset-0 flex h-full w-full overflow-hidden bg-background text-foreground antialiased transition-colors duration-150",
-          theme === "dark" && "dark"
+          (theme === "dark" || theme === "midnight") && "dark",
+          theme === "midnight" && "theme-midnight"
         )}
       >
         {children}

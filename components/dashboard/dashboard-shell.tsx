@@ -23,7 +23,7 @@ export function DashboardShell({
 
   return (
     <DashboardThemeProvider initialTheme={initialTheme}>
-      <div className="flex h-full w-full overflow-hidden bg-secondary/35 text-foreground selection:bg-accent/40 selection:text-foreground">
+      <div className="flex h-full w-full overflow-hidden bg-secondary/35 [[data-dashboard-theme=midnight]_&]:bg-transparent text-foreground selection:bg-accent/40 selection:text-foreground">
         {/* Skip link inside dashboard for keyboard navigation */}
         <a
           href="#dashboard-main-content"

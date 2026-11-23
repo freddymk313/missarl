@@ -4,6 +4,7 @@ import { getCurrentSession } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import {
   DASHBOARD_THEME_STORAGE_KEY,
+  normalizeDashboardTheme,
   type DashboardTheme,
 } from "@/lib/dashboard-theme";
 
@@ -20,7 +21,7 @@ export default async function DashboardLayout({
 
   const cookieStore = await cookies();
   const rawTheme = cookieStore.get(DASHBOARD_THEME_STORAGE_KEY)?.value;
-  const initialTheme: DashboardTheme = rawTheme === "dark" ? "dark" : "light";
+  const initialTheme: DashboardTheme = normalizeDashboardTheme(rawTheme);
 
   return (
     <DashboardShell user={session} initialTheme={initialTheme}>

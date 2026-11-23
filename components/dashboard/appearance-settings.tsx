@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Check, Moon, Palette, Sun } from "lucide-react";
+import { Check, Moon, MoonStar, Palette, Sun } from "lucide-react";
 import {
   useDashboardTheme,
   type DashboardTheme,
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 interface ThemeOptionMeta {
   id: DashboardTheme;
   label: string;
+  shortLabel: string;
   subtitle: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -20,21 +21,37 @@ const THEME_OPTIONS: ThemeOptionMeta[] = [
   {
     id: "light",
     label: "Light Mode",
+    shortLabel: "Light",
     subtitle: "Bright neutral interface",
     description: "Existing default appearance with crisp white cards and navy contrast.",
     icon: Sun,
   },
   {
     id: "dark",
-    label: "Dark Mode",
-    subtitle: "Dark navy interface",
+    label: "Dark Navy",
+    shortLabel: "Navy",
+    subtitle: "Balanced navy interface",
     description: "Reduced brightness with deep navy surfaces for comfortable low-light use.",
     icon: Moon,
   },
+  {
+    id: "midnight",
+    label: "Deep Dark",
+    shortLabel: "Deep",
+    subtitle: "New Quotation palette",
+    description: "Ultra-deep primary background matching the New Quotation card tone.",
+    icon: MoonStar,
+  },
 ];
+
+function getThemeMeta(theme: DashboardTheme): ThemeOptionMeta {
+  return THEME_OPTIONS.find((opt) => opt.id === theme) ?? THEME_OPTIONS[0];
+}
 
 export function AppearanceSettings() {
   const { theme, setTheme } = useDashboardTheme();
+  const activeMeta = getThemeMeta(theme);
+  const ActiveIcon = activeMeta.icon;
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
@@ -73,19 +90,15 @@ export function AppearanceSettings() {
         </div>
 
         <span className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-[11px] font-bold text-foreground">
-          {theme === "dark" ? (
-            <Moon className="size-3 text-accent" />
-          ) : (
-            <Sun className="size-3 text-accent" />
-          )}
-          <span>Active: {theme === "dark" ? "Dark Mode" : "Light Mode"}</span>
+          <ActiveIcon className="size-3 text-accent" />
+          <span>Active: {activeMeta.label}</span>
         </span>
       </div>
 
       <div
         role="radiogroup"
         aria-label="Dashboard visual appearance"
-        className="grid gap-4 sm:grid-cols-2"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
         {THEME_OPTIONS.map((option, idx) => {
           const Icon = option.icon;
@@ -111,18 +124,18 @@ export function AppearanceSettings() {
                 aria-hidden="true"
                 className={cn(
                   "mb-3.5 w-full rounded-lg border p-2.5 transition-colors",
-                  option.id === "light"
-                    ? "bg-[#f4f6fa] border-[#dce2ec]"
-                    : "bg-[#0d1522] border-[#2b3d57]"
+                  option.id === "light" && "bg-[#f4f6fa] border-[#dce2ec]",
+                  option.id === "dark" && "bg-[#0d1522] border-[#2b3d57]",
+                  option.id === "midnight" && "bg-[#060b14] border-[#1f2c40]"
                 )}
               >
                 <div className="flex items-center gap-2">
                   <div
                     className={cn(
                       "h-8 w-8 rounded-md border flex items-center justify-center shrink-0",
-                      option.id === "light"
-                        ? "bg-white border-[#dce2ec]"
-                        : "bg-[#131e30] border-[#2b3d57]"
+                      option.id === "light" && "bg-white border-[#dce2ec]",
+                      option.id === "dark" && "bg-[#131e30] border-[#2b3d57]",
+                      option.id === "midnight" && "bg-[#0c1320] border-[#1f2c40]"
                     )}
                   >
                     <span className="size-2.5 rounded-full bg-[#f5c518]" />
@@ -137,7 +150,11 @@ export function AppearanceSettings() {
                     <div
                       className={cn(
                         "h-1.5 w-1/2 rounded-full",
-                        option.id === "light" ? "bg-[#9aa8be]" : "bg-[#5a6c87]"
+                        option.id === "light"
+                          ? "bg-[#9aa8be]"
+                          : option.id === "dark"
+                          ? "bg-[#5a6c87]"
+                          : "bg-[#4a5b75]"
                       )}
                     />
                   </div>
@@ -200,6 +217,7 @@ export function DashboardThemeMenuSwitch({
   onSelect?: (theme: DashboardTheme) => void;
 }) {
   const { theme, setTheme } = useDashboardTheme();
+  const activeMeta = getThemeMeta(theme);
 
   const handleSelect = (next: DashboardTheme) => {
     setTheme(next);
@@ -213,46 +231,38 @@ export function DashboardThemeMenuSwitch({
           Appearance
         </span>
         <span className="text-[10px] font-semibold text-primary">
-          {theme === "dark" ? "Dark" : "Light"}
+          {activeMeta.label}
         </span>
       </div>
 
       <div
         role="radiogroup"
         aria-label="Dashboard theme"
-        className="grid grid-cols-2 gap-1 rounded-lg bg-secondary/80 p-1 border border-border/70"
+        className="grid grid-cols-3 gap-1 rounded-lg bg-secondary/80 p-1 border border-border/70"
       >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={theme === "light"}
-          onClick={() => handleSelect("light")}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-bold transition-all outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
-            theme === "light"
-              ? "bg-card text-foreground shadow-2xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Sun className={cn("size-3.5", theme === "light" && "text-accent")} />
-          <span>Light</span>
-        </button>
+        {THEME_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const isActive = theme === option.id;
 
-        <button
-          type="button"
-          role="radio"
-          aria-checked={theme === "dark"}
-          onClick={() => handleSelect("dark")}
-          className={cn(
-            "flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-bold transition-all outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
-            theme === "dark"
-              ? "bg-card text-foreground shadow-2xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Moon className={cn("size-3.5", theme === "dark" && "text-accent")} />
-          <span>Dark</span>
-        </button>
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => handleSelect(option.id)}
+              className={cn(
+                "flex items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-bold transition-all outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-ring",
+                isActive
+                  ? "bg-card text-foreground shadow-2xs border border-border/80"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className={cn("size-3 shrink-0", isActive && "text-accent")} />
+              <span>{option.shortLabel}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
