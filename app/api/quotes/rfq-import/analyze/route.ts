@@ -99,9 +99,18 @@ export async function POST(request: NextRequest) {
 
   // 7. Extract structured RFQ lines via Gemini (in memory only) & match against catalogue
   try {
+    const requestId =
+      request.headers.get("x-request-id")?.trim() ||
+      (typeof formData.get("requestId") === "string"
+        ? (formData.get("requestId") as string).trim()
+        : null) ||
+      `rfq-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+
+    // 7. Extract structured RFQ lines via Gemini (in memory only) & match against catalogue
     const { extracted, model } = await extractRFQWithGemini({
       bytes: fileValidation.bytes,
       mimeType: fileValidation.mimeType,
+      requestId,
     });
 
     const [catalogueItems, units] = await Promise.all([

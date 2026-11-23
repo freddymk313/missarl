@@ -11,31 +11,290 @@ import type {
   RFQExtractionConfidence,
 } from "@/lib/rfq-import-types";
 
-export const DEFAULT_GEMINI_RFQ_MODEL = "gemini-3.5-flash-lite";
-export const FALLBACK_GEMINI_RFQ_MODELS = [
-  "gemini-3.1-flash-lite",
+// ── 1. Centralized Model Configuration ──────────────────────────────────────
+
+export interface GeminiRFQModelConfig {
+  primary: string;
+  fallbacks: string[];
+}
+
+export const DEFAULT_RFQ_MODEL_CONFIG: GeminiRFQModelConfig = {
+  primary: "gemini-3.5-flash-lite",
+  fallbacks: [
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+    "gemini-3.8-flash",
+  ],
+};
+
+// Recognized base Gemini models supported for multimodal / structured generation
+export const KNOWN_VALID_GEMINI_MODELS = new Set([
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
   "gemini-3.8-flash",
-];
-const EXTRACTION_TIMEOUT_MS = 45_000;
+  "gemini-3.1-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+]);
 
-export class RFQExtractionError extends Error {
-  status: number;
+export const DEFAULT_GEMINI_RFQ_MODEL = DEFAULT_RFQ_MODEL_CONFIG.primary;
+export const FALLBACK_GEMINI_RFQ_MODELS = DEFAULT_RFQ_MODEL_CONFIG.fallbacks;
 
-  constructor(message: string, status = 500) {
-    super(message);
-    this.name = "RFQExtractionError";
-    this.status = status;
+// Overall deadline budget for the entire multi-model extraction pipeline (must fit in Vercel 60s)
+export const GLOBAL_EXTRACTION_DEADLINE_MS = 48_000;
+export const SINGLE_MODEL_TIMEOUT_MS = 22_000;
+
+export function getConfiguredGeminiModelConfig(): {
+  config: GeminiRFQModelConfig;
+  source: string;
+  candidates: string[];
+} {
+  const envModel = process.env.GEMINI_MODEL?.trim();
+  let primary = DEFAULT_RFQ_MODEL_CONFIG.primary;
+  let source = "DEFAULT (gemini-3.5-flash-lite)";
+
+  if (envModel && envModel.length > 0) {
+    if (!KNOWN_VALID_GEMINI_MODELS.has(envModel)) {
+      console.warn(
+        `[Gemini RFQ] Configured GEMINI_MODEL="${envModel}" is not in known models list. Using it as primary candidate, but fallback chain will remain available.`
+      );
+    }
+    primary = envModel;
+    source = `process.env.GEMINI_MODEL ("${envModel}")`;
   }
+
+  // Deduplicate candidates preserving preferred order: primary first, then fallbacks
+  const candidates = Array.from(
+    new Set([primary, ...DEFAULT_RFQ_MODEL_CONFIG.fallbacks])
+  );
+
+  return {
+    config: {
+      primary,
+      fallbacks: DEFAULT_RFQ_MODEL_CONFIG.fallbacks.filter((m) => m !== primary),
+    },
+    source,
+    candidates,
+  };
 }
 
 export function getConfiguredGeminiModel(): string {
-  const configured = process.env.GEMINI_MODEL?.trim();
-  return configured && configured.length > 0
-    ? configured
-    : DEFAULT_GEMINI_RFQ_MODEL;
+  return getConfiguredGeminiModelConfig().config.primary;
 }
 
-const RFQ_RESPONSE_SCHEMA: Schema = {
+// ── 2. Error Classes and Classification ──────────────────────────────────────
+
+export class RFQExtractionError extends Error {
+  status: number;
+  category: string;
+  modelAttempted?: string;
+
+  constructor(message: string, status = 500, category = "UNKNOWN", modelAttempted?: string) {
+    super(message);
+    this.name = "RFQExtractionError";
+    this.status = status;
+    this.category = category;
+    this.modelAttempted = modelAttempted;
+  }
+}
+
+export type GeminiErrorCategory =
+  | "INVALID_REQUEST" // 400
+  | "AUTH_ERROR" // 401, 403
+  | "NOT_FOUND" // 404
+  | "RATE_LIMIT" // 429
+  | "CAPACITY_UNAVAILABLE" // 503
+  | "SERVER_ERROR" // 500, 502
+  | "TIMEOUT" // 504
+  | "UNKNOWN";
+
+export interface ClassifiedGeminiError {
+  status: number;
+  category: GeminiErrorCategory;
+  message: string;
+  modelInResponse?: string;
+  isRetryableOnSameModel: boolean;
+  canFallbackToNextModel: boolean;
+}
+
+export function classifyGeminiError(err: unknown): ClassifiedGeminiError {
+  let status = 500;
+  let rawMessage = "";
+
+  if (err && typeof err === "object") {
+    const errObj = err as Record<string, unknown>;
+    if (typeof errObj.status === "number") {
+      status = errObj.status;
+    } else if (typeof errObj.code === "number") {
+      status = errObj.code;
+    } else if (
+      errObj.error &&
+      typeof errObj.error === "object" &&
+      typeof (errObj.error as Record<string, unknown>).code === "number"
+    ) {
+      status = (errObj.error as Record<string, unknown>).code as number;
+    }
+  }
+
+  if (err instanceof Error) {
+    rawMessage = err.message;
+  } else if (typeof err === "string") {
+    rawMessage = err;
+  }
+
+  const lowerMsg = rawMessage.toLowerCase();
+
+  // Try extracting inner message if Google returned a JSON string
+  let parsedErrorMsg = "";
+  try {
+    const match = rawMessage.match(/\{[\s\S]*\}/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (parsed?.error?.message) {
+        parsedErrorMsg = parsed.error.message;
+      }
+      if (parsed?.error?.code && typeof parsed.error.code === "number") {
+        status = parsed.error.code;
+      }
+    }
+  } catch {
+    // not JSON
+  }
+
+  // Look for any model identifier mentioned in Google's error response
+  let modelInResponse: string | undefined;
+  const modelMention = (parsedErrorMsg || rawMessage).match(/models?\/([a-zA-Z0-9.\-_]+)/i);
+  if (modelMention) {
+    modelInResponse = modelMention[1];
+  }
+
+  // 401 / 403 Authentication / Permission
+  if (
+    status === 401 ||
+    status === 403 ||
+    lowerMsg.includes("api_key_invalid") ||
+    lowerMsg.includes("permission_denied") ||
+    lowerMsg.includes("api key not valid")
+  ) {
+    return {
+      status: 401,
+      category: "AUTH_ERROR",
+      message: "Clé API Gemini invalide ou non autorisée. Vérifiez la variable d'environnement GEMINI_API_KEY.",
+      modelInResponse,
+      isRetryableOnSameModel: false,
+      canFallbackToNextModel: false, // Fallback with the same key won't help
+    };
+  }
+
+  // 400 Bad Request
+  if (status === 400) {
+    return {
+      status: 400,
+      category: "INVALID_REQUEST",
+      message: parsedErrorMsg || "Le document soumis n'a pas pu être traité par Gemini (requête invalide ou format non supporté).",
+      modelInResponse,
+      isRetryableOnSameModel: false,
+      canFallbackToNextModel: false,
+    };
+  }
+
+  // 404 Model Not Found
+  if (status === 404 || lowerMsg.includes("not found")) {
+    return {
+      status: 404,
+      category: "NOT_FOUND",
+      message: `Le modèle Gemini demandé n'est pas disponible ou n'est plus supporté par l'API.`,
+      modelInResponse,
+      isRetryableOnSameModel: false,
+      canFallbackToNextModel: true,
+    };
+  }
+
+  // 429 Rate Limit / Quota Exceeded
+  if (
+    status === 429 ||
+    lowerMsg.includes("resource_exhausted") ||
+    lowerMsg.includes("quota") ||
+    lowerMsg.includes("rate limit")
+  ) {
+    return {
+      status: 429,
+      category: "RATE_LIMIT",
+      message: "Limite de débit API Gemini temporairement dépassée (429 Rate Limit). Veuillez patienter quelques instants.",
+      modelInResponse,
+      isRetryableOnSameModel: true,
+      canFallbackToNextModel: true,
+    };
+  }
+
+  // 503 Capacity Unavailable / Model Overloaded / High Demand
+  if (
+    status === 503 ||
+    lowerMsg.includes("high demand") ||
+    lowerMsg.includes("unavailable") ||
+    lowerMsg.includes("overloaded") ||
+    lowerMsg.includes("no capacity available")
+  ) {
+    return {
+      status: 503,
+      category: "CAPACITY_UNAVAILABLE",
+      message: "Le modèle Gemini est temporairement surchargé (503 High Demand).",
+      modelInResponse,
+      isRetryableOnSameModel: false, // DO NOT retry the same overloaded model repeatedly; fall back immediately!
+      canFallbackToNextModel: true,
+    };
+  }
+
+  // 504 Timeout
+  if (
+    status === 504 ||
+    lowerMsg.includes("timeout") ||
+    lowerMsg.includes("timed out") ||
+    lowerMsg.includes("délai")
+  ) {
+    return {
+      status: 504,
+      category: "TIMEOUT",
+      message: "Délai d'analyse expiré pour ce modèle.",
+      modelInResponse,
+      isRetryableOnSameModel: false,
+      canFallbackToNextModel: true,
+    };
+  }
+
+  // 500 / 502 Server Error
+  if (status === 500 || status === 502) {
+    return {
+      status,
+      category: "SERVER_ERROR",
+      message: "Erreur interne temporaire des serveurs Google Gemini.",
+      modelInResponse,
+      isRetryableOnSameModel: false,
+      canFallbackToNextModel: true,
+    };
+  }
+
+  // Unknown transient network error
+  const isNetworkTransient =
+    lowerMsg.includes("fetch failed") ||
+    lowerMsg.includes("econnreset") ||
+    lowerMsg.includes("etimedout");
+
+  return {
+    status: isNetworkTransient ? 503 : status,
+    category: isNetworkTransient ? "CAPACITY_UNAVAILABLE" : "UNKNOWN",
+    message: parsedErrorMsg || rawMessage || "Erreur de communication avec le service Gemini.",
+    modelInResponse,
+    isRetryableOnSameModel: isNetworkTransient,
+    canFallbackToNextModel: true,
+  };
+}
+
+// ── 3. Schema & System Instruction ──────────────────────────────────────────
+
+export const RFQ_RESPONSE_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
     clientRfqReference: {
@@ -120,7 +379,7 @@ const RFQ_RESPONSE_SCHEMA: Schema = {
   required: ["totalExtractedItems", "items"],
 };
 
-const RFQ_SYSTEM_INSTRUCTION = `You are a precision procurement document parser for an industrial mining and engineering supply company (MIS SARL).
+export const RFQ_SYSTEM_INSTRUCTION = `You are a precision procurement document parser for an industrial mining and engineering supply company (MIS SARL).
 Your sole task is to extract customer Request For Quotation (RFQ) line items from the attached PDF or image into strict JSON.
 
 CRITICAL SECURITY & INTEGRITY RULES:
@@ -139,7 +398,7 @@ CRITICAL SECURITY & INTEGRITY RULES:
    - extractionNotes: short French note ONLY when there is a legibility issue, missing quantity, missing unit, or multi-page row continuation; otherwise null.
 7. Return ONLY valid JSON matching the configured schema.`;
 
-const RFQ_USER_PROMPT =
+export const RFQ_USER_PROMPT =
   "Extract every requested line item from all pages of this customer RFQ document strictly in original source order.";
 
 function sanitizeConfidence(value: unknown): RFQExtractionConfidence {
@@ -160,7 +419,8 @@ export function normalizeExtractedRFQPayload(raw: unknown): ExtractedRFQ {
   if (!raw || typeof raw !== "object") {
     throw new RFQExtractionError(
       "La réponse de Gemini ne contient pas d'objet JSON valide.",
-      422
+      422,
+      "INVALID_REQUEST"
     );
   }
 
@@ -168,7 +428,8 @@ export function normalizeExtractedRFQPayload(raw: unknown): ExtractedRFQ {
   if (!Array.isArray(record.items)) {
     throw new RFQExtractionError(
       "Le document n'a produit aucune liste d'articles exploitable.",
-      422
+      422,
+      "INVALID_REQUEST"
     );
   }
 
@@ -217,7 +478,6 @@ export function normalizeExtractedRFQPayload(raw: unknown): ExtractedRFQ {
     const confidence = sanitizeConfidence(item.confidence);
 
     normalizedItems.push({
-      // Preserve exact extracted array order deterministically (1..N)
       sourceLineNumber: normalizedItems.length + 1,
       pageNumber,
       designation,
@@ -232,7 +492,8 @@ export function normalizeExtractedRFQPayload(raw: unknown): ExtractedRFQ {
   if (normalizedItems.length === 0) {
     throw new RFQExtractionError(
       "Aucun article n'a pu être extrait de ce document RFQ. Vérifiez la lisibilité du fichier.",
-      422
+      422,
+      "INVALID_REQUEST"
     );
   }
 
@@ -244,122 +505,10 @@ export function normalizeExtractedRFQPayload(raw: unknown): ExtractedRFQ {
   };
 }
 
-function getErrorHttpStatus(err: unknown): number | undefined {
-  if (!err || typeof err !== "object") return undefined;
-  const obj = err as Record<string, unknown>;
-  if (typeof obj.status === "number") return obj.status;
-  if (typeof obj.code === "number") return obj.code;
-  if (
-    obj.error &&
-    typeof obj.error === "object" &&
-    typeof (obj.error as Record<string, unknown>).code === "number"
-  ) {
-    return (obj.error as Record<string, unknown>).code as number;
-  }
-  return undefined;
-}
-
-function isTransientError(err: unknown): boolean {
-  const status = getErrorHttpStatus(err);
-  if (
-    status === 503 ||
-    status === 502 ||
-    status === 500 ||
-    status === 429
-  ) {
-    return true;
-  }
-  if (err instanceof Error) {
-    const msg = err.message.toLowerCase();
-    return (
-      msg.includes("fetch failed") ||
-      msg.includes("econnreset") ||
-      msg.includes("etimedout") ||
-      msg.includes("temporarily unavailable") ||
-      msg.includes("service unavailable") ||
-      msg.includes("high demand") ||
-      msg.includes("overloaded") ||
-      msg.includes("resource_exhausted") ||
-      msg.includes("rate limit")
-    );
-  }
-  return false;
-}
-
-function mapGeminiError(err: unknown): RFQExtractionError {
-  if (err instanceof RFQExtractionError) return err;
-
-  const status = getErrorHttpStatus(err);
-  const rawMessage = err instanceof Error ? err.message.toLowerCase() : "";
-
-  if (
-    status === 401 ||
-    status === 403 ||
-    rawMessage.includes("api_key_invalid") ||
-    rawMessage.includes("permission_denied") ||
-    rawMessage.includes("api key not valid")
-  ) {
-    return new RFQExtractionError(
-      "Clé API Gemini invalide ou non autorisée. Veuillez vérifier la configuration serveur (GEMINI_API_KEY).",
-      503
-    );
-  }
-
-  if (
-    status === 429 ||
-    rawMessage.includes("resource_exhausted") ||
-    rawMessage.includes("quota") ||
-    rawMessage.includes("rate limit")
-  ) {
-    return new RFQExtractionError(
-      "Quota API Gemini temporairement dépassé (429 Rate Limit). Veuillez patienter quelques instants avant de relancer.",
-      429
-    );
-  }
-
-  if (
-    status === 503 ||
-    rawMessage.includes("high demand") ||
-    rawMessage.includes("overloaded") ||
-    rawMessage.includes("temporarily unavailable") ||
-    rawMessage.includes("service unavailable")
-  ) {
-    return new RFQExtractionError(
-      "Les serveurs Google Gemini subissent une forte affluence temporaire (503 High Demand). Veuillez réessayer dans quelques secondes.",
-      503
-    );
-  }
-
-  if (status === 404 || rawMessage.includes("not found")) {
-    return new RFQExtractionError(
-      "Le modèle Gemini configuré est indisponible ou non reconnu. Vérifiez GEMINI_MODEL.",
-      503
-    );
-  }
-
-  if (status === 400) {
-    return new RFQExtractionError(
-      "Le document soumis n'a pas pu être traité par Gemini (requête invalide ou fichier corrompu).",
-      422
-    );
-  }
-
-  if (rawMessage.includes("timeout") || rawMessage.includes("expiré")) {
-    return new RFQExtractionError(
-      "L'analyse du document a expiré. Essayez avec un PDF plus léger ou image plus nette.",
-      504
-    );
-  }
-
-  return new RFQExtractionError(
-    "Service d'analyse Gemini temporairement indisponible. Veuillez réessayer.",
-    503
-  );
-}
-
 async function runWithTimeout<T>(
   promise: Promise<T>,
-  timeoutMs: number
+  timeoutMs: number,
+  modelName: string
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -367,7 +516,14 @@ async function runWithTimeout<T>(
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
-          reject(new RFQExtractionError("Délai d'analyse Gemini expiré.", 504));
+          reject(
+            new RFQExtractionError(
+              `Délai d'analyse expiré pour le modèle ${modelName} (${Math.round(timeoutMs / 1000)}s).`,
+              504,
+              "TIMEOUT",
+              modelName
+            )
+          );
         }, timeoutMs);
       }),
     ]);
@@ -376,37 +532,85 @@ async function runWithTimeout<T>(
   }
 }
 
-export async function extractRFQWithGemini(input: {
+// ── 4. Main Extraction Controller ───────────────────────────────────────────
+
+export interface ExtractRFQInput {
   bytes: Buffer;
   mimeType: AllowedRFQMimeType;
   model?: string;
-}): Promise<{ extracted: ExtractedRFQ; model: string }> {
+  requestId?: string;
+}
+
+export interface ExtractRFQResult {
+  extracted: ExtractedRFQ;
+  model: string;
+  attemptsCount: number;
+}
+
+export async function extractRFQWithGemini(
+  input: ExtractRFQInput
+): Promise<ExtractRFQResult> {
+  const reqId = input.requestId || "req-transient";
   const apiKey = process.env.GEMINI_API_KEY?.trim();
+
   if (!apiKey) {
     throw new RFQExtractionError(
       "Clé API Gemini manquante sur le serveur (GEMINI_API_KEY). Configurez l'environnement avant d'utiliser l'import IA.",
-      503
+      503,
+      "AUTH_ERROR"
     );
   }
 
-  const primaryModel = input.model?.trim() || getConfiguredGeminiModel();
-  const candidateModels = Array.from(
-    new Set([primaryModel, ...FALLBACK_GEMINI_RFQ_MODELS])
-  );
+  const { config, source, candidates } = getConfiguredGeminiModelConfig();
 
-  const ai = new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
+  // If a specific model was passed in the request, prioritize it
+  const activeCandidates = input.model?.trim()
+    ? Array.from(new Set([input.model.trim(), ...candidates]))
+    : candidates;
+
+  console.info(`[Gemini RFQ][${reqId}] Configured model: ${config.primary}`);
+  console.info(`[Gemini RFQ][${reqId}] Configuration source: ${source}`);
+  console.info(`[Gemini RFQ][${reqId}] Runtime model candidates: ${activeCandidates.join(", ")}`);
 
   const base64Data = input.bytes.toString("base64");
-  let lastError: unknown;
+  const startTime = Date.now();
+  let totalAttempts = 0;
+  let lastClassifiedError: ClassifiedGeminiError | null = null;
+  let lastAttemptedModel = activeCandidates[0];
 
-  for (const model of candidateModels) {
+  for (let idx = 0; idx < activeCandidates.length; idx++) {
+    const model = activeCandidates[idx];
+    lastAttemptedModel = model;
+
+    // Check overall execution budget
+    const elapsed = Date.now() - startTime;
+    const remainingTime = GLOBAL_EXTRACTION_DEADLINE_MS - elapsed;
+
+    if (remainingTime <= 4_000) {
+      console.warn(
+        `[Gemini RFQ][${reqId}] Budget d'exécution global presque épuisé (${elapsed}ms écoulés / ${GLOBAL_EXTRACTION_DEADLINE_MS}ms max). Abandon de la chaîne.`
+      );
+      break;
+    }
+
+    // Allocate bounded timeout for this specific model request
+    const modelTimeout = Math.min(SINGLE_MODEL_TIMEOUT_MS, remainingTime - 1_000);
+
+    // Initialize Google GenAI client with SDK retryOptions: { attempts: 1 }
+    // This CRITICAL setting prevents the SDK from silently retrying 5 times internally on 503
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+        retryOptions: {
+          attempts: 1, // Disable internal SDK retry loop; our controller owns fallback logic
+        },
+        timeout: modelTimeout,
+      },
+    });
+
     const requestParams = {
       model,
       contents: {
@@ -429,65 +633,139 @@ export async function extractRFQWithGemini(input: {
       },
     };
 
-    const maxAttempts = 3;
-    const retryDelaysMs = [1500, 3000];
+    totalAttempts++;
+    const modelStart = Date.now();
+    console.info(
+      `[Gemini RFQ][${reqId}] Requesting model: ${model} (tentative #${totalAttempts}, timeout: ${modelTimeout}ms)`
+    );
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        const response = await runWithTimeout(
-          ai.models.generateContent(requestParams),
-          EXTRACTION_TIMEOUT_MS
+    try {
+      const response = await runWithTimeout(
+        ai.models.generateContent(requestParams),
+        modelTimeout,
+        model
+      );
+
+      const duration = Date.now() - modelStart;
+      const text = response.text?.trim();
+
+      if (!text) {
+        throw new RFQExtractionError(
+          "Gemini n'a retourné aucun contenu structuré pour ce document.",
+          422,
+          "INVALID_REQUEST",
+          model
         );
+      }
 
-        const text = response.text?.trim();
-        if (!text) {
-          throw new RFQExtractionError(
-            "Gemini n'a retourné aucun contenu structuré pour ce document.",
-            422
-          );
-        }
+      let parsedJson: unknown;
+      try {
+        parsedJson = JSON.parse(text);
+      } catch {
+        throw new RFQExtractionError(
+          "La réponse renvoyée par Gemini n'est pas un JSON valide.",
+          422,
+          "INVALID_REQUEST",
+          model
+        );
+      }
 
-        let parsedJson: unknown;
-        try {
-          parsedJson = JSON.parse(text);
-        } catch {
-          throw new RFQExtractionError(
-            "La réponse renvoyée par Gemini n'est pas un JSON exploitable.",
-            422
-          );
-        }
+      const extracted = normalizeExtractedRFQPayload(parsedJson);
 
-        const extracted = normalizeExtractedRFQPayload(parsedJson);
-        if (attempt > 0) {
+      console.info(
+        `[Gemini RFQ][${reqId}] Extraction SUCCEEDED with model: ${model} in ${duration}ms (${extracted.totalExtractedItems} articles extraits). Total duration: ${Date.now() - startTime}ms.`
+      );
+
+      return {
+        extracted,
+        model,
+        attemptsCount: totalAttempts,
+      };
+    } catch (err: unknown) {
+      const duration = Date.now() - modelStart;
+      const classified = classifyGeminiError(err);
+      lastClassifiedError = classified;
+
+      console.warn(
+        `[Gemini RFQ][${reqId}] Model ${model} FAILED (${classified.category}, HTTP ${classified.status}) in ${duration}ms: ${classified.message}`
+      );
+
+      if (classified.modelInResponse && classified.modelInResponse !== model) {
+        console.warn(
+          `[Gemini RFQ][${reqId}] Note: Model mentioned in Google response ("${classified.modelInResponse}") differs from requested model ("${model}").`
+        );
+      }
+
+      // 1. Non-retryable errors stop the chain immediately
+      if (classified.category === "AUTH_ERROR") {
+        throw new RFQExtractionError(
+          classified.message,
+          classified.status,
+          classified.category,
+          model
+        );
+      }
+
+      if (classified.category === "INVALID_REQUEST") {
+        throw new RFQExtractionError(
+          classified.message,
+          classified.status,
+          classified.category,
+          model
+        );
+      }
+
+      // 2. Capacity unavailable (503): DO NOT waste time looping on the same overloaded model.
+      // Switch IMMEDIATELY to the next candidate model in the chain!
+      if (classified.category === "CAPACITY_UNAVAILABLE") {
+        if (idx < activeCandidates.length - 1) {
           console.info(
-            `[Gemini RFQ] Extraction réussie avec le modèle ${model} (tentative ${attempt + 1}/${maxAttempts}).`
+            `[Gemini RFQ][${reqId}] Basculement immédiat vers le modèle suivant (${activeCandidates[idx + 1]}) suite à surcharge 503 sur ${model}.`
           );
-        }
-        return { extracted, model };
-      } catch (err) {
-        lastError = err;
-        const transient = isTransientError(err);
-        const errMsg = err instanceof Error ? err.message : String(err);
-
-        // If transient error (e.g. 503 high demand or 429) and attempts remaining on this model, wait with backoff
-        if (transient && attempt < maxAttempts - 1) {
-          const delay = retryDelaysMs[attempt] || 2500;
-          console.warn(
-            `[Gemini RFQ] Modèle ${model} tentative ${attempt + 1}/${maxAttempts} temporairement indisponible (${errMsg.slice(0, 120)}). Nouvelle tentative dans ${delay}ms...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-
-        console.warn(
-          `[Gemini RFQ] Échec du modèle ${model} à la tentative ${attempt + 1}/${maxAttempts}:`,
-          errMsg.slice(0, 160)
-        );
-        // Break to try next candidate model if available
-        break;
       }
+
+      // 3. Rate limit (429): If on primary model and remaining time is plenty, allow one brief jittered backoff
+      if (classified.category === "RATE_LIMIT" && idx === 0 && remainingTime > 15_000) {
+        const jitterDelay = 1500 + Math.floor(Math.random() * 500);
+        console.warn(
+          `[Gemini RFQ][${reqId}] Limite de débit sur ${model}. Pause de ${jitterDelay}ms avant tentative sur modèle suivant...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, jitterDelay));
+      }
+
+      // Continue to next candidate model
     }
   }
 
-  throw mapGeminiError(lastError);
+  // If every model failed:
+  console.error(
+    `[Gemini RFQ][${reqId}] Tous les modèles candidats ont échoué après ${totalAttempts} tentatives (${Date.now() - startTime}ms total).`
+  );
+
+  if (lastClassifiedError?.category === "CAPACITY_UNAVAILABLE" || lastClassifiedError?.status === 503) {
+    throw new RFQExtractionError(
+      "Tous les modèles Google Gemini testés sont temporairement saturés (503 High Demand). Votre fichier reste sélectionné : vous pouvez relancer l'analyse dans quelques secondes.",
+      503,
+      "CAPACITY_UNAVAILABLE",
+      lastAttemptedModel
+    );
+  }
+
+  if (lastClassifiedError?.category === "RATE_LIMIT" || lastClassifiedError?.status === 429) {
+    throw new RFQExtractionError(
+      "Limite de quota API Gemini atteinte (429 Rate Limit). Votre fichier reste sélectionné : veuillez patienter un instant avant de réessayer.",
+      429,
+      "RATE_LIMIT",
+      lastAttemptedModel
+    );
+  }
+
+  throw new RFQExtractionError(
+    lastClassifiedError?.message || "Service d'analyse Gemini temporairement indisponible. Veuillez réessayer.",
+    lastClassifiedError?.status || 503,
+    lastClassifiedError?.category || "UNKNOWN",
+    lastAttemptedModel
+  );
 }

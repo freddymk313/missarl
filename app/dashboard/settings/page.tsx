@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { formatFrenchDate } from "@/lib/formatters";
 import { ExchangeRatesCard } from "@/components/dashboard/exchange-rates-card";
+import { GeminiDiagnosticCard } from "@/components/dashboard/gemini-diagnostic-card";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
+import { getConfiguredGeminiModelConfig } from "@/lib/gemini/rfq-extractor";
 
 interface MigrationRow {
   version: string;
@@ -30,6 +32,7 @@ export default async function SettingsPage() {
   ]);
 
   const appliedMigrations = appliedMigrationsRows as unknown as MigrationRow[];
+  const { config: geminiConfig } = getConfiguredGeminiModelConfig();
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -147,6 +150,12 @@ export default async function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Google Gemini AI Diagnostics */}
+      <GeminiDiagnosticCard
+        initialPrimaryModel={geminiConfig.primary}
+        initialFallbacks={geminiConfig.fallbacks}
+      />
 
       {/* Audit Logs */}
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-4">

@@ -186,8 +186,11 @@ export function RFQImporter({
     setSelectedFile(file);
   };
 
-  const handleAnalyzeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleAnalyzeSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (isAnalyzing) return; // Prevent concurrent submissions
     setUploadError(null);
 
     if (!clientId) {
@@ -207,16 +210,26 @@ export function RFQImporter({
       return;
     }
 
+    setIsAnalyzing(true);
     setStage("analyzing");
 
     try {
+      const requestId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `rfq-cli-${Date.now().toString(36)}`;
+
       const formData = new FormData();
       formData.append("clientId", clientId);
       formData.append("acknowledged", "true");
       formData.append("file", selectedFile);
+      formData.append("requestId", requestId);
 
       const res = await fetch("/api/quotes/rfq-import/analyze", {
         method: "POST",
+        headers: {
+          "x-request-id": requestId,
+        },
         body: formData,
       });
 
@@ -253,6 +266,8 @@ export function RFQImporter({
         "Unable to connect to the analysis server. Please check your connection and try again.",
       );
       setStage("upload");
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -632,10 +647,29 @@ export function RFQImporter({
             {uploadError && (
               <div
                 role="alert"
-                className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs font-bold text-destructive"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive"
               >
-                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                <span>{uploadError}</span>
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">{uploadError}</p>
+                    {selectedFile && (
+                      <p className="text-[11px] text-destructive/80 mt-1">
+                        Le fichier &quot;{selectedFile.name}&quot; reste conservé en mémoire. Vous pouvez relancer directement l&apos;analyse.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {selectedFile && clientId && acknowledged && (
+                  <button
+                    type="button"
+                    disabled={isAnalyzing}
+                    onClick={() => handleAnalyzeSubmit()}
+                    className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:bg-destructive/90 transition-colors shrink-0 shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className="size-3.5" /> Réessayer l&apos;analyse
+                  </button>
+                )}
               </div>
             )}
 
@@ -780,10 +814,18 @@ export function RFQImporter({
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                disabled={!clientId || !selectedFile || !acknowledged}
+                disabled={!clientId || !selectedFile || !acknowledged || isAnalyzing}
                 className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Sparkles className="size-4 text-accent" /> Analyze with Gemini
+                {uploadError ? (
+                  <>
+                    <RefreshCw className="size-4 text-accent" /> Réessayer l&apos;analyse
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-4 text-accent" /> Analyze with Gemini
+                  </>
+                )}
               </button>
             </div>
           </div>
