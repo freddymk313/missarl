@@ -950,7 +950,7 @@ export async function generateQuotationPdf(
   });
 
   // ── 6. DELIVERY TERMS (RED BOLD TEXT UNDER TOTALS) ─────────────────────────
-  const leadTimeText = `Délais de livraison : ${data.deliveryLeadTime || "EX-STOCK"}`;
+  const leadTimeText = `LEAD TIMES : ${data.deliveryLeadTime || "EX-STOCK"}`;
   const leadTimeY = totalsBottom - 28.8;
   currentPage.drawText(leadTimeText, {
     x: 265,
