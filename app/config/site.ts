@@ -7,16 +7,16 @@ export const siteConfig = {
   logo: "/images/logo.png",
 
   address: {
-    line: "Commune et Ville de Lubumbashi",
+    line: "Town and City of Lubumbashi",
     city: "Lubumbashi",
     region: "Haut-Katanga",
-    country: "République Démocratique du Congo",
+    country: "Democratic Republic of the Congo",
     countryCode: "CD",
   },
 
   location: {
     display: {
-      fr: "Lubumbashi, Haut-Katanga, RDC",
+      fr: "Lubumbashi, Haut-Katanga, DRC",
       en: "Lubumbashi, Haut-Katanga, DRC",
     },
   },

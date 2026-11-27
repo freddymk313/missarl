@@ -45,6 +45,8 @@ import {
   getItemAction,
 } from "@/actions/items";
 import { validateOptionalCatalogPrice } from "@/lib/rfq-import-types";
+import { formatUSD, formatCurrency } from "@/lib/number-format";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
@@ -111,13 +113,7 @@ function MatchBadgeChip({ badge }: { badge: MatchBadge }) {
 // ─── Price formatting ─────────────────────────────────────────────────────────
 
 function formatMoney(amount: number, currencyCode: string, symbol: string) {
-  const formatted = amount.toLocaleString("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  if (currencyCode === "USD") return `$ ${formatted}`;
-  if (currencyCode === "ZAR") return `R ${formatted}`;
-  return `${symbol} ${formatted}`;
+  return formatCurrency(amount, currencyCode, symbol);
 }
 
 // ─── SpecsEditor ─────────────────────────────────────────────────────────────
@@ -308,8 +304,10 @@ export function ArticlesManager({
   const [brandName, setBrandName] = useState("");
   const [mpn, setMpn] = useState("");
   const [unitCode, setUnitCode] = useState("EA");
-  const [supplyPrice, setSupplyPrice] = useState("");
-  const [quotedPrice, setQuotedPrice] = useState("");
+  const [supplyPrice, setSupplyPrice] = useState<number | null>(null);
+  const [quotedPrice, setQuotedPrice] = useState<number | null>(null);
+  const [supplyPriceValid, setSupplyPriceValid] = useState(true);
+  const [quotedPriceValid, setQuotedPriceValid] = useState(true);
   const [specs, setSpecs] = useState<Record<string, string>>({});
   const [clientCodes, setClientCodes] = useState<ClientCodeRow[]>([]);
   // Offer fields in create form
@@ -318,9 +316,12 @@ export function ArticlesManager({
   );
   const [offerSupplierCode, setOfferSupplierCode] = useState("");
   const [offerCurrency] = useState("USD");
-  const [offerPrice, setOfferPrice] = useState("");
-  const [offerLeadTime, setOfferLeadTime] = useState("");
-  const [offerMinQty, setOfferMinQty] = useState("");
+  const [offerPrice, setOfferPrice] = useState<number | null>(null);
+  const [offerLeadTime, setOfferLeadTime] = useState<number | null>(null);
+  const [offerMinQty, setOfferMinQty] = useState<number | null>(null);
+  const [offerPriceValid, setOfferPriceValid] = useState(true);
+  const [offerLeadTimeValid, setOfferLeadTimeValid] = useState(true);
+  const [offerMinQtyValid, setOfferMinQtyValid] = useState(true);
   const [offerDate, setOfferDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -349,15 +350,20 @@ export function ArticlesManager({
     setBrandName("");
     setMpn("");
     setUnitCode("EA");
-    setSupplyPrice("");
-    setQuotedPrice("");
+    setSupplyPrice(null);
+    setQuotedPrice(null);
+    setSupplyPriceValid(true);
+    setQuotedPriceValid(true);
     setSpecs({});
     setClientCodes([]);
     setOfferSupplierId(suppliers[0]?.id ?? "");
     setOfferSupplierCode("");
-    setOfferPrice("");
-    setOfferLeadTime("");
-    setOfferMinQty("");
+    setOfferPrice(null);
+    setOfferLeadTime(null);
+    setOfferMinQty(null);
+    setOfferPriceValid(true);
+    setOfferLeadTimeValid(true);
+    setOfferMinQtyValid(true);
     setOfferDate(new Date().toISOString().split("T")[0]);
     setOfferValidUntil("");
     setOfferNotes("");
@@ -381,12 +387,14 @@ export function ArticlesManager({
     setUnitCode(item.unitCode ?? "EA");
     const initialSupply =
       item.supplyPrice != null
-        ? item.supplyPrice.toString()
+        ? item.supplyPrice
         : item.cheapestOfferUsd != null
-          ? item.cheapestOfferUsd.toString()
-          : "";
+          ? item.cheapestOfferUsd
+          : null;
     setSupplyPrice(initialSupply);
-    setQuotedPrice(item.quotedPrice != null ? item.quotedPrice.toString() : "");
+    setQuotedPrice(item.quotedPrice ?? null);
+    setSupplyPriceValid(true);
+    setQuotedPriceValid(true);
     setSpecs(item.specs ?? {});
     setClientCodes([]);
     setIncludeOffer(false);
@@ -399,12 +407,12 @@ export function ArticlesManager({
         const full = res.item;
         setEditingItem(full);
         if (full.supplyPrice != null) {
-          setSupplyPrice(full.supplyPrice.toString());
-        } else if (full.cheapestOfferUsd != null && !initialSupply) {
-          setSupplyPrice(full.cheapestOfferUsd.toString());
+          setSupplyPrice(full.supplyPrice);
+        } else if (full.cheapestOfferUsd != null && initialSupply === null) {
+          setSupplyPrice(full.cheapestOfferUsd);
         }
         if (full.quotedPrice != null) {
-          setQuotedPrice(full.quotedPrice.toString());
+          setQuotedPrice(full.quotedPrice);
         }
         if (full.specs && Object.keys(full.specs).length > 0) {
           setSpecs(full.specs);
@@ -478,6 +486,16 @@ export function ArticlesManager({
     e.preventDefault();
     setFormError("");
 
+    if (!supplyPriceValid || !quotedPriceValid) {
+      setFormError("Please fix invalid numeric inputs before saving.");
+      return;
+    }
+
+    if (includeOffer && (!offerPriceValid || !offerLeadTimeValid || !offerMinQtyValid)) {
+      setFormError("Please fix invalid supplier offer numeric inputs.");
+      return;
+    }
+
     const supplyCheck = validateOptionalCatalogPrice(
       supplyPrice,
       "Supply Price ($)",
@@ -520,7 +538,7 @@ export function ArticlesManager({
         }
       } else {
         const offerSupplyFallback =
-          supplyCheck.value === null && offerPrice.trim() !== ""
+          supplyCheck.value === null && offerPrice !== null
             ? validateOptionalCatalogPrice(offerPrice, "Supplier Price ($)")
             : null;
         if (offerSupplyFallback && !offerSupplyFallback.ok) {
@@ -546,19 +564,15 @@ export function ArticlesManager({
           specs,
           clientCodes,
           offer:
-            includeOffer && offerSupplierId && offerPrice.trim() !== ""
+            includeOffer && offerSupplierId && offerPrice !== null
               ? {
                   supplierId: offerSupplierId,
                   supplierItemCode: offerSupplierCode || undefined,
                   currencyCode: "USD",
                   currency: "USD",
-                  unitPrice: parseFloat(offerPrice),
-                  leadTimeDays: offerLeadTime
-                    ? parseInt(offerLeadTime)
-                    : undefined,
-                  minOrderQty: offerMinQty
-                    ? parseFloat(offerMinQty)
-                    : undefined,
+                  unitPrice: offerPrice,
+                  leadTimeDays: offerLeadTime ?? undefined,
+                  minOrderQty: offerMinQty ?? undefined,
                   quotedOn: offerDate || undefined,
                   validUntil: offerValidUntil || undefined,
                   notes: offerNotes || undefined,
@@ -605,6 +619,10 @@ export function ArticlesManager({
   const handleAddOffer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!offerModalItem) return;
+    if (!offerPriceValid || !offerLeadTimeValid || !offerMinQtyValid || offerPrice === null) {
+      setOfferError("Please enter a valid supplier price.");
+      return;
+    }
     setOfferError("");
     startSubmit(async () => {
       const res = await addSupplierOfferAction(offerModalItem.id, {
@@ -612,9 +630,9 @@ export function ArticlesManager({
         supplierItemCode: offerSupplierCode || undefined,
         currencyCode: "USD",
         currency: "USD",
-        unitPrice: parseFloat(offerPrice),
-        leadTimeDays: offerLeadTime ? parseInt(offerLeadTime) : undefined,
-        minOrderQty: offerMinQty ? parseFloat(offerMinQty) : undefined,
+        unitPrice: offerPrice,
+        leadTimeDays: offerLeadTime ?? undefined,
+        minOrderQty: offerMinQty ?? undefined,
         quotedOn: offerDate || undefined,
         validUntil: offerValidUntil || undefined,
         notes: offerNotes || undefined,
@@ -903,18 +921,18 @@ export function ArticlesManager({
                       {item.supplyPrice != null ? (
                         <div>
                           <span className="font-bold text-foreground">
-                            $ {item.supplyPrice.toFixed(2)}
+                            {formatUSD(item.supplyPrice)}
                           </span>
                           {item.cheapestOfferUsd != null &&
                             item.cheapestOfferUsd !== item.supplyPrice && (
                               <p className="text-[10px] text-muted-foreground">
-                                Offer: $ {item.cheapestOfferUsd.toFixed(2)}
+                                Offer: {formatUSD(item.cheapestOfferUsd)}
                               </p>
                             )}
                         </div>
                       ) : item.cheapestOfferUsd != null ? (
                         <span className="font-bold text-foreground">
-                          $ {item.cheapestOfferUsd.toFixed(2)}
+                          {formatUSD(item.cheapestOfferUsd)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">
@@ -925,7 +943,7 @@ export function ArticlesManager({
                     <td className="py-3 px-4 text-right font-mono">
                       {item.quotedPrice != null ? (
                         <span className="font-bold text-primary">
-                          $ {item.quotedPrice.toFixed(2)}
+                          {formatUSD(item.quotedPrice)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">
@@ -1030,7 +1048,7 @@ export function ArticlesManager({
                           Supply
                         </span>
                         <span className="font-mono font-bold text-foreground text-xs">
-                          ${item.supplyPrice.toFixed(2)}
+                          {formatUSD(item.supplyPrice)}
                         </span>
                       </div>
                     )}
@@ -1040,7 +1058,7 @@ export function ArticlesManager({
                           Quoted
                         </span>
                         <span className="font-mono font-bold text-primary text-xs">
-                          ${item.quotedPrice.toFixed(2)}
+                          {formatUSD(item.quotedPrice)}
                         </span>
                       </div>
                     )}
@@ -1183,9 +1201,9 @@ export function ArticlesManager({
                   </p>
                   <p className="font-mono font-bold text-foreground text-base mt-1">
                     {detailItem.supplyPrice != null
-                      ? `$ ${detailItem.supplyPrice.toFixed(2)}`
+                      ? formatUSD(detailItem.supplyPrice)
                       : detailItem.cheapestOfferUsd != null
-                        ? `$ ${detailItem.cheapestOfferUsd.toFixed(2)}`
+                        ? formatUSD(detailItem.cheapestOfferUsd)
                         : "—"}
                   </p>
                 </div>
@@ -1200,7 +1218,7 @@ export function ArticlesManager({
                   </p>
                   <p className="font-mono font-bold text-primary text-base mt-1">
                     {detailItem.quotedPrice != null
-                      ? `$ ${detailItem.quotedPrice.toFixed(2)}`
+                      ? formatUSD(detailItem.quotedPrice)
                       : "—"}
                   </p>
                 </div>
@@ -1314,7 +1332,7 @@ export function ArticlesManager({
                           </span>
                           {offer.unitPriceUsd != null ? (
                             <span className="text-muted-foreground">
-                              ≈ $ {offer.unitPriceUsd.toFixed(2)}
+                              ≈ {formatUSD(offer.unitPriceUsd)}
                             </span>
                           ) : (
                             <span className="text-warning text-[10px]">
@@ -1347,9 +1365,12 @@ export function ArticlesManager({
                     setOfferModalItem(detailItem);
                     setOfferSupplierId(suppliers[0]?.id ?? "");
                     setOfferSupplierCode("");
-                    setOfferPrice("");
-                    setOfferLeadTime("");
-                    setOfferMinQty("");
+                    setOfferPrice(null);
+                    setOfferLeadTime(null);
+                    setOfferMinQty(null);
+                    setOfferPriceValid(true);
+                    setOfferLeadTimeValid(true);
+                    setOfferMinQtyValid(true);
                     setOfferDate(new Date().toISOString().split("T")[0]);
                     setOfferValidUntil("");
                     setOfferNotes("");
@@ -1498,12 +1519,13 @@ export function ArticlesManager({
                       (Coût fournisseur)
                     </span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <USNumberInput
                     value={supplyPrice}
-                    onChange={(e) => setSupplyPrice(e.target.value)}
+                    onValueChange={setSupplyPrice}
+                    onValidityChange={(v) => setSupplyPriceValid(v)}
+                    decimalScale={4}
+                    minDecimalsDisplay={2}
+                    min={0}
                     placeholder="0.00"
                     className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
@@ -1515,12 +1537,13 @@ export function ArticlesManager({
                       (Prix devisé client)
                     </span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <USNumberInput
                     value={quotedPrice}
-                    onChange={(e) => setQuotedPrice(e.target.value)}
+                    onValueChange={setQuotedPrice}
+                    onValidityChange={(v) => setQuotedPriceValid(v)}
+                    decimalScale={4}
+                    minDecimalsDisplay={2}
+                    min={0}
                     placeholder="0.00"
                     className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
@@ -1623,15 +1646,16 @@ export function ArticlesManager({
                         Supplier Price ($) *
                       </label>
                       <div className="relative mt-1">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
+                        <span className="absolute left-3 top-4.5 -translate-y-1/2 text-xs text-muted-foreground font-bold pointer-events-none">
                           $
                         </span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                        <USNumberInput
                           value={offerPrice}
-                          onChange={(e) => setOfferPrice(e.target.value)}
+                          onValueChange={setOfferPrice}
+                          onValidityChange={(v) => setOfferPriceValid(v)}
+                          decimalScale={4}
+                          minDecimalsDisplay={2}
+                          min={0}
                           placeholder="0.00"
                           className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                         />
@@ -1665,11 +1689,13 @@ export function ArticlesManager({
                       <label className="block text-xs font-bold text-foreground">
                         Lead Time (days)
                       </label>
-                      <input
-                        type="number"
-                        min="0"
+                      <USNumberInput
                         value={offerLeadTime}
-                        onChange={(e) => setOfferLeadTime(e.target.value)}
+                        onValueChange={setOfferLeadTime}
+                        onValidityChange={(v) => setOfferLeadTimeValid(v)}
+                        decimalScale={0}
+                        minDecimalsDisplay={0}
+                        min={0}
                         className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                       />
                     </div>
@@ -1677,12 +1703,13 @@ export function ArticlesManager({
                       <label className="block text-xs font-bold text-foreground">
                         Min. Order Qty
                       </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.001"
+                      <USNumberInput
                         value={offerMinQty}
-                        onChange={(e) => setOfferMinQty(e.target.value)}
+                        onValueChange={setOfferMinQty}
+                        onValidityChange={(v) => setOfferMinQtyValid(v)}
+                        decimalScale={3}
+                        minDecimalsDisplay={0}
+                        min={0}
                         className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                       />
                     </div>
@@ -1838,16 +1865,17 @@ export function ArticlesManager({
                     Supplier Price ($) *
                   </label>
                   <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold">
+                    <span className="absolute left-3 top-4.5 -translate-y-1/2 text-xs text-muted-foreground font-bold pointer-events-none">
                       $
                     </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      required
+                    <USNumberInput
                       value={offerPrice}
-                      onChange={(e) => setOfferPrice(e.target.value)}
+                      onValueChange={setOfferPrice}
+                      onValidityChange={(v) => setOfferPriceValid(v)}
+                      decimalScale={4}
+                      minDecimalsDisplay={2}
+                      min={0}
+                      required
                       placeholder="0.00"
                       className="h-9 w-full rounded-xl border border-border bg-card pl-7 pr-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                     />
@@ -1881,11 +1909,13 @@ export function ArticlesManager({
                   <label className="block text-xs font-bold text-foreground">
                     Lead Time (days)
                   </label>
-                  <input
-                    type="number"
-                    min="0"
+                  <USNumberInput
                     value={offerLeadTime}
-                    onChange={(e) => setOfferLeadTime(e.target.value)}
+                    onValueChange={setOfferLeadTime}
+                    onValidityChange={(v) => setOfferLeadTimeValid(v)}
+                    decimalScale={0}
+                    minDecimalsDisplay={0}
+                    min={0}
                     className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                   />
                 </div>

@@ -27,7 +27,7 @@ import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
 import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { StatTile } from "@/components/dashboard/ui/stat-tile";
-import { formatUSD } from "@/lib/formatters";
+import { formatUSD, formatUSNumber } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 
 interface QuotationsListProps {
@@ -530,7 +530,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                             {it.description}
                           </p>
                           <p className="text-[10px] text-muted-foreground">
-                            {it.quantity} {it.unit} × ${it.unitPrice.toFixed(2)}
+                            {formatUSNumber(it.quantity)} {it.unit} × {formatUSD(it.unitPrice)}
                             {(it.discountPercent ?? 0) > 0 &&
                               ` (-${it.discountPercent}%)`}
                           </p>

@@ -10,6 +10,7 @@ import {
   PDFPage,
   PDFImage,
 } from "pdf-lib";
+import { formatCurrency as formatUSCurrency } from "@/lib/number-format";
 import {
   BLACK,
   WHITE,
@@ -46,16 +47,11 @@ const COL_X = {
 };
 
 /**
- * Format currency matching MIS SARL statement reference:
- * e.g. "$ 1 972,00", "$ 92,00", "$ 3 284,60"
+ * Format currency using MIS SARL US convention:
+ * e.g. "$ 1,972.00", "$ 92.00", "$ 3,284.60"
  */
 function formatStatementMoney(amount: number, currency = "USD"): string {
-  const symbol = currency === "USD" ? "$" : currency;
-  const isNegative = amount < 0;
-  const abs = Math.abs(amount);
-  const parts = abs.toFixed(2).split(".");
-  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${isNegative ? "-" : ""}${symbol} ${intPart},${parts[1]}`;
+  return formatUSCurrency(amount, currency);
 }
 
 export async function generateStatementPdf(

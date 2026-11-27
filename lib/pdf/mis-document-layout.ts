@@ -12,6 +12,7 @@ import {
 } from "pdf-lib";
 import type { RGB } from "pdf-lib";
 import { siteConfig } from "@/app/config/site";
+import { formatUSD } from "@/lib/number-format";
 
 // ── Colors matching MIS SARL approved visual identity ────────────────────────
 export const BLACK: RGB = rgb(0, 0, 0);
@@ -60,14 +61,11 @@ export function getDefaultCompanyInfo(): CompanyInfo {
 }
 
 /**
- * Currency formatter matching MIS SARL reference:
- * Begins with $, no thousands space, comma for decimals (e.g. $61,25, $25070,94).
+ * Currency formatter using MIS SARL US convention:
+ * e.g. "$ 1,500.00", "$ 25,070.94", "-$ 214.64".
  */
 export function formatCurrency(amount: number): string {
-  const isNegative = amount < 0;
-  const abs = Math.abs(amount);
-  const parts = abs.toFixed(2).split(".");
-  return `${isNegative ? "-" : ""}$${parts[0]},${parts[1]}`;
+  return formatUSD(amount);
 }
 
 /**

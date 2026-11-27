@@ -10,6 +10,7 @@ import {
   PDFPage,
   PDFImage,
 } from "pdf-lib";
+import { formatQuantity } from "@/lib/number-format";
 import {
   BLACK,
   WHITE,
@@ -235,9 +236,7 @@ export async function generateDeliveryNotePdf(
     });
 
     // Qty Delivered
-    const qtyStr = Number.isInteger(line.quantityDelivered)
-      ? String(line.quantityDelivered)
-      : line.quantityDelivered.toFixed(2).replace(".", ",");
+    const qtyStr = formatQuantity(line.quantityDelivered, 0, 2);
     const qtyW = fontRegular.widthOfTextAtSize(qtyStr, 8.04);
     currentPage.drawText(qtyStr, {
       x: COL_X.qty + (COL_W.qty - qtyW) / 2,

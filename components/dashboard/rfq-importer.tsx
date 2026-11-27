@@ -22,6 +22,8 @@ import {
 import type { ClientRecord } from "@/lib/db/clients";
 import type { ItemRecord, UnitRecord } from "@/lib/db/items";
 import { QuotationWizard } from "@/components/dashboard/quotation-wizard";
+import { formatUSD } from "@/lib/number-format";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import { createImportedItemsAction } from "@/actions/rfq-import";
 import {
   ALLOWED_RFQ_MIME_TYPES,
@@ -1049,7 +1051,7 @@ export function RFQImporter({
                       >
                         Supplier:{" "}
                         {item.supplyPrice !== null
-                          ? `$ ${item.supplyPrice.toFixed(2)}`
+                          ? formatUSD(item.supplyPrice)
                           : "Price not set"}
                       </span>
                       <span
@@ -1061,7 +1063,7 @@ export function RFQImporter({
                       >
                         Quoted:{" "}
                         {item.quotedPrice !== null
-                          ? `$ ${item.quotedPrice.toFixed(2)}`
+                          ? formatUSD(item.quotedPrice)
                           : "Price not set"}
                       </span>
                     </div>
@@ -1293,22 +1295,17 @@ export function RFQImporter({
                               <label className="block text-[11px] font-bold text-foreground mb-1">
                                 Quantity *
                               </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                value={line.quantity ?? ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const num =
-                                    raw === "" ? null : parseFloat(raw);
+                              <USNumberInput
+                                value={line.quantity}
+                                onValueChange={(num) =>
                                   updateReviewLine(line.sourceLineNumber, {
-                                    quantity:
-                                      num !== null && Number.isFinite(num)
-                                        ? num
-                                        : null,
-                                  });
-                                }}
+                                    quantity: num,
+                                  })
+                                }
+                                decimalScale={4}
+                                minDecimalsDisplay={0}
+                                min={0.0001}
+                                allowZero={false}
                                 placeholder="e.g., 5"
                                 className={`h-9 w-full rounded-xl border bg-card px-3 font-mono text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                   line.quantity === null || line.quantity <= 0
@@ -1373,23 +1370,30 @@ export function RFQImporter({
                                     Supplier purchase cost
                                   </p>
                                   <div className="relative">
-                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                                    <span className="pointer-events-none absolute left-3 top-4.5 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                                       $
                                     </span>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={line.supplyPrice}
-                                      onChange={(e) =>
+                                    <USNumberInput
+                                      value={
+                                        line.supplyPrice.trim() === ""
+                                          ? null
+                                          : Number.isFinite(Number(line.supplyPrice))
+                                            ? Number(line.supplyPrice)
+                                            : null
+                                      }
+                                      onValueChange={(val) =>
                                         updateReviewLine(
                                           line.sourceLineNumber,
                                           {
-                                            supplyPrice: e.target.value,
+                                            supplyPrice:
+                                              val === null ? "" : String(val),
                                             createError: null,
                                           },
                                         )
                                       }
+                                      decimalScale={4}
+                                      minDecimalsDisplay={2}
+                                      min={0}
                                       placeholder="Optional (e.g., 125.50)"
                                       className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                         !supplyValidation.ok
@@ -1413,23 +1417,30 @@ export function RFQImporter({
                                     Reference price quoted to customer
                                   </p>
                                   <div className="relative">
-                                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                                    <span className="pointer-events-none absolute left-3 top-4.5 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                                       $
                                     </span>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={line.quotedPrice}
-                                      onChange={(e) =>
+                                    <USNumberInput
+                                      value={
+                                        line.quotedPrice.trim() === ""
+                                          ? null
+                                          : Number.isFinite(Number(line.quotedPrice))
+                                            ? Number(line.quotedPrice)
+                                            : null
+                                      }
+                                      onValueChange={(val) =>
                                         updateReviewLine(
                                           line.sourceLineNumber,
                                           {
-                                            quotedPrice: e.target.value,
+                                            quotedPrice:
+                                              val === null ? "" : String(val),
                                             createError: null,
                                           },
                                         )
                                       }
+                                      decimalScale={4}
+                                      minDecimalsDisplay={2}
+                                      min={0}
                                       placeholder="Optional (e.g., 175.00)"
                                       className={`h-9 w-full rounded-xl border bg-card pl-7 pr-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 ${
                                         !quotedValidation.ok
