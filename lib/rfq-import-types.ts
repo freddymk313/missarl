@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { UnitRecord } from "@/lib/db/items";
+import { parseUserNumber } from "@/lib/number-format";
 
 export type RFQExtractionConfidence = "high" | "medium" | "low";
 
@@ -134,10 +135,10 @@ export interface BulkCreateImportedItemsResult {
 }
 
 /**
- * Validates and normalizes an optional USD catalog price.
+ * Validates and normalizes an optional USD catalog price using the centralized strict parser.
  * - Empty string, null, or undefined -> null (no price configured)
  * - Explicit 0 -> 0
- * - Negative, NaN, Infinity, or non-numeric input -> validation error
+ * - Comma-containing, space-containing, negative, NaN, Infinity, or non-numeric input -> validation error
  */
 export function validateOptionalCatalogPrice(
   raw: unknown,
@@ -147,45 +148,29 @@ export function validateOptionalCatalogPrice(
     return { ok: true, value: null };
   }
 
-  if (typeof raw === "number") {
-    if (!Number.isFinite(raw)) {
-      return { ok: false, error: `${fieldLabel} invalide.` };
-    }
-    if (raw < 0) {
-      return {
-        ok: false,
-        error: `${fieldLabel} ne peut pas être négatif.`,
-      };
-    }
-    return { ok: true, value: Math.round(raw * 10000) / 10000 };
+  if (typeof raw !== "number" && typeof raw !== "string") {
+    return { ok: false, error: `${fieldLabel} invalide.` };
   }
 
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-      return { ok: true, value: null };
-    }
-    const normalized = trimmed.replace(/\s+/g, "").replace(",", ".");
-    if (!/^[+-]?\d+(\.\d+)?$/.test(normalized)) {
-      return {
-        ok: false,
-        error: `${fieldLabel} doit être un nombre valide en USD.`,
-      };
-    }
-    const parsed = Number(normalized);
-    if (!Number.isFinite(parsed)) {
-      return { ok: false, error: `${fieldLabel} invalide.` };
-    }
-    if (parsed < 0) {
-      return {
-        ok: false,
-        error: `${fieldLabel} ne peut pas être négatif.`,
-      };
-    }
-    return { ok: true, value: Math.round(parsed * 10000) / 10000 };
+  const parsed = parseUserNumber(raw, {
+    required: false,
+    allowNegative: false,
+    allowZero: true,
+    maxDecimals: 4,
+  });
+
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      error: `${fieldLabel}: ${parsed.error}`,
+    };
   }
 
-  return { ok: false, error: `${fieldLabel} invalide.` };
+  if (parsed.value === null) {
+    return { ok: true, value: null };
+  }
+
+  return { ok: true, value: Math.round(parsed.value * 10000) / 10000 };
 }
 
 const KNOWN_UNIT_SYNONYMS: Record<string, string> = {

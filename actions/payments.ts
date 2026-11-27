@@ -19,8 +19,16 @@ export async function recordPaymentAction(payload: {
     return { success: false, error: "Veuillez sélectionner un client." };
   }
 
-  if (payload.amount <= 0) {
-    return { success: false, error: "Le montant du paiement doit être supérieur à zéro." };
+  if (typeof payload.amount !== "number" || !Number.isFinite(payload.amount) || payload.amount <= 0) {
+    return { success: false, error: "Le montant du paiement doit être un nombre valide supérieur à zéro." };
+  }
+
+  if (payload.allocations) {
+    for (const alloc of payload.allocations) {
+      if (typeof alloc.amount !== "number" || !Number.isFinite(alloc.amount) || alloc.amount < 0) {
+        return { success: false, error: "Chaque allocation de facture doit être un montant valide positif ou nul." };
+      }
+    }
   }
 
   if (!payload.referenceNumber || !payload.referenceNumber.trim()) {

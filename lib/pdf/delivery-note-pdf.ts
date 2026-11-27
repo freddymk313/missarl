@@ -10,6 +10,7 @@ import {
   PDFPage,
   PDFImage,
 } from "pdf-lib";
+import { formatQuantity } from "@/lib/number-format";
 import {
   BLACK,
   WHITE,
@@ -111,7 +112,7 @@ export async function generateDeliveryNotePdf(
   const { page: page1 } = addNewPage();
 
   drawDocumentHeader(page1, {
-    title: "BON DE LIVRAISON",
+    title: "DELIVERY NOTE",
     dateText: formatDate(data.deliveryDate),
     logoImage,
     company: data.company,
@@ -122,7 +123,7 @@ export async function generateDeliveryNotePdf(
   drawCustomerSection(page1, {
     clientName: data.client.name,
     clientCode: data.client.code,
-    referenceLabel: "BL N°",
+    referenceLabel: "DN N°",
     referenceValue: data.blNumber,
     clientPoNumber: data.clientPoNumber,
     clientRfqNumber: data.clientRfqNumber,
@@ -235,9 +236,7 @@ export async function generateDeliveryNotePdf(
     });
 
     // Qty Delivered
-    const qtyStr = Number.isInteger(line.quantityDelivered)
-      ? String(line.quantityDelivered)
-      : line.quantityDelivered.toFixed(2).replace(".", ",");
+    const qtyStr = formatQuantity(line.quantityDelivered, 0, 2);
     const qtyW = fontRegular.widthOfTextAtSize(qtyStr, 8.04);
     currentPage.drawText(qtyStr, {
       x: COL_X.qty + (COL_W.qty - qtyW) / 2,
@@ -343,7 +342,7 @@ export async function generateDeliveryNotePdf(
   let sigY = currentY - 26;
   if (data.carrierName || data.notes) {
     const metaParts = [];
-    if (data.carrierName) metaParts.push(`Transporteur : ${data.carrierName}`);
+    if (data.carrierName) metaParts.push(`Carrier : ${data.carrierName}`);
     if (data.notes) metaParts.push(`Notes : ${data.notes}`);
     const metaStr = metaParts.join(" — ");
     currentPage.drawText(metaStr, {

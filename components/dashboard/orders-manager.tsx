@@ -43,6 +43,7 @@ import { KeyValueTile } from "@/components/dashboard/ui/key-value-tile";
 import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD } from "@/lib/formatters";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import {
   Dialog,
   DialogContent,
@@ -977,7 +978,7 @@ export function OrdersManager({
                   <option value="">Select a validated quotation...</option>
                   {validatedQuotations.map((q) => (
                     <option key={q.id} value={q.id}>
-                      {q.internalReference} — {q.clientName} (${q.total.toFixed(2)})
+                      {q.internalReference} — {q.clientName} ({formatUSD(q.total)})
                     </option>
                   ))}
                 </select>
@@ -1128,21 +1129,22 @@ export function OrdersManager({
                                   {formatUSD(it.unitPrice)}
                                 </td>
                                 <td className="p-2.5 text-center">
-                                  <input
-                                    type="number"
-                                    min="0.01"
-                                    max={it.quantity}
-                                    step="any"
-                                    disabled={!isChecked}
+                                  <USNumberInput
                                     value={acceptedQty}
-                                    onChange={(e) => {
+                                    onValueChange={(val) => {
                                       if (!it.id) return;
-                                      const val = parseFloat(e.target.value);
                                       setAcceptedQuantities((prev) => ({
                                         ...prev,
-                                        [it.id!]: isNaN(val) ? 0 : Math.min(val, it.quantity),
+                                        [it.id!]: val === null ? 0 : Math.min(val, it.quantity),
                                       }));
                                     }}
+                                    decimalScale={4}
+                                    minDecimalsDisplay={0}
+                                    min={0.0001}
+                                    max={it.quantity}
+                                    allowZero={false}
+                                    disabled={!isChecked}
+                                    showValidationError={false}
                                     className="h-9 w-20 rounded-xl border border-border bg-card px-2 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
                                   />
                                 </td>
@@ -1422,20 +1424,21 @@ export function OrdersManager({
                                   </span>
                                 </td>
                                 <td className="p-3 text-center">
-                                  <input
-                                    type="number"
-                                    min="0.01"
-                                    max={avail}
-                                    step="any"
-                                    disabled={!isChecked}
+                                  <USNumberInput
                                     value={qty}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value);
+                                    onValueChange={(val) => {
                                       setBatchQuantities((prev) => ({
                                         ...prev,
-                                        [it.id]: isNaN(val) ? 0 : Math.min(val, avail),
+                                        [it.id]: val === null ? 0 : Math.min(val, avail),
                                       }));
                                     }}
+                                    decimalScale={4}
+                                    minDecimalsDisplay={0}
+                                    min={0.0001}
+                                    max={avail}
+                                    allowZero={false}
+                                    disabled={!isChecked}
+                                    showValidationError={false}
                                     className="h-9 w-28 rounded-xl border border-border bg-card px-2.5 text-center text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 disabled:opacity-40"
                                   />
                                 </td>

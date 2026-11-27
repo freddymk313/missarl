@@ -15,16 +15,12 @@ import {
   type AllowedQuotationImageMimeType,
 } from "@/lib/blob";
 
-export interface CompanyInfo {
-  name: string;
-  rccm: string;
-  impotNumber: string;
-  address: string;
-  city: string;
-  country: string;
-  phones: string[];
-  email: string;
-  bankInfo: string;
+import {
+  DEFAULT_COMPANY_WEBSITE,
+  type CompanyInfo as SharedCompanyInfo,
+} from "./mis-document-layout";
+
+export interface CompanyInfo extends SharedCompanyInfo {
   logoPath: string;
 }
 
@@ -170,6 +166,7 @@ export async function getQuotationPdfData(
       ? [...siteConfig.phones]
       : ["+243 992224458", "+243 900041696"],
     email: siteConfig.email || "messarl2023@gmail.com",
+    website: DEFAULT_COMPANY_WEBSITE,
     bankInfo:
       "BANK name : FIRST BANK RDC SA | SWIFT code : BICDCDKI | RIB: 00014 - 25000 – 2032105587015 | Branch : LUBUMBASHI/R.D.Congo",
     logoPath: "/images/logo.png",
@@ -177,7 +174,7 @@ export async function getQuotationPdfData(
 
   // Client info from database record
   const client: ClientInfo = {
-    name: record.clientName ?? "Client inconnu",
+    name: record.clientName ?? "Unknown Customer",
     code: record.clientCode ?? "",
     email: (record as QuotationRecord & { clientEmail?: string }).clientEmail ?? null,
     phone: (record as QuotationRecord & { clientPhone?: string }).clientPhone ?? null,

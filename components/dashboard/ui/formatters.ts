@@ -1,12 +1,7 @@
+import { formatUSD } from "@/lib/number-format";
+
 export function formatMoney(amount: number | null | undefined): string {
-  if (amount == null || isNaN(amount)) return "$ 0,00";
-  const isNegative = amount < 0;
-  const absAmount = Math.abs(amount);
-  const fixed = absAmount.toFixed(2);
-  const [intStr, decStr] = fixed.split(".");
-  // Space as thousands separator
-  const spaced = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return `${isNegative ? "-" : ""}$ ${spaced},${decStr}`;
+  return formatUSD(amount);
 }
 
 export function formatDate(dateInput: string | Date | null | undefined): string {

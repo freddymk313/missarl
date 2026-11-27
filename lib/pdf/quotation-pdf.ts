@@ -14,6 +14,8 @@ import {
 } from "pdf-lib";
 import type { RGB } from "pdf-lib";
 import type { QuotationPdfData, QuotationLineForPdf } from "./quotation-data";
+import { formatUSD, formatQuantity } from "@/lib/number-format";
+import { resolveCompanyWebsite } from "./mis-document-layout";
 
 // ── Colors matching RFQ-KICO-14425 OQ exactly ─────────────────────────────────
 const BLACK: RGB = rgb(0, 0, 0);
@@ -62,14 +64,11 @@ const COL_X = {
 };
 
 /**
- * Currency formatter matching RFQ-KICO-14425 OQ:
- * Begins with $, no thousands space, comma for decimals (e.g. $61,25, $25070,94).
+ * Currency formatter using MIS SARL US convention:
+ * e.g. "$ 61.25", "$ 25,070.94", "-$ 214.64".
  */
 function formatCurrency(amount: number): string {
-  const isNegative = amount < 0;
-  const abs = Math.abs(amount);
-  const parts = abs.toFixed(2).split(".");
-  return `${isNegative ? "-" : ""}$${parts[0]},${parts[1]}`;
+  return formatUSD(amount);
 }
 
 /**
@@ -271,11 +270,10 @@ export async function generateQuotationPdf(
   const { page: page1 } = addNewPage();
 
   // ── 1. HEADER SECTION (PAGE 1) ─────────────────────────────────────────────
-  // Logo dimensions and position matching reference PDF (width 60.24, height 53.42 at x=51.48, y=734.74)
   const logoW = 60.24;
   const logoH = 53.42;
   const logoX = MARGIN_LEFT;
-  const logoY = 734.74;
+  const logoY = 738.0;
 
   if (logoImage) {
     page1.drawImage(logoImage, {
@@ -286,12 +284,13 @@ export async function generateQuotationPdf(
     });
   }
 
-  // Company Details (X = 117.26)
+  // Company Details (X = 117.26) — spaced cleanly with breathing room above divider (y = 713.86)
   const companyX = 117.26;
+  const websiteUrl = resolveCompanyWebsite(data.company);
 
   page1.drawText(data.company.name, {
     x: companyX + 0.48,
-    y: 776.64,
+    y: 781.5,
     size: 10.5,
     font: fontBold,
     color: BLACK,
@@ -299,18 +298,18 @@ export async function generateQuotationPdf(
 
   const addressLine =
     data.company.address ||
-    "Commune et Ville de Lubumbashi, République Démocratique du Congo";
+    "Town and City of Lubumbashi, Democratic Republic of the Congo";
   page1.drawText(addressLine, {
     x: companyX,
-    y: 765.84,
+    y: 771.6,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
   });
 
-  page1.drawText(`Télephone : ${data.company.phones.join(" / ")}`, {
+  page1.drawText(`Phone : ${data.company.phones.join(" / ")}`, {
     x: companyX,
-    y: 755.5,
+    y: 762.4,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -318,7 +317,7 @@ export async function generateQuotationPdf(
 
   page1.drawText(`E-mail : ${data.company.email}`, {
     x: companyX,
-    y: 745.66,
+    y: 753.2,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -326,15 +325,24 @@ export async function generateQuotationPdf(
 
   page1.drawText(`RCCM : ${data.company.rccm}`, {
     x: companyX,
-    y: 735.58,
+    y: 744.0,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
   });
 
-  page1.drawText(`Impot N° : ${data.company.impotNumber || "A2609081A"}`, {
+  page1.drawText(`NIF N° : ${data.company.impotNumber || "A2609081A"}`, {
     x: companyX,
-    y: 724.9,
+    y: 734.8,
+    size: 7.32,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  // Website right after NIF N° with clean space above divider line (y = 713.86)
+  page1.drawText(`Website : ${websiteUrl}`, {
+    x: companyX,
+    y: 725.6,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -343,7 +351,7 @@ export async function generateQuotationPdf(
   // Top Right: Date
   page1.drawText("Date:", {
     x: 465.94,
-    y: 775.92,
+    y: 778.0,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
@@ -351,7 +359,7 @@ export async function generateQuotationPdf(
 
   page1.drawText(formatDate(data.documentDate), {
     x: 501.34,
-    y: 775.92,
+    y: 778.0,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
@@ -361,7 +369,7 @@ export async function generateQuotationPdf(
   const docTitle = data.docType === "PROFORMA" ? "PROFORMA" : "QUOTATION";
   page1.drawText(docTitle, {
     x: 439.18,
-    y: 744.7,
+    y: 746.5,
     size: 10.08,
     font: fontBold,
     color: BLACK,
@@ -377,10 +385,11 @@ export async function generateQuotationPdf(
   });
 
   // ── 2. CUSTOMER & REFERENCE SECTION ───────────────────────────────────────
-  // Row 1 (y = 696.8)
+  const row1Y = 695.0;
+
   page1.drawText("Customer  : ", {
     x: 53.16,
-    y: 696.94,
+    y: row1Y,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
@@ -389,7 +398,7 @@ export async function generateQuotationPdf(
   // Customer Name in Red Bold
   page1.drawText(data.client.name.replace(/\r?\n/g, " "), {
     x: 117.38,
-    y: 696.7,
+    y: row1Y,
     size: 8.04,
     font: fontBold,
     color: RED_TEXT,
@@ -398,7 +407,7 @@ export async function generateQuotationPdf(
   // REF N°
   page1.drawText("REF N°", {
     x: 438.94,
-    y: 697.18,
+    y: row1Y,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
@@ -406,16 +415,17 @@ export async function generateQuotationPdf(
 
   page1.drawText(data.reference, {
     x: 488.5,
-    y: 697.18,
+    y: row1Y,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
   });
 
-  // Row 2 (y = 675.5)
+  const row2Y = 673.0;
+
   page1.drawText("Customer ID : ", {
     x: 53.16,
-    y: 676.3,
+    y: row2Y,
     size: 8.04,
     font: fontRegular,
     color: BLACK,
@@ -424,14 +434,14 @@ export async function generateQuotationPdf(
   if (data.client.code) {
     page1.drawText(data.client.code, {
       x: 117.38,
-      y: 676.3,
+      y: row2Y,
       size: 8.04,
       font: fontRegular,
       color: BLACK,
     });
   }
 
-  // RFQ Client Number (right-aligned on Row 2, immediately below Customer / REF N° row)
+  // RFQ Client Number (right-aligned on Row 2)
   const d = data as unknown as Record<string, unknown>;
   const rfqRaw =
     data.clientRfqNumber ||
@@ -443,12 +453,11 @@ export async function generateQuotationPdf(
 
   if (rfqText) {
     const rfqW = fontRegular.widthOfTextAtSize(rfqText, 8.04);
-    // Right-align with the reference number (matching x=460.30 in reference PDF)
     const rightMarginX = 538.56;
     const rfqX = rightMarginX - rfqW;
     page1.drawText(rfqText, {
       x: rfqX,
-      y: 676.3,
+      y: row2Y,
       size: 8.04,
       font: fontRegular,
       color: BLACK,
@@ -456,8 +465,6 @@ export async function generateQuotationPdf(
   }
 
   // ── 3. ITEMS TABLE DEFINITION ─────────────────────────────────────────────
-  // Header on Page 1:
-  // Top: 659.26, Bottom: 648.34, Height: 10.92 pt
   const headerTopY = 659.26;
   const headerBottomY = 648.34;
   const headerHeight = headerTopY - headerBottomY;
@@ -505,21 +512,20 @@ export async function generateQuotationPdf(
 
   // Page 1 table begins under header
   let currentPage = page1;
-  let currentTableTopY = headerTopY; // includes header for page 1 borders
+  let currentTableTopY = headerTopY;
   let currentY = headerBottomY;
-  let currentRowBoundaries: number[] = [headerBottomY]; // header bottom is first boundary
+  let currentRowBoundaries: number[] = [headerBottomY];
 
   const PAGE1_BOTTOM_LIMIT = 59.78;
   const PAGE_CONT_TOP_Y = 787.32;
-  const TOTALS_SECTION_HEIGHT = 18 * 3 + 40; // 3 rows of 18 pt + delivery terms
+  const TOTALS_SECTION_HEIGHT = 18 * 3 + 40;
 
-  const BRAND_IMG_MAX_W = COL_W.brand - 6; // 123.75 pt - well-contained with 3 pt margin on each side
-  const BRAND_IMG_MAX_H = 160.0; // matching reference RFQ-CHEMAF-2000002358 OQ (where brand image reaches 162 pt)
+  const BRAND_IMG_MAX_W = COL_W.brand - 6;
+  const BRAND_IMG_MAX_H = 160.0;
 
   for (let i = 0; i < data.lines.length; i++) {
     const line = data.lines[i];
 
-    // Description lines wrapped to column width with 4pt margin
     const descLines = wrapText(
       line.description,
       fontRegular,
@@ -527,15 +533,12 @@ export async function generateQuotationPdf(
       COL_W.desc - 4
     );
 
-    // Exact description height calculation matching reference PDF:
-    // 1 line = 16.0 pt, 2 lines = 24.6 pt, 3 lines = 34.5 pt, 4 lines = 41.3 pt
     const descLineCount = Math.max(1, descLines.length);
     const descHeight =
       descLineCount === 1
         ? 16.0
         : Math.max(16.0, (descLineCount - 1) * 9.84 + 14.8);
 
-    // Embed optional brand/product image & compute BRAND cell visual height
     const brandText = line.brand?.trim() ? line.brand.trim().toUpperCase() : null;
     const embeddedBrandImg = await embedQuotationBrandImage(doc, line);
 
@@ -563,14 +566,11 @@ export async function generateQuotationPdf(
 
     let brandVisualHeight = 16.0;
     if (embeddedBrandImg && brandLines.length > 0) {
-      // Case A: Image + wrapped brand text at bottom baseline
       const totalBlockH = drawImgH + 5.0 + brandLines.length * BRAND_LINE_HEIGHT;
       brandVisualHeight = Math.max(16.0, totalBlockH + 7.0);
     } else if (embeddedBrandImg) {
-      // Case C: Image only
       brandVisualHeight = Math.max(16.0, drawImgH + 9.0);
     } else if (brandLines.length > 0) {
-      // Case B: Brand text only (at bottom baseline)
       brandVisualHeight =
         brandLines.length === 1
           ? 16.0
@@ -579,14 +579,12 @@ export async function generateQuotationPdf(
 
     const rowHeight = Math.max(descHeight, brandVisualHeight);
 
-    // Check pagination requirement
     const isLastItem = i === data.lines.length - 1;
     const requiredBottomSpace = isLastItem
       ? PAGE1_BOTTOM_LIMIT + TOTALS_SECTION_HEIGHT
       : PAGE1_BOTTOM_LIMIT;
 
     if (currentY - rowHeight < requiredBottomSpace) {
-      // Save current page table info for grid drawing
       pageTables.push({
         page: currentPage,
         pageIndex: pages.indexOf(currentPage),
@@ -595,7 +593,6 @@ export async function generateQuotationPdf(
         rowBoundaries: [...currentRowBoundaries],
       });
 
-      // Advance to Next Page
       const newPageInfo = addNewPage();
       currentPage = newPageInfo.page;
       currentTableTopY = PAGE_CONT_TOP_Y;
@@ -606,8 +603,6 @@ export async function generateQuotationPdf(
     const rowTop = currentY;
     const rowBottom = currentY - rowHeight;
 
-    // 1. Draw Cell Backgrounds:
-    // Columns 1-6 are white
     currentPage.drawRectangle({
       x: MARGIN_LEFT,
       y: rowBottom,
@@ -616,7 +611,6 @@ export async function generateQuotationPdf(
       color: WHITE,
     });
 
-    // Column 7 (TOTAL) has PALE_YELLOW background
     currentPage.drawRectangle({
       x: COL_X.total,
       y: rowBottom,
@@ -625,11 +619,9 @@ export async function generateQuotationPdf(
       color: PALE_YELLOW,
     });
 
-    // 2. Draw Cell Texts (font size 8.04):
-    // Vertical alignment: aligned with bottom line of single-line row / consistent base offset
     const textBaseY = rowBottom + 4.5;
 
-    // Column 1: ITEM (centered)
+    // Column 1: ITEM
     const itemStr = String(line.lineNumber);
     const itemW = fontRegular.widthOfTextAtSize(itemStr, 8.04);
     currentPage.drawText(itemStr, {
@@ -640,9 +632,8 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 2: BRAND (4 cases: image + text / text only / image only / empty)
+    // Column 2: BRAND
     if (embeddedBrandImg && brandLines.length > 0) {
-      // Case A: Image centered above brand text; Brand text aligned at bottom baseline (textBaseY) in RED
       const brandTopY = textBaseY + (brandLines.length - 1) * BRAND_LINE_HEIGHT + 7.5;
       const spaceAboveBrand = Math.max(0, (rowTop - 3.0) - brandTopY);
       const imgY = brandTopY + Math.max(2.0, (spaceAboveBrand - drawImgH) / 2);
@@ -655,7 +646,6 @@ export async function generateQuotationPdf(
         height: drawImgH,
       });
 
-      // Draw brand text lines at bottom baseline (textBaseY) in RED
       brandLines.forEach((bl, idx) => {
         const blW = fontBold.widthOfTextAtSize(bl, BRAND_FONT_SIZE);
         const blX = COL_X.brand + (COL_W.brand - blW) / 2;
@@ -669,7 +659,6 @@ export async function generateQuotationPdf(
         });
       });
     } else if (embeddedBrandImg) {
-      // Case C: Image only (centered horizontally and vertically)
       const imgX = COL_X.brand + (COL_W.brand - drawImgW) / 2;
       const imgY = rowBottom + (rowHeight - drawImgH) / 2;
       currentPage.drawImage(embeddedBrandImg, {
@@ -679,7 +668,6 @@ export async function generateQuotationPdf(
         height: drawImgH,
       });
     } else if (brandLines.length > 0) {
-      // Case B: Brand name only: aligned at bottom baseline (textBaseY) like all other columns, in RED
       brandLines.forEach((bl, idx) => {
         const blW = fontBold.widthOfTextAtSize(bl, BRAND_FONT_SIZE);
         const blX = COL_X.brand + (COL_W.brand - blW) / 2;
@@ -693,12 +681,9 @@ export async function generateQuotationPdf(
         });
       });
     }
-    // Case D: Neither image nor brand name -> cell remains empty
 
-    // Column 3: QTY (centered)
-    const qtyStr = Number.isInteger(line.quantity)
-      ? String(line.quantity)
-      : line.quantity.toFixed(2).replace(".", ",");
+    // Column 3: QTY
+    const qtyStr = formatQuantity(line.quantity, 0, 2);
     const qtyW = fontRegular.widthOfTextAtSize(qtyStr, 8.04);
     currentPage.drawText(qtyStr, {
       x: COL_X.qty + (COL_W.qty - qtyW) / 2,
@@ -708,7 +693,7 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 4: U/M (centered)
+    // Column 4: U/M
     const umStr = line.unit || "EA";
     const umW = fontRegular.widthOfTextAtSize(umStr, 8.04);
     currentPage.drawText(umStr, {
@@ -719,7 +704,7 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 5: DESCRIPTIONS (bottom-aligned with other columns, baseline of bottom line = textBaseY)
+    // Column 5: DESCRIPTIONS
     for (let idx = 0; idx < descLines.length; idx++) {
       const dl = descLines[idx];
       const lineY = textBaseY + (descLines.length - 1 - idx) * 9.84;
@@ -732,7 +717,7 @@ export async function generateQuotationPdf(
       });
     }
 
-    // Column 6: Unit Price (right-aligned)
+    // Column 6: Unit Price
     const upStr = formatCurrency(line.unitPrice);
     const upW = fontRegular.widthOfTextAtSize(upStr, 8.04);
     currentPage.drawText(upStr, {
@@ -743,7 +728,7 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Column 7: TOTAL (right-aligned)
+    // Column 7: TOTAL
     const totStr = formatCurrency(line.lineSubtotal);
     const totW = fontRegular.widthOfTextAtSize(totStr, 8.04);
     currentPage.drawText(totStr, {
@@ -758,7 +743,6 @@ export async function generateQuotationPdf(
     currentRowBoundaries.push(currentY);
   }
 
-  // Push final page table info
   pageTables.push({
     page: currentPage,
     pageIndex: pages.indexOf(currentPage),
@@ -768,11 +752,9 @@ export async function generateQuotationPdf(
   });
 
   // ── 4. DRAW CRISP TABLE BORDERS FOR ALL PAGES ─────────────────────────────
-  // Drawing full lines reproduces the exact 0.6 pt solid borders without overlaps
   for (const pt of pageTables) {
     const { page, startY, endY, rowBoundaries } = pt;
 
-    // Top border of table
     page.drawRectangle({
       x: MARGIN_LEFT,
       y: startY - BORDER_WIDTH,
@@ -781,7 +763,6 @@ export async function generateQuotationPdf(
       color: BLACK,
     });
 
-    // Horizontal borders for each row
     for (const bY of rowBoundaries) {
       page.drawRectangle({
         x: MARGIN_LEFT,
@@ -792,7 +773,6 @@ export async function generateQuotationPdf(
       });
     }
 
-    // Vertical borders across the page table height
     const vHeight = startY - endY;
     const vLinesX = [
       COL_X.item,
@@ -817,10 +797,6 @@ export async function generateQuotationPdf(
   }
 
   // ── 5. TOTALS SECTION (BELOW TABLE ON FINAL PAGE) ──────────────────────────
-  // Matches exact layout from reference PDF:
-  // - Sub Total: Pale Yellow value cell, unbordered label
-  // - TVA: Soft Blue value cell, unbordered label
-  // - GRAND TOTAL: Bright Yellow value cell, unbordered label
   const totRowH = 18.0;
   const totX = COL_X.total;
   const totW = COL_W.total;
@@ -854,7 +830,7 @@ export async function generateQuotationPdf(
     color: BLACK,
   });
 
-  // Row 2: TVA
+  // Row 2: VAT
   const vatY = subY - totRowH;
   currentPage.drawRectangle({
     x: totX,
@@ -863,7 +839,7 @@ export async function generateQuotationPdf(
     height: totRowH,
     color: SOFT_BLUE,
   });
-  const vatLabel = `TVA ${data.vatRate}%`;
+  const vatLabel = `VAT ${data.vatRate}%`;
   const vatLabelW = fontRegular.widthOfTextAtSize(vatLabel, 8.04);
   currentPage.drawText(vatLabel, {
     x: totX - vatLabelW - 4,
@@ -910,8 +886,7 @@ export async function generateQuotationPdf(
     color: BLACK,
   });
 
-  // Grid borders around the totals value cells:
-  // Horizontal borders:
+  // Grid borders around the totals value cells
   currentPage.drawRectangle({
     x: totX,
     y: subY,
@@ -933,7 +908,6 @@ export async function generateQuotationPdf(
     height: BORDER_WIDTH,
     color: BLACK,
   });
-  // Vertical borders for the totals column:
   currentPage.drawRectangle({
     x: totX,
     y: grandY,

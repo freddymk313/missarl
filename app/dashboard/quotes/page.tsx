@@ -1,12 +1,38 @@
 import { requireSession } from "@/lib/auth";
-import { getQuotations } from "@/lib/db/quotations";
+import {
+  getQuotationsPaginated,
+  getQuotationStats,
+  normalizeQuotationsPaginationParams,
+} from "@/lib/db/quotations";
 import { QuotationsList } from "@/components/dashboard/quotations-list";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
-import { FileSpreadsheet } from "lucide-react";
 
-export default async function QuotationsPage() {
+export default async function QuotationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    docType?: string;
+    page?: string;
+    pageSize?: string;
+  }>;
+}) {
   await requireSession(["SUPER_ADMIN", "ADMIN"]);
-  const quotations = await getQuotations();
+  const sp = await searchParams;
+
+  const normalized = normalizeQuotationsPaginationParams({
+    search: sp.q,
+    status: sp.status,
+    docType: sp.docType,
+    page: sp.page ? Number(sp.page) : 1,
+    pageSize: sp.pageSize ? Number(sp.pageSize) : 25,
+  });
+
+  const [initialPageData, initialStats] = await Promise.all([
+    getQuotationsPaginated(normalized),
+    getQuotationStats(),
+  ]);
 
   return (
     <div className="space-y-6 max-w-7xl">
@@ -15,7 +41,17 @@ export default async function QuotationsPage() {
         description="Track mining and industrial quotations with client-specific sequential numbering and preserved pricing snapshots."
       />
 
-      <QuotationsList initialQuotations={quotations} />
+      <QuotationsList
+        initialQuotations={initialPageData.quotations}
+        initialTotalCount={initialPageData.totalCount}
+        initialPage={initialPageData.page}
+        initialPageSize={initialPageData.pageSize}
+        initialTotalPages={initialPageData.totalPages}
+        initialStats={initialStats}
+        initialSearch={normalized.search}
+        initialStatus={normalized.status}
+        initialDocType={normalized.docType}
+      />
     </div>
   );
 }

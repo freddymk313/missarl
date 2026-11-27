@@ -22,6 +22,7 @@ import { ClientRecord } from "@/lib/db/clients";
 import { ItemRecord } from "@/lib/db/items";
 import { createQuotationAction, updateQuotationAction, getNextQuotationReferenceAction } from "@/actions/quotations";
 import { formatUSD } from "@/lib/formatters";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
 import type { QuotationDraftLineInput } from "@/lib/rfq-import-types";
@@ -238,12 +239,12 @@ function CatalogItemCombobox({
                     <div className="flex items-center gap-2.5 shrink-0 font-mono">
                       {buyPrice != null && (
                         <span className="text-muted-foreground text-[10px]">
-                          Buy: $ {buyPrice.toFixed(2)}
+                          Buy: {formatUSD(buyPrice)}
                         </span>
                       )}
                       {sellPrice != null ? (
                         <span className="font-bold text-primary">
-                          Sell: $ {sellPrice.toFixed(2)}
+                          Sell: {formatUSD(sellPrice)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground text-[10px]">
@@ -1043,12 +1044,12 @@ export function QuotationWizard({
                 <label className="block text-xs font-bold text-foreground">
                   Validity (days)
                 </label>
-                <input
-                  type="number"
+                <USNumberInput
                   value={validityDays}
-                  onChange={(e) =>
-                    setValidityDays(parseInt(e.target.value) || 30)
-                  }
+                  onValueChange={(v) => setValidityDays(v ?? 30)}
+                  decimalScale={0}
+                  min={1}
+                  required
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
@@ -1058,11 +1059,12 @@ export function QuotationWizard({
                 <label className="block text-xs font-bold text-foreground">
                   VAT Rate (%)
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
+                <USNumberInput
                   value={vatRate}
-                  onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
+                  onValueChange={(v) => setVatRate(v ?? 0)}
+                  decimalScale={2}
+                  min={0}
+                  max={100}
                   className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
               </div>
@@ -1077,15 +1079,12 @@ export function QuotationWizard({
                     default per line
                   </span>
                 </div>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="500"
+                <USNumberInput
                   value={globalCommission}
-                  onChange={(e) =>
-                    setGlobalCommission(parseFloat(e.target.value) || 0)
-                  }
+                  onValueChange={(v) => setGlobalCommission(v ?? 0)}
+                  decimalScale={2}
+                  min={0}
+                  max={500}
                   placeholder="ex: 75"
                   className="h-9 w-full rounded-xl border border-primary/30 bg-primary/5 px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                 />
@@ -1373,19 +1372,16 @@ export function QuotationWizard({
                         <label className="block text-[11px] font-bold text-foreground">
                           Quantity *
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          required
+                        <USNumberInput
                           value={line.quantity}
-                          onChange={(e) =>
-                            updateLine(
-                              index,
-                              "quantity",
-                              parseFloat(e.target.value) || 0,
-                            )
+                          onValueChange={(val) =>
+                            updateLine(index, "quantity", val ?? 0)
                           }
+                          decimalScale={4}
+                          minDecimalsDisplay={0}
+                          min={0.0001}
+                          allowZero={false}
+                          required
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
                       </div>
@@ -1397,13 +1393,10 @@ export function QuotationWizard({
                             (Supplier)
                           </span>
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                        <USNumberInput
                           value={line.supplyPrice}
-                          onChange={(e) => {
-                            const newBuy = parseFloat(e.target.value) || 0;
+                          onValueChange={(val) => {
+                            const newBuy = val ?? 0;
                             const newSell =
                               newBuy > 0
                                 ? newBuy * (1 + effectiveComm / 100)
@@ -1421,6 +1414,9 @@ export function QuotationWizard({
                               ),
                             );
                           }}
+                          decimalScale={4}
+                          minDecimalsDisplay={2}
+                          min={0}
                           placeholder="0.00"
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
@@ -1465,22 +1461,10 @@ export function QuotationWizard({
                             </span>
                           )}
                         </div>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="500"
-                          value={
-                            line.commissionPercent !== null &&
-                            line.commissionPercent !== undefined
-                              ? line.commissionPercent
-                              : ""
-                          }
+                        <USNumberInput
+                          value={line.commissionPercent}
                           placeholder={String(globalCommission)}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            const val =
-                              raw === "" ? null : parseFloat(raw) || 0;
+                          onValueChange={(val) => {
                             const buy = line.supplyPrice;
                             const comm = val !== null ? val : globalCommission;
                             const newSell =
@@ -1498,6 +1482,10 @@ export function QuotationWizard({
                               ),
                             );
                           }}
+                          decimalScale={2}
+                          minDecimalsDisplay={0}
+                          min={0}
+                          max={500}
                           className={`h-9 w-full rounded-xl border px-3 text-xs font-mono font-bold focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 ${
                             isLineOverride
                               ? "border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400"
@@ -1513,19 +1501,15 @@ export function QuotationWizard({
                             (Client)
                           </span>
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          required
+                        <USNumberInput
                           value={line.unitPrice}
-                          onChange={(e) =>
-                            updateLine(
-                              index,
-                              "unitPrice",
-                              parseFloat(e.target.value) || 0,
-                            )
+                          onValueChange={(val) =>
+                            updateLine(index, "unitPrice", val ?? 0)
                           }
+                          decimalScale={4}
+                          minDecimalsDisplay={2}
+                          min={0}
+                          required
                           className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
                         />
                       </div>

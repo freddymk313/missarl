@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/db/audit";
+import { parseUserNumber } from "@/lib/number-format";
 import {
   searchItems,
   searchItemsPaginated,
@@ -143,6 +144,15 @@ export async function createItemAction(data: {
 }) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
+  if (data.supplyPrice !== undefined && data.supplyPrice !== null) {
+    const check = parseUserNumber(data.supplyPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Supply Price: ${check.error}` };
+  }
+  if (data.quotedPrice !== undefined && data.quotedPrice !== null) {
+    const check = parseUserNumber(data.quotedPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Quoted Price: ${check.error}` };
+  }
+
   if (!data.designation?.trim()) {
     return { success: false, error: "Short designation is required." };
   }
@@ -151,6 +161,22 @@ export async function createItemAction(data: {
   }
   if (!data.unitCode?.trim()) {
     return { success: false, error: "Unit is required." };
+  }
+
+  if (data.supplyPrice !== undefined && data.supplyPrice !== null) {
+    const check = parseUserNumber(data.supplyPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Supply Price: ${check.error}` };
+  }
+  if (data.quotedPrice !== undefined && data.quotedPrice !== null) {
+    const check = parseUserNumber(data.quotedPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Quoted Price: ${check.error}` };
+  }
+  if (data.offer) {
+    const p = data.offer.supplyPrice ?? data.offer.unitPrice;
+    if (p !== undefined && p !== null) {
+      const check = parseUserNumber(p, { allowNegative: false, allowZero: true });
+      if (!check.ok) return { success: false, error: `Supplier Offer Price: ${check.error}` };
+    }
   }
 
   try {
@@ -259,6 +285,15 @@ export async function updateItemAction(
 ) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
+  if (data.supplyPrice !== undefined && data.supplyPrice !== null) {
+    const check = parseUserNumber(data.supplyPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Supply Price: ${check.error}` };
+  }
+  if (data.quotedPrice !== undefined && data.quotedPrice !== null) {
+    const check = parseUserNumber(data.quotedPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Quoted Price: ${check.error}` };
+  }
+
   try {
     let brandId: string | null | undefined = undefined;
     if (data.brandName !== undefined) {
@@ -357,6 +392,15 @@ export async function addSupplierOfferAction(
 ) {
   const session = await requireSession(["SUPER_ADMIN", "ADMIN"]);
 
+  if (data.supplyPrice !== undefined && data.supplyPrice !== null) {
+    const check = parseUserNumber(data.supplyPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Supply Price: ${check.error}` };
+  }
+  if (data.unitPrice !== undefined && data.unitPrice !== null) {
+    const check = parseUserNumber(data.unitPrice, { allowNegative: false, allowZero: true });
+    if (!check.ok) return { success: false, error: `Unit Price: ${check.error}` };
+  }
+
   if (!data.supplierId) {
     return { success: false, error: "Supplier is required." };
   }
@@ -447,8 +491,8 @@ export async function upsertExchangeRateAction(data: {
   if (data.currencyCode === "USD") {
     return { success: false, error: "USD rate is always 1 and cannot be changed." };
   }
-  if (!data.nUnitsPerUsd || data.nUnitsPerUsd <= 0) {
-    return { success: false, error: "Rate must be a positive number." };
+  if (!Number.isFinite(data.nUnitsPerUsd) || data.nUnitsPerUsd <= 0) {
+    return { success: false, error: "Rate must be a positive finite number." };
   }
 
   const rateToUsd = 1 / data.nUnitsPerUsd;

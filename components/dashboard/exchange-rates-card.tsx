@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { DollarSign, Loader2, Edit2, Check, X } from "lucide-react";
 import { CurrencyRecord, ExchangeRateRecord } from "@/lib/db/items";
 import { upsertExchangeRateAction } from "@/actions/items";
+import { formatUSNumber } from "@/lib/number-format";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 
 interface ExchangeRatesCardProps {
   currencies: CurrencyRecord[];
@@ -18,7 +20,8 @@ export function ExchangeRatesCard({
 }: ExchangeRatesCardProps) {
   const [rates, setRates] = useState<ExchangeRateRecord[]>(initialRates);
   const [editingCurrency, setEditingCurrency] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState<number | null>(null);
+  const [inputValid, setInputValid] = useState(true);
   const [noteValue, setNoteValue] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -33,13 +36,14 @@ export function ExchangeRatesCard({
     const rate = getRateFor(code);
     setEditingCurrency(code);
     setError("");
+    setInputValid(true);
     // If rateToUsd is e.g. 0.000357 (1 USD = 2800 CDF), show 2800
     if (rate && rate.rateToUsd > 0) {
       const unitsPerUsd = 1 / rate.rateToUsd;
-      setInputValue(unitsPerUsd.toString());
+      setInputValue(Math.round(unitsPerUsd * 1000000) / 1000000);
       setNoteValue(rate.note || "");
     } else {
-      setInputValue("");
+      setInputValue(null);
       setNoteValue("");
     }
   };
@@ -50,11 +54,11 @@ export function ExchangeRatesCard({
   };
 
   const handleSave = (code: string) => {
-    const val = parseFloat(inputValue);
-    if (isNaN(val) || val <= 0) {
+    if (!inputValid || inputValue === null || inputValue <= 0) {
       setError("Please enter a valid positive number.");
       return;
     }
+    const val = inputValue;
 
     startTransition(async () => {
       const today = new Date().toISOString().split("T")[0];
@@ -146,7 +150,7 @@ export function ExchangeRatesCard({
                     <div className="text-right">
                       {unitsPerUsd != null ? (
                         <p className="font-mono font-bold text-primary">
-                          1 USD = {unitsPerUsd.toLocaleString("fr-FR", { maximumFractionDigits: 4 })} {c.code}
+                          1 USD = {formatUSNumber(unitsPerUsd, { maxDecimals: 4 })} {c.code}
                         </p>
                       ) : (
                         <p className="font-mono text-warning font-semibold">Taux non défini</p>
@@ -203,13 +207,15 @@ export function ExchangeRatesCard({
                       1 USD = combien de {c.code} ?
                     </label>
                     <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        step="any"
-                        min="0"
-                        placeholder={`ex: ${c.code === "CDF" ? "2850" : "18.5"}`}
+                      <USNumberInput
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        onValueChange={setInputValue}
+                        onValidityChange={(v) => setInputValid(v)}
+                        decimalScale={6}
+                        minDecimalsDisplay={0}
+                        min={0.000001}
+                        allowZero={false}
+                        placeholder={`ex: ${c.code === "CDF" ? "2850" : "18.5"}`}
                         className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-mono text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                       />
                       <span className="text-[11px] font-mono font-bold text-muted-foreground">

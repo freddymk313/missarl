@@ -12,6 +12,7 @@ import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD } from "@/lib/formatters";
+import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 
 interface PaymentsManagerProps {
   initialPayments: PaymentRecord[];
@@ -327,13 +328,14 @@ export function PaymentsManager({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-foreground">Montant reçu ($ USD) *</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
+              <USNumberInput
+                value={amount || null}
+                onValueChange={(val) => setAmount(val ?? 0)}
+                decimalScale={2}
+                minDecimalsDisplay={2}
+                min={0.01}
+                allowZero={false}
                 required
-                value={amount || ""}
-                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                 placeholder="0.00"
                 className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm font-mono font-black text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1"
               />
@@ -376,7 +378,7 @@ export function PaymentsManager({
                 Affectation aux factures ouvertes ({clientInvoices.length})
               </p>
               <span className="text-[11px] font-bold text-muted-foreground">
-                Alloué: ${totalAllocated.toFixed(2)} / ${amount.toFixed(2)}
+                Alloué: {formatUSD(totalAllocated)} / {formatUSD(amount)}
               </span>
             </div>
 
@@ -394,8 +396,8 @@ export function PaymentsManager({
                     <div>
                       <RefChip value={inv.invoiceNumber} />
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Total: ${inv.total.toFixed(2)} · Reste dû:{" "}
-                        <span className="font-bold text-destructive">${inv.balanceDue.toFixed(2)}</span>
+                        Total: {formatUSD(inv.total)} · Reste dû:{" "}
+                        <span className="font-bold text-destructive">{formatUSD(inv.balanceDue)}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -406,18 +408,20 @@ export function PaymentsManager({
                       >
                         Payer tout
                       </button>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={inv.balanceDue}
-                        value={selectedAllocations[inv.id] || ""}
-                        onChange={(e) =>
-                          handleAllocationChange(inv.id, parseFloat(e.target.value) || 0)
-                        }
-                        placeholder="0.00"
-                        className="w-24 h-9 rounded-xl border border-border bg-card px-2.5 text-xs font-mono text-right font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                      />
+                      <div className="w-28">
+                        <USNumberInput
+                          value={selectedAllocations[inv.id] ?? null}
+                          onValueChange={(val) =>
+                            handleAllocationChange(inv.id, val ?? 0)
+                          }
+                          decimalScale={2}
+                          minDecimalsDisplay={2}
+                          min={0}
+                          max={inv.balanceDue}
+                          placeholder="0.00"
+                          className="w-full h-9 rounded-xl border border-border bg-card px-2.5 text-xs font-mono text-right font-bold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}

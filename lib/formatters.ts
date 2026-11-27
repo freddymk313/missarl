@@ -1,23 +1,15 @@
 // ============================================================================
-// Shared Formatters for MIS SARL (Currency in USD, French Dates)
+// Shared Formatters for MIS SARL (US Currency & Numbers, French Dates)
 // ============================================================================
 
-/**
- * Formats monetary amounts in USD strictly like "$ 51 272,00"
- * (dollar sign with space, non-breaking space as thousands separator, comma decimal)
- */
-export function formatUSD(amount: number | null | undefined): string {
-  if (amount === null || amount === undefined || isNaN(amount)) {
-    return "$ 0,00";
-  }
-
-  const fixed = Math.abs(amount).toFixed(2);
-  const [intPart, decPart] = fixed.split(".");
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-
-  const sign = amount < 0 ? "-" : "";
-  return `${sign}$ ${formattedInt},${decPart}`;
-}
+export {
+  formatUSD,
+  formatUSNumber,
+  formatCurrency,
+  formatQuantity,
+  parseUserNumber,
+  toFiniteNumber,
+} from "./number-format";
 
 /**
  * Formats dates in French standard (dd/mm/yyyy)
