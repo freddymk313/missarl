@@ -51,7 +51,7 @@ export async function getDeliveryNotePdfData(
   const company = getDefaultCompanyInfo();
 
   const client = {
-    name: record.clientName ?? "Client inconnu",
+    name: record.clientName ?? "Unknown Customer",
     code: record.clientCode ?? "",
     email: (record as unknown as Record<string, unknown>).clientEmail as string ?? null,
     phone: (record as unknown as Record<string, unknown>).clientPhone as string ?? null,

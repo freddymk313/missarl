@@ -118,7 +118,7 @@ export async function generateInvoicePdf(
   const { page: page1 } = addNewPage();
 
   drawDocumentHeader(page1, {
-    title: "FACTURE",
+    title: "INVOICE",
     dateText: formatDate(data.issueDate),
     logoImage,
     company: data.company,
@@ -129,7 +129,7 @@ export async function generateInvoicePdf(
   drawCustomerSection(page1, {
     clientName: data.client.name,
     clientCode: data.client.code,
-    referenceLabel: "FAC N°",
+    referenceLabel: "INV N°",
     referenceValue: data.invoiceNumber,
     clientPoNumber: data.clientPoNumber,
     clientRfqNumber: data.clientRfqNumber,
@@ -415,7 +415,7 @@ export async function generateInvoicePdf(
     color: BLACK,
   });
 
-  // TVA 16%
+  // VAT
   const vatY = subY - totRowH;
   currentPage.drawRectangle({
     x: totX,
@@ -424,7 +424,7 @@ export async function generateInvoicePdf(
     height: totRowH,
     color: SOFT_BLUE,
   });
-  const vatLabel = `TVA ${data.vatRate}%`;
+  const vatLabel = `VAT ${data.vatRate}%`;
   const vatLabelW = fontRegular.widthOfTextAtSize(vatLabel, 8.04);
   currentPage.drawText(vatLabel, {
     x: totX - vatLabelW - 4,

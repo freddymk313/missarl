@@ -24,6 +24,7 @@ import {
   RIGHT_EDGE,
   CONTENT_WIDTH,
   formatDate,
+  resolveCompanyWebsite,
 } from "./mis-document-layout";
 import type { UnpaidInvoicesStatementData, UnpaidInvoiceRow } from "./statement-data";
 
@@ -113,7 +114,7 @@ export async function generateStatementPdf(
     const logoW = 60.24;
     const logoH = 53.42;
     const logoX = MARGIN_LEFT;
-    const logoY = 734.74;
+    const logoY = 738.0;
 
     if (logoImage) {
       page.drawImage(logoImage, {
@@ -126,10 +127,11 @@ export async function generateStatementPdf(
 
     // 2. Company Details
     const companyX = 117.26;
+    const websiteUrl = resolveCompanyWebsite(company);
 
     page.drawText(company.name, {
       x: companyX + 0.48,
-      y: 776.64,
+      y: 781.5,
       size: 10.5,
       font: fontBold,
       color: BLACK,
@@ -137,18 +139,18 @@ export async function generateStatementPdf(
 
     const addressLine =
       company.address ||
-      "Commune et Ville de Lubumbashi, République Démocratique du Congo";
+      "Town and City of Lubumbashi, Democratic Republic of the Congo";
     page.drawText(addressLine, {
       x: companyX,
-      y: 765.84,
+      y: 771.6,
       size: 7.32,
       font: fontRegular,
       color: BLACK,
     });
 
-    page.drawText(`Télephone : ${company.phones.join(" / ")}`, {
+    page.drawText(`Phone : ${company.phones.join(" / ")}`, {
       x: companyX,
-      y: 755.5,
+      y: 762.4,
       size: 7.32,
       font: fontRegular,
       color: BLACK,
@@ -156,7 +158,7 @@ export async function generateStatementPdf(
 
     page.drawText(`E-mail : ${company.email}`, {
       x: companyX,
-      y: 745.66,
+      y: 753.2,
       size: 7.32,
       font: fontRegular,
       color: BLACK,
@@ -164,23 +166,31 @@ export async function generateStatementPdf(
 
     page.drawText(`RCCM : ${company.rccm}`, {
       x: companyX,
-      y: 735.58,
+      y: 744.0,
       size: 7.32,
       font: fontRegular,
       color: BLACK,
     });
 
-    page.drawText(`Impot N° : ${company.impotNumber || "A2609081A"}`, {
+    page.drawText(`NIF N° : ${company.impotNumber || "A2609081A"}`, {
       x: companyX,
-      y: 724.9,
+      y: 734.8,
       size: 7.32,
       font: fontRegular,
       color: BLACK,
     });
 
-    // 3. Top Right Title: RELEVE DE COMPTE & / FACTURE NON PAYEE
-    const titleLine1 = "RELEVE DE COMPTE &";
-    const titleLine2 = "FACTURE NON PAYEE";
+    page.drawText(`Website : ${websiteUrl}`, {
+      x: companyX,
+      y: 725.6,
+      size: 7.32,
+      font: fontRegular,
+      color: BLACK,
+    });
+
+    // 3. Top Right Title: ACCOUNT STATEMENT & / UNPAID INVOICES
+    const titleLine1 = "ACCOUNT STATEMENT &";
+    const titleLine2 = "UNPAID INVOICES";
     const titleSize = 10.5;
     const title1W = fontBold.widthOfTextAtSize(titleLine1, titleSize);
     const title2W = fontBold.widthOfTextAtSize(titleLine2, titleSize);
@@ -258,9 +268,9 @@ export async function generateStatementPdf(
     const yBottom = topY - headerHeight;
 
     const headers = [
-      { col: "date", label: "DATE FACTURE", x: COL_X.date, w: COL_W.date },
-      { col: "normalizedInvoice", label: "NUMERO FACTURE NORMALISEE", x: COL_X.normalizedInvoice, w: COL_W.normalizedInvoice },
-      { col: "orderNumber", label: "NUMERO COMMANDE", x: COL_X.orderNumber, w: COL_W.orderNumber },
+      { col: "date", label: "INVOICE DATE", x: COL_X.date, w: COL_W.date },
+      { col: "normalizedInvoice", label: "NORMALIZED INVOICE NO.", x: COL_X.normalizedInvoice, w: COL_W.normalizedInvoice },
+      { col: "orderNumber", label: "ORDER NO.", x: COL_X.orderNumber, w: COL_W.orderNumber },
       { col: "debit", label: "DEBIT", x: COL_X.debit, w: COL_W.debit },
       { col: "credit", label: "CREDIT", x: COL_X.credit, w: COL_W.credit },
       { col: "balance", label: "BALANCE", x: COL_X.balance, w: COL_W.balance },
@@ -516,12 +526,8 @@ export async function generateStatementPdf(
 
   // ── Helper: Draw Signature & Stamp Block ──────────────────────────────────
   function drawSignatureBlock(page: PDFPage, topY: number) {
-    // Exactly matches the reference PDF:
-    // "Fait à Lubumbashi, le [DATE]"
-    // "Direction Générale"
-    // Followed by the stamp (sceau) on the left and signature on the right
     const sigX = 390.0;
-    const dateText = `Fait à Lubumbashi, le ${data.generationDate}`;
+    const dateText = `Issued in Lubumbashi, ${data.generationDate}`;
 
     page.drawText(dateText, {
       x: sigX,
@@ -531,7 +537,7 @@ export async function generateStatementPdf(
       color: BLACK,
     });
 
-    page.drawText("Direction Générale", {
+    page.drawText("General Management", {
       x: sigX + 18.0,
       y: topY - 14.0,
       size: 8.5,
@@ -587,7 +593,7 @@ export async function generateStatementPdf(
         borderColor: BLACK,
       });
 
-      const emptyMsg = "Aucune facture impayée pour ce client sur la période sélectionnée.";
+      const emptyMsg = "No unpaid invoices for this customer in the selected period.";
       const msgW = fontRegular.widthOfTextAtSize(emptyMsg, 8.5);
       currentPage.drawText(emptyMsg, {
         x: MARGIN_LEFT + (CONTENT_WIDTH - msgW) / 2,

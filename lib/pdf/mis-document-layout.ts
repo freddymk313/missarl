@@ -31,6 +31,8 @@ export const MARGIN_LEFT = 51.48;
 export const RIGHT_EDGE = 542.86;
 export const CONTENT_WIDTH = RIGHT_EDGE - MARGIN_LEFT; // 491.38 pt
 
+export const DEFAULT_COMPANY_WEBSITE = "https://missarl.vercel.app/";
+
 export interface CompanyInfo {
   name: string;
   rccm: string;
@@ -40,7 +42,17 @@ export interface CompanyInfo {
   country: string;
   phones: string[];
   email: string;
+  website?: string;
   bankInfo: string;
+}
+
+export function resolveCompanyWebsite(
+  company?: Partial<CompanyInfo> | Record<string, unknown> | null
+): string {
+  const raw = (company as Record<string, unknown> | null | undefined)?.website;
+  return typeof raw === "string" && raw.trim()
+    ? raw.trim()
+    : DEFAULT_COMPANY_WEBSITE;
 }
 
 export function getDefaultCompanyInfo(): CompanyInfo {
@@ -55,6 +67,7 @@ export function getDefaultCompanyInfo(): CompanyInfo {
       ? [...siteConfig.phones]
       : ["+243 992224458", "+243 900041696"],
     email: siteConfig.email || "messarl2023@gmail.com",
+    website: DEFAULT_COMPANY_WEBSITE,
     bankInfo:
       "BANK name : FIRST BANK RDC SA | SWIFT code : BICDCDKI | RIB: 00014 - 25000 – 2032105587015 | Branch : LUBUMBASHI/R.D.Congo",
   };
@@ -188,7 +201,7 @@ export function drawDocumentHeader(
   const logoW = 60.24;
   const logoH = 53.42;
   const logoX = MARGIN_LEFT;
-  const logoY = 734.74;
+  const logoY = 738.0;
 
   if (logoImage) {
     page.drawImage(logoImage, {
@@ -201,10 +214,11 @@ export function drawDocumentHeader(
 
   // 2. Company Details
   const companyX = 117.26;
+  const websiteUrl = resolveCompanyWebsite(company);
 
   page.drawText(company.name, {
     x: companyX + 0.48,
-    y: 776.64,
+    y: 781.5,
     size: 10.5,
     font: fontBold,
     color: BLACK,
@@ -212,18 +226,18 @@ export function drawDocumentHeader(
 
   const addressLine =
     company.address ||
-    "Commune et Ville de Lubumbashi, République Démocratique du Congo";
+    "Town and City of Lubumbashi, Democratic Republic of the Congo";
   page.drawText(addressLine, {
     x: companyX,
-    y: 765.84,
+    y: 771.6,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
   });
 
-  page.drawText(`Télephone : ${company.phones.join(" / ")}`, {
+  page.drawText(`Phone : ${company.phones.join(" / ")}`, {
     x: companyX,
-    y: 755.5,
+    y: 762.4,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -231,7 +245,7 @@ export function drawDocumentHeader(
 
   page.drawText(`E-mail : ${company.email}`, {
     x: companyX,
-    y: 745.66,
+    y: 753.2,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -239,15 +253,23 @@ export function drawDocumentHeader(
 
   page.drawText(`RCCM : ${company.rccm}`, {
     x: companyX,
-    y: 735.58,
+    y: 744.0,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
   });
 
-  page.drawText(`Impot N° : ${company.impotNumber || "A2609081A"}`, {
+  page.drawText(`NIF N° : ${company.impotNumber || "A2609081A"}`, {
     x: companyX,
-    y: 724.9,
+    y: 734.8,
+    size: 7.32,
+    font: fontRegular,
+    color: BLACK,
+  });
+
+  page.drawText(`Website : ${websiteUrl}`, {
+    x: companyX,
+    y: 725.6,
     size: 7.32,
     font: fontRegular,
     color: BLACK,
@@ -442,8 +464,8 @@ export function drawSignaturesSection(
   const leftX = MARGIN_LEFT;
   const rightX = RIGHT_EDGE - colWidth;
 
-  // 1. Left: RECEPTION (titre centré au-dessus de la boîte)
-  const recTitle = "SIGNATURE POUR LA RECEPTION";
+  // 1. Left: RECEIPT (centered title above box)
+  const recTitle = "SIGNATURE FOR RECEIPT";
   const recTitleW = fontBold.widthOfTextAtSize(recTitle, 8.04);
   const recTitleX = leftX + (colWidth - recTitleW) / 2;
 
@@ -466,7 +488,7 @@ export function drawSignaturesSection(
     color: WHITE,
   });
 
-  const recName = carrierInfo?.receiverName ? `Nom : ${carrierInfo.receiverName}` : "Nom : ......................................................";
+  const recName = carrierInfo?.receiverName ? `Name : ${carrierInfo.receiverName}` : "Name : ......................................................";
   page.drawText(recName, {
     x: leftX + 8,
     y: y - 24,
@@ -483,7 +505,7 @@ export function drawSignaturesSection(
     color: BLACK,
   });
 
-  page.drawText("Signature & Cachet :", {
+  page.drawText("Signature & Stamp :", {
     x: leftX + 8,
     y: y - 52,
     size: 7.32,
@@ -491,8 +513,8 @@ export function drawSignaturesSection(
     color: BLACK,
   });
 
-  // 2. Right: LIVRAISON (titre centré au-dessus de la boîte)
-  const livTitle = "SIGNATURE POUR LA LIVRAISON";
+  // 2. Right: DELIVERY (centered title above box)
+  const livTitle = "SIGNATURE FOR DELIVERY";
   const livTitleW = fontBold.widthOfTextAtSize(livTitle, 8.04);
   const livTitleX = rightX + (colWidth - livTitleW) / 2;
 
@@ -516,8 +538,8 @@ export function drawSignaturesSection(
   });
 
   if (carrierInfo?.driverName || carrierInfo?.vehiclePlate) {
-    const drv = carrierInfo.driverName ? `Chauffeur : ${carrierInfo.driverName}` : "";
-    const plt = carrierInfo.vehiclePlate ? `Plaque : ${carrierInfo.vehiclePlate}` : "";
+    const drv = carrierInfo.driverName ? `Driver : ${carrierInfo.driverName}` : "";
+    const plt = carrierInfo.vehiclePlate ? `Plate : ${carrierInfo.vehiclePlate}` : "";
     const drvLine = [drv, plt].filter(Boolean).join(" | ");
     page.drawText(drvLine, {
       x: rightX + 8,
@@ -553,7 +575,7 @@ export function drawSignaturesSection(
     });
   }
 
-  page.drawText("Pour Marc Ingineering Service SARL", {
+  page.drawText("For Marc Ingineering Service SARL", {
     x: rightX + 12,
     y: y - sectionHeight + 3,
     size: 6.8,

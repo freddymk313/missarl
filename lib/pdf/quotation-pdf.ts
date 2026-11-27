@@ -15,6 +15,7 @@ import {
 import type { RGB } from "pdf-lib";
 import type { QuotationPdfData, QuotationLineForPdf } from "./quotation-data";
 import { formatUSD, formatQuantity } from "@/lib/number-format";
+import { resolveCompanyWebsite } from "./mis-document-layout";
 
 // ── Colors matching RFQ-KICO-14425 OQ exactly ─────────────────────────────────
 const BLACK: RGB = rgb(0, 0, 0);
@@ -285,10 +286,7 @@ export async function generateQuotationPdf(
 
   // Company Details (X = 117.26) — spaced cleanly with breathing room above divider (y = 713.86)
   const companyX = 117.26;
-  const companyAny = data.company as unknown as Record<string, unknown>;
-  const websiteUrl =
-    (typeof companyAny?.website === "string" && companyAny.website.trim()) ||
-    "https://missarl.vercel.app/";
+  const websiteUrl = resolveCompanyWebsite(data.company);
 
   page1.drawText(data.company.name, {
     x: companyX + 0.48,
