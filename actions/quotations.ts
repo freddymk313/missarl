@@ -128,6 +128,7 @@ export async function createQuotationAction(payload: {
 
 export async function updateQuotationAction(payload: {
   quotationId: string;
+  clientId?: string;
   docType?: "QUOTATION" | "PROFORMA";
   clientRfqNumber?: string;
   validityDays?: number;
@@ -154,6 +155,8 @@ export async function updateQuotationAction(payload: {
   }
 
   try {
+    const previousQuotation = await getQuotationById(payload.quotationId);
+
     const quotation = await updateQuotation({
       ...payload,
       items: brandCheck.items,
@@ -163,6 +166,9 @@ export async function updateQuotationAction(payload: {
     revalidatePath("/dashboard/quotes");
     revalidatePath(`/dashboard/quotes/${payload.quotationId}`);
     revalidatePath(`/dashboard/quotes/${payload.quotationId}/edit`);
+    if (previousQuotation?.clientId && previousQuotation.clientId !== quotation.clientId) {
+      revalidatePath(`/dashboard/clients/${previousQuotation.clientId}`);
+    }
     if (quotation?.clientId) {
       revalidatePath(`/dashboard/clients/${quotation.clientId}`);
     }

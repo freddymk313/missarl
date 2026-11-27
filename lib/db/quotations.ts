@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { sql } from "@/lib/db";
-import { getNextQuotationReference } from "@/lib/db/clients";
+import { getClientById, getNextQuotationReference } from "@/lib/db/clients";
 import { logAudit } from "@/lib/db/audit";
 
 export interface QuotationLineItem {
@@ -790,6 +790,7 @@ export async function updateQuotation(data: {
   quotationId: string;
   userId: string;
   // Header fields (editable)
+  clientId?: string;
   docType?: "QUOTATION" | "PROFORMA";
   clientRfqNumber?: string;
   validityDays?: number;
@@ -876,6 +877,29 @@ export async function updateQuotation(data: {
     );
   }
 
+  // 4b. Validate target client & generate new reference ONLY if client changed
+  const requestedClientId = data.clientId?.trim();
+  const isClientChanging = Boolean(
+    requestedClientId && requestedClientId !== current.clientId
+  );
+
+  let nextClientId = current.clientId;
+  let nextInternalReference = current.internalReference;
+  let nextSequenceNumber = current.sequenceNumber;
+  let nextYear = current.year;
+
+  if (isClientChanging && requestedClientId) {
+    const targetClient = await getClientById(requestedClientId);
+    if (!targetClient) {
+      throw new Error("Client destinataire introuvable.");
+    }
+    const generated = await getNextQuotationReference(requestedClientId);
+    nextClientId = requestedClientId;
+    nextInternalReference = generated.reference;
+    nextSequenceNumber = generated.sequenceNumber;
+    nextYear = generated.year;
+  }
+
   // 5. Recalculate server-side totals
   const defaultCommission = data.defaultCommissionPercent ?? current.defaultCommissionPercent ?? 0;
 
@@ -955,11 +979,15 @@ export async function updateQuotation(data: {
   const newStatus: QuotationRecord["status"] =
     current.status === "DRAFT" ? "DRAFT" : "DRAFT";
 
-  // 8. Update header — do NOT touch: id, internal_reference, sequence_number, year, document_date, created_by, created_at
+  // 8. Update header — update client & reference only when client changed; preserve document_date, created_by, created_at
   try {
     await sql`
       UPDATE quotations
       SET
+        client_id              = ${nextClientId},
+        internal_reference     = ${nextInternalReference},
+        sequence_number        = ${nextSequenceNumber},
+        year                   = ${nextYear},
         doc_type               = COALESCE(${data.docType ?? null}, doc_type),
         client_rfq_number      = ${data.clientRfqNumber?.trim() || null},
         validity_date          = ${validityDateStr},
@@ -981,6 +1009,10 @@ export async function updateQuotation(data: {
     await sql`
       UPDATE quotations
       SET
+        client_id          = ${nextClientId},
+        internal_reference = ${nextInternalReference},
+        sequence_number    = ${nextSequenceNumber},
+        year               = ${nextYear},
         doc_type           = COALESCE(${data.docType ?? null}, doc_type),
         client_rfq_number  = ${data.clientRfqNumber?.trim() || null},
         validity_date      = ${validityDateStr},
@@ -1111,7 +1143,12 @@ export async function updateQuotation(data: {
     entityType: "QUOTATION",
     entityId: data.quotationId,
     details: {
-      internalReference: current.internalReference,
+      internalReference: nextInternalReference,
+      previousInternalReference: current.internalReference,
+      newInternalReference: nextInternalReference,
+      previousClientId: current.clientId,
+      newClientId: nextClientId,
+      clientChanged: isClientChanging,
       previousStatus: current.status,
       newStatus,
       subtotal,

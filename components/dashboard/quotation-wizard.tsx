@@ -31,6 +31,8 @@ import { formatUSD } from "@/lib/formatters";
 import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 import { NewItemDialog } from "@/components/dashboard/new-item-dialog";
+import { ResponsiveModal } from "@/components/dashboard/ui/responsive-modal";
+import { isQuotationEditable } from "@/lib/quotation-utils";
 import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
 import type { QuotationDraftLineInput } from "@/lib/rfq-import-types";
 
@@ -396,17 +398,55 @@ export function QuotationWizard({
     return `RFQ-${clientTag}-${trimmed} OQ`;
   }, [rfqNumber, clientTag]);
 
-  // Handle client selection change: update REF N° from server (create mode only)
+  // Track latest async reference preview request to prevent stale responses overriding current client
+  const refRequestSeq = useRef(0);
+  const isEligibleForClientEdit =
+    !isEdit || isQuotationEditable(initialQuotation?.status ?? "DRAFT");
+  const [showClientChangeConfirm, setShowClientChangeConfirm] = useState(false);
+
+  // Handle client selection change: update REF N° preview from server without consuming sequence
   const handleClientChange = (newClientId: string) => {
     setClientId(newClientId);
+    const reqId = ++refRequestSeq.current;
+
+    if (isEdit && initialQuotation) {
+      if (newClientId === initialQuotation.clientId) {
+        setInternalRef(initialQuotation.internalReference);
+        setIsFetchingRef(false);
+        return;
+      }
+      if (newClientId) {
+        setIsFetchingRef(true);
+        getNextQuotationReferenceAction(newClientId)
+          .then((res) => {
+            if (refRequestSeq.current !== reqId) return;
+            if (res.success && res.reference) {
+              setInternalRef(res.reference);
+            }
+          })
+          .finally(() => {
+            if (refRequestSeq.current === reqId) {
+              setIsFetchingRef(false);
+            }
+          });
+      }
+      return;
+    }
+
     if (!isEdit && newClientId) {
       setIsFetchingRef(true);
-      getNextQuotationReferenceAction(newClientId).then((res) => {
-        if (res.success && res.reference) {
-          setInternalRef(res.reference);
-        }
-        setIsFetchingRef(false);
-      });
+      getNextQuotationReferenceAction(newClientId)
+        .then((res) => {
+          if (refRequestSeq.current !== reqId) return;
+          if (res.success && res.reference) {
+            setInternalRef(res.reference);
+          }
+        })
+        .finally(() => {
+          if (refRequestSeq.current === reqId) {
+            setIsFetchingRef(false);
+          }
+        });
     }
   };
 
@@ -770,25 +810,7 @@ export function QuotationWizard({
   const grandTotal = subtotalSelling + vatAmount;
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!clientId) {
-      setError("Please select a client.");
-      return;
-    }
-
-    if (!isEdit && !internalRef.trim()) {
-      setError("The quote reference number (REF N°) is required.");
-      return;
-    }
-
-    if (isAnyLineUploading) {
-      setError("Veuillez attendre la fin du téléversement des images.");
-      return;
-    }
-
+  const executeSubmit = async () => {
     const validLines = lines.filter((l) => l.description.trim() !== "");
     if (validLines.length === 0) {
       setError("Please add at least one item with a description.");
@@ -801,6 +823,7 @@ export function QuotationWizard({
         // ── EDIT MODE ──────────────────────────────────────────────────────
         const res = await updateQuotationAction({
           quotationId: initialQuotation.id,
+          clientId,
           docType,
           clientRfqNumber: fullRfq || undefined,
           validityDays,
@@ -906,6 +929,39 @@ export function QuotationWizard({
       setIsSubmitting(false);
       scrollToTop();
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!clientId) {
+      setError("Please select a client.");
+      return;
+    }
+
+    if (!isEdit && !internalRef.trim()) {
+      setError("The quote reference number (REF N°) is required.");
+      return;
+    }
+
+    if (isAnyLineUploading) {
+      setError("Veuillez attendre la fin du téléversement des images.");
+      return;
+    }
+
+    const validLines = lines.filter((l) => l.description.trim() !== "");
+    if (validLines.length === 0) {
+      setError("Please add at least one item with a description.");
+      return;
+    }
+
+    if (isEdit && initialQuotation && clientId !== initialQuotation.clientId) {
+      setShowClientChangeConfirm(true);
+      return;
+    }
+
+    await executeSubmit();
   };
 
   // ── Success State ─────────────────────────────────────────────────────────
@@ -1024,15 +1080,15 @@ export function QuotationWizard({
               {/* 1. Client */}
               <div>
                 <label className="block text-xs font-bold text-foreground">
-                  Recipient Client {isEdit ? "(Fixed)" : "*"}
+                  Recipient Client {isEdit && !isEligibleForClientEdit ? "(Fixed)" : "*"}
                 </label>
                 <select
                   value={clientId}
                   onChange={(e) => handleClientChange(e.target.value)}
-                  disabled={isEdit}
+                  disabled={!isEligibleForClientEdit}
                   required
                   className={`h-9 w-full rounded-xl border border-border bg-card px-3 text-xs font-bold text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20 mt-1 ${
-                    isEdit ? "opacity-75 cursor-not-allowed bg-secondary/50" : "cursor-pointer"
+                    !isEligibleForClientEdit ? "opacity-75 cursor-not-allowed bg-secondary/50" : "cursor-pointer"
                   }`}
                 >
                   {clients.map((c) => (
@@ -1047,11 +1103,11 @@ export function QuotationWizard({
               <div>
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-foreground">
-                    REF N° (Quote) {isEdit ? "(Locked)" : "*"}
+                    REF N° (Quote) {isEdit ? "(Auto)" : "*"}
                   </label>
-                  {!isEdit && (
+                  {(isFetchingRef || !isEdit) && (
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      {isFetchingRef ? "chargement…" : "+1 auto"}
+                      {isFetchingRef ? "loading…" : "+1 auto"}
                     </span>
                   )}
                 </div>
@@ -1788,6 +1844,45 @@ export function QuotationWizard({
         onCreated={handleNewItemCreated}
       />
     )}
+
+    <ResponsiveModal
+      open={showClientChangeConfirm}
+      onClose={() => {
+        if (!isSubmitting) setShowClientChangeConfirm(false);
+      }}
+      title="Change Recipient Client?"
+      maxWidthClass="max-w-md"
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Changing the recipient will assign a new quotation reference to the
+          selected client. Existing quotation items and commercial parameters
+          will be preserved.
+        </p>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => setShowClientChangeConfirm(false)}
+            className="h-9 px-4 rounded-xl border border-border bg-card text-foreground text-xs font-bold hover:bg-secondary transition-colors cursor-pointer disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={() => {
+              setShowClientChangeConfirm(false);
+              void executeSubmit();
+            }}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+            Confirm Change
+          </button>
+        </div>
+      </div>
+    </ResponsiveModal>
     </>
   );
 }
