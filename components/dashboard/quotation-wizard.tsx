@@ -19,17 +19,28 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ClientRecord } from "@/lib/db/clients";
-import { ItemRecord } from "@/lib/db/items";
+import {
+  ItemRecord,
+  CategoryRecord,
+  BrandRecord,
+  UnitRecord,
+} from "@/lib/db/items";
+import type { SupplierRecord } from "@/lib/db/suppliers";
 import { createQuotationAction, updateQuotationAction, getNextQuotationReferenceAction } from "@/actions/quotations";
 import { formatUSD } from "@/lib/formatters";
 import { USNumberInput } from "@/components/dashboard/ui/us-number-input";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
+import { NewItemDialog } from "@/components/dashboard/new-item-dialog";
 import type { QuotationRecord, QuotationLineItem } from "@/lib/db/quotations";
 import type { QuotationDraftLineInput } from "@/lib/rfq-import-types";
 
 interface QuotationWizardProps {
   clients: ClientRecord[];
   items: ItemRecord[];
+  categories?: CategoryRecord[];
+  brands?: BrandRecord[];
+  units?: UnitRecord[];
+  suppliers?: SupplierRecord[];
   preselectedClientId?: string;
   // Edit mode
   mode?: "create" | "edit";
@@ -103,10 +114,12 @@ function CatalogItemCombobox({
   items,
   selectedItemId,
   onSelect,
+  onCreateNewItem,
 }: {
   items: ItemRecord[];
   selectedItemId?: string;
   onSelect: (item: ItemRecord | null) => void;
+  onCreateNewItem?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -138,12 +151,16 @@ function CatalogItemCombobox({
         const mpn = (it.manufacturerPartNumber || "").toLowerCase();
         const sku = (it.skuRef || "").toLowerCase();
         const brand = (it.brandName || "").toLowerCase();
+        const identMatch = (it.identifiers ?? []).some((ident) =>
+          (ident.value || "").toLowerCase().includes(q),
+        );
         return (
           des.includes(q) ||
           desc.includes(q) ||
           mpn.includes(q) ||
           sku.includes(q) ||
-          brand.includes(q)
+          brand.includes(q) ||
+          identMatch
         );
       })
       .slice(0, 10);
@@ -203,9 +220,22 @@ function CatalogItemCombobox({
       {isOpen && !selectedItem && (
         <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full max-w-[calc(100vw-3rem)] sm:min-w-[320px] overflow-auto rounded-xl border border-border bg-popover p-1.5 shadow-xl backdrop-blur-md">
           {filtered.length === 0 ? (
-            <div className="py-4 text-center text-xs text-muted-foreground">
-              <Package className="size-6 mx-auto mb-1 text-muted-foreground/40" />
-              No matching items
+            <div className="py-4 px-3 text-center text-xs text-muted-foreground space-y-2.5">
+              <Package className="size-6 mx-auto text-muted-foreground/40" />
+              <p>No matching items</p>
+              {searchTerm.trim().length > 0 && onCreateNewItem && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setSearchTerm("");
+                    onCreateNewItem();
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Plus className="size-3.5" /> Create New Item
+                </button>
+              )}
             </div>
           ) : (
             filtered.map((it) => {
@@ -268,6 +298,10 @@ function CatalogItemCombobox({
 export function QuotationWizard({
   clients,
   items,
+  categories = [],
+  brands = [],
+  units = [],
+  suppliers = [],
   preselectedClientId,
   mode = "create",
   initialQuotation,
@@ -279,6 +313,16 @@ export function QuotationWizard({
 }: QuotationWizardProps) {
   const router = useRouter();
   const isEdit = mode === "edit" && !!initialQuotation;
+
+  // Local catalog items state so newly created items appear immediately without reload
+  const [catalogItems, setCatalogItems] = useState<ItemRecord[]>(items);
+  const [creatingForLineKey, setCreatingForLineKey] = useState<string | null>(
+    null,
+  );
+  const [itemCreatedNotice, setItemCreatedNotice] = useState<string | null>(
+    null,
+  );
+  const canCreateCatalogItem = categories.length > 0 && units.length > 0;
 
   // Selected Client
   const [clientId, setClientId] = useState(
@@ -536,36 +580,66 @@ export function QuotationWizard({
     );
   };
 
+  const applyCatalogItemToLine = (
+    line: LineItemDraft,
+    item: ItemRecord | null,
+  ): LineItemDraft => {
+    if (!item) {
+      return {
+        ...line,
+        itemId: undefined,
+      };
+    }
+    const buyPrice = item.supplyPrice ?? item.cheapestOfferUsd ?? 0;
+    const effectiveComm = line.commissionPercent ?? globalCommission;
+    // Use stored quoted price if available, otherwise compute from commission
+    const sellPrice =
+      item.quotedPrice ??
+      (buyPrice > 0 ? buyPrice * (1 + effectiveComm / 100) : buyPrice);
+    return {
+      ...line,
+      itemId: item.id,
+      brand: item.brandName?.trim() || "",
+      description: item.designation
+        ? `${item.designation} — ${item.description}`
+        : item.description,
+      unit: item.unitCode || "EA",
+      unitPrice: sellPrice,
+      supplyPrice: buyPrice,
+    };
+  };
+
   const handleSelectCatalogItem = (index: number, item: ItemRecord | null) => {
     setLines((prev) =>
-      prev.map((line, i) => {
-        if (i !== index) return line;
-        if (!item) {
-          return {
-            ...line,
-            itemId: undefined,
-          };
-        }
-        const buyPrice = item.supplyPrice ?? item.cheapestOfferUsd ?? 0;
-        const effectiveComm = line.commissionPercent ?? globalCommission;
-        // Use stored quoted price if available, otherwise compute from commission
-        const sellPrice =
-          item.quotedPrice ??
-          (buyPrice > 0 ? buyPrice * (1 + effectiveComm / 100) : buyPrice);
-        return {
-          ...line,
-          itemId: item.id,
-          brand: item.brandName?.trim() || "",
-          description: item.designation
-            ? `${item.designation} — ${item.description}`
-            : item.description,
-          unit: item.unitCode || "EA",
-          unitPrice: sellPrice,
-          supplyPrice: buyPrice,
-        };
-      }),
+      prev.map((line, i) =>
+        i === index ? applyCatalogItemToLine(line, item) : line,
+      ),
     );
   };
+
+  const handleNewItemCreated = (newItem: ItemRecord) => {
+    setCatalogItems((prev) => [
+      newItem,
+      ...prev.filter((existing) => existing.id !== newItem.id),
+    ]);
+    if (creatingForLineKey) {
+      setLines((prev) =>
+        prev.map((line) =>
+          line._key === creatingForLineKey
+            ? applyCatalogItemToLine(line, newItem)
+            : line,
+        ),
+      );
+    }
+    setCreatingForLineKey(null);
+    setItemCreatedNotice("Item successfully created and added to the quotation.");
+  };
+
+  useEffect(() => {
+    if (!itemCreatedNotice) return;
+    const timer = setTimeout(() => setItemCreatedNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [itemCreatedNotice]);
 
   const handleLineImageUpload = async (lineKey: string, file: File | null) => {
     if (!file) return;
@@ -880,6 +954,7 @@ export function QuotationWizard({
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Top Bar with back link and submit action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-border">
@@ -912,6 +987,22 @@ export function QuotationWizard({
       {error && (
         <div className="rounded-xl bg-destructive/10 p-4 text-xs font-bold text-destructive border border-destructive/20">
           {error}
+        </div>
+      )}
+
+      {itemCreatedNotice && (
+        <div className="rounded-xl bg-success/10 p-4 text-xs font-bold text-success border border-success/20 flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="size-4 shrink-0" />
+            {itemCreatedNotice}
+          </span>
+          <button
+            type="button"
+            onClick={() => setItemCreatedNotice(null)}
+            className="p-1 rounded hover:bg-success/15 transition-colors cursor-pointer"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
       )}
 
@@ -1205,10 +1296,15 @@ export function QuotationWizard({
                           Pre-registered catalog (quick search)
                         </label>
                         <CatalogItemCombobox
-                          items={items}
+                          items={catalogItems}
                           selectedItemId={line.itemId}
                           onSelect={(item) =>
                             handleSelectCatalogItem(index, item)
+                          }
+                          onCreateNewItem={
+                            canCreateCatalogItem
+                              ? () => setCreatingForLineKey(line._key)
+                              : undefined
                           }
                         />
                       </div>
@@ -1678,5 +1774,20 @@ export function QuotationWizard({
         </button>
       </div>
     </form>
+
+    {canCreateCatalogItem && (
+      <NewItemDialog
+        open={creatingForLineKey !== null}
+        onClose={() => setCreatingForLineKey(null)}
+        categories={categories}
+        brands={brands}
+        units={units}
+        suppliers={suppliers}
+        clients={clients}
+        defaultClientId={clientId}
+        onCreated={handleNewItemCreated}
+      />
+    )}
+    </>
   );
 }

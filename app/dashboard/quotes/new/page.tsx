@@ -1,9 +1,9 @@
 import { requireSession } from "@/lib/auth";
 import { getClients } from "@/lib/db/clients";
-import { getItems } from "@/lib/db/items";
+import { getItems, getItemCategories, getBrands, getUnits } from "@/lib/db/items";
+import { getSuppliers } from "@/lib/db/suppliers";
 import { QuotationWizard } from "@/components/dashboard/quotation-wizard";
 import { PageHeader } from "@/components/dashboard/ui/page-header";
-import { FileSpreadsheet } from "lucide-react";
 
 export default async function NewQuotationPage({
   searchParams,
@@ -13,10 +13,15 @@ export default async function NewQuotationPage({
   await requireSession(["SUPER_ADMIN", "ADMIN"]);
   const { clientId } = await searchParams;
 
-  const [clients, items] = await Promise.all([
-    getClients(),
-    getItems({ activeOnly: true }),
-  ]);
+  const [clients, items, categories, brands, units, suppliers] =
+    await Promise.all([
+      getClients(),
+      getItems({ activeOnly: true }),
+      getItemCategories(),
+      getBrands(),
+      getUnits(),
+      getSuppliers(),
+    ]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -28,6 +33,10 @@ export default async function NewQuotationPage({
       <QuotationWizard
         clients={clients}
         items={items}
+        categories={categories}
+        brands={brands}
+        units={units}
+        suppliers={suppliers}
         preselectedClientId={clientId}
       />
     </div>
