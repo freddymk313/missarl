@@ -115,6 +115,165 @@ export async function getQuotations(options?: {
   return rows as unknown as QuotationRecord[];
 }
 
+export const ACCEPTED_QUOTATION_PAGE_SIZES = [25, 50, 100] as const;
+export type QuotationPageSize = (typeof ACCEPTED_QUOTATION_PAGE_SIZES)[number];
+
+const VALID_STATUS_FILTERS = new Set([
+  "ALL",
+  "DRAFT",
+  "SUBMITTED",
+  "VALIDATED",
+  "EXPIRED",
+  "REJECTED",
+  "CANCELLED",
+]);
+const VALID_DOC_TYPES = new Set(["ALL", "QUOTATION", "PROFORMA"]);
+
+export interface QuotationsPaginationOptions {
+  search?: string;
+  status?: string;
+  docType?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedQuotationsResult {
+  quotations: QuotationRecord[];
+  totalCount: number;
+  page: number;
+  pageSize: QuotationPageSize;
+  totalPages: number;
+}
+
+export interface QuotationGlobalStats {
+  totalQuotes: number;
+  draftCount: number;
+  validatedCount: number;
+  totalQuotedAmount: number;
+}
+
+export function normalizeQuotationsPaginationParams(
+  options?: QuotationsPaginationOptions
+) {
+  const search = (options?.search ?? "").trim();
+  const rawStatus = (options?.status ?? "ALL").trim().toUpperCase();
+  const status = VALID_STATUS_FILTERS.has(rawStatus) ? rawStatus : "ALL";
+  const rawDocType = (options?.docType ?? "ALL").trim().toUpperCase();
+  const docType = VALID_DOC_TYPES.has(rawDocType) ? rawDocType : "ALL";
+
+  const rawPage = Number(options?.page ?? 1);
+  const page =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+
+  const rawSize = Number(options?.pageSize ?? 25);
+  const pageSize: QuotationPageSize =
+    rawSize === 50 || rawSize === 100 ? rawSize : 25;
+
+  return { search, status, docType, page, pageSize };
+}
+
+export async function getQuotationsPaginated(
+  options?: QuotationsPaginationOptions
+): Promise<PaginatedQuotationsResult> {
+  const { search, status, docType, page, pageSize } =
+    normalizeQuotationsPaginationParams(options);
+
+  const statusParam = status === "ALL" ? null : status;
+  const docTypeParam = docType === "ALL" ? null : docType;
+  const searchParam = search ? `%${search.toLowerCase()}%` : null;
+
+  const countRows = await sql`
+    SELECT COUNT(*)::int AS total
+    FROM quotations q
+    JOIN clients c ON q.client_id = c.id
+    WHERE (${statusParam}::text IS NULL OR q.status = ${statusParam})
+      AND (${docTypeParam}::text IS NULL OR q.doc_type = ${docTypeParam})
+      AND (
+        ${searchParam}::text IS NULL
+        OR LOWER(q.internal_reference) LIKE ${searchParam}
+        OR LOWER(COALESCE(q.client_rfq_number, '')) LIKE ${searchParam}
+        OR LOWER(c.name) LIKE ${searchParam}
+      )
+  `;
+
+  const totalCount =
+    Number((countRows as unknown as Array<{ total: number }>)[0]?.total ?? 0) || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const offset = (safePage - 1) * pageSize;
+
+  const rows = await sql`
+    SELECT
+      q.id,
+      q.client_id as "clientId",
+      c.code as "clientCode",
+      c.name as "clientName",
+      q.doc_type as "docType",
+      q.client_rfq_number as "clientRfqNumber",
+      q.internal_reference as "internalReference",
+      q.sequence_number as "sequenceNumber",
+      q.year,
+      q.document_date::text as "documentDate",
+      q.validity_date::text as "validityDate",
+      q.status,
+      q.currency,
+      COALESCE((to_jsonb(q)->>'default_commission_percent')::float, 0.0) as "defaultCommissionPercent",
+      q.subtotal::float as subtotal,
+      q.vat_rate::float as "vatRate",
+      q.vat_amount::float as "vatAmount",
+      q.total::float as total,
+      q.payment_terms as "paymentTerms",
+      q.delivery_lead_time as "deliveryLeadTime",
+      q.notes,
+      q.cancellation_reason as "cancellationReason",
+      q.created_by as "createdBy",
+      u.full_name as "createdByName",
+      q.created_at::text as "createdAt",
+      q.updated_at::text as "updatedAt"
+    FROM quotations q
+    JOIN clients c ON q.client_id = c.id
+    LEFT JOIN users u ON q.created_by = u.id
+    WHERE (${statusParam}::text IS NULL OR q.status = ${statusParam})
+      AND (${docTypeParam}::text IS NULL OR q.doc_type = ${docTypeParam})
+      AND (
+        ${searchParam}::text IS NULL
+        OR LOWER(q.internal_reference) LIKE ${searchParam}
+        OR LOWER(COALESCE(q.client_rfq_number, '')) LIKE ${searchParam}
+        OR LOWER(c.name) LIKE ${searchParam}
+      )
+    ORDER BY q.created_at DESC, q.id DESC
+    LIMIT ${pageSize}
+    OFFSET ${offset}
+  `;
+
+  return {
+    quotations: rows as unknown as QuotationRecord[],
+    totalCount,
+    page: safePage,
+    pageSize,
+    totalPages,
+  };
+}
+
+export async function getQuotationStats(): Promise<QuotationGlobalStats> {
+  const rows = await sql`
+    SELECT
+      COUNT(*)::int AS "totalQuotes",
+      COUNT(*) FILTER (WHERE status = 'DRAFT')::int AS "draftCount",
+      COUNT(*) FILTER (WHERE status = 'VALIDATED')::int AS "validatedCount",
+      COALESCE(SUM(total) FILTER (WHERE status != 'CANCELLED'), 0)::float AS "totalQuotedAmount"
+    FROM quotations
+  `;
+
+  const row = (rows as unknown as Array<QuotationGlobalStats>)[0];
+  return {
+    totalQuotes: Number(row?.totalQuotes ?? 0) || 0,
+    draftCount: Number(row?.draftCount ?? 0) || 0,
+    validatedCount: Number(row?.validatedCount ?? 0) || 0,
+    totalQuotedAmount: Number(row?.totalQuotedAmount ?? 0) || 0,
+  };
+}
+
 export async function getQuotationById(id: string): Promise<QuotationRecord | null> {
   const rows = await sql`
     SELECT 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -16,11 +16,14 @@ import {
   Clock,
   Receipt,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
-import type { QuotationRecord } from "@/lib/db/quotations";
+import type { QuotationRecord, QuotationGlobalStats } from "@/lib/db/quotations";
 import { isQuotationEditable } from "@/lib/quotation-utils";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { updateQuotationStatusAction } from "@/actions/quotations";
+import { updateQuotationStatusAction, searchQuotationsPaginatedAction } from "@/actions/quotations";
 import { RefChip } from "@/components/dashboard/ui/ref-chip";
 import { MoneyText } from "@/components/dashboard/ui/money-text";
 import { DetailSheet } from "@/components/dashboard/ui/detail-sheet";
@@ -30,57 +33,115 @@ import { StatTile } from "@/components/dashboard/ui/stat-tile";
 import { formatUSD, formatUSNumber } from "@/lib/formatters";
 import { QuotationPdfActions } from "@/components/dashboard/quotation-pdf-actions";
 
+type QuotationPageSize = 25 | 50 | 100;
+
 interface QuotationsListProps {
   initialQuotations: QuotationRecord[];
+  initialTotalCount: number;
+  initialPage: number;
+  initialPageSize: QuotationPageSize;
+  initialTotalPages: number;
+  initialStats: QuotationGlobalStats;
+  initialSearch: string;
+  initialStatus: string;
+  initialDocType: string;
 }
 
-export function QuotationsList({ initialQuotations }: QuotationsListProps) {
-  const [quotations, setQuotations] =
-    useState<QuotationRecord[]>(initialQuotations);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [docTypeFilter, setDocTypeFilter] = useState("ALL");
+export function QuotationsList({
+  initialQuotations,
+  initialTotalCount,
+  initialPage,
+  initialPageSize,
+  initialTotalPages,
+  initialStats,
+  initialSearch,
+  initialStatus,
+  initialDocType,
+}: QuotationsListProps) {
+  const [quotations, setQuotations] = useState<QuotationRecord[]>(initialQuotations);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState<QuotationPageSize>(initialPageSize);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
+  const [stats, setStats] = useState<QuotationGlobalStats>(initialStats);
+
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [docTypeFilter, setDocTypeFilter] = useState(initialDocType);
+
+  const [isSearching, startSearch] = useTransition();
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancellationReason, setCancellationReason] = useState("");
-  const [selectedQuote, setSelectedQuote] = useState<QuotationRecord | null>(
-    null,
-  );
+  const [selectedQuote, setSelectedQuote] = useState<QuotationRecord | null>(null);
 
-  const filtered = quotations.filter((q) => {
-    const matchesSearch =
-      searchTerm.trim() === "" ||
-      q.internalReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (q.clientName &&
-        q.clientName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (q.clientRfqNumber &&
-        q.clientRfqNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+  // ── Core fetch helper ──────────────────────────────────────────────────────
+  const fetchPage = (overrides?: {
+    q?: string;
+    status?: string;
+    docType?: string;
+    page?: number;
+    pageSize?: QuotationPageSize;
+  }) => {
+    const nextQ = overrides?.q !== undefined ? overrides.q : searchQuery;
+    const nextStatus = overrides?.status !== undefined ? overrides.status : statusFilter;
+    const nextDocType = overrides?.docType !== undefined ? overrides.docType : docTypeFilter;
+    const nextPage = overrides?.page !== undefined ? overrides.page : page;
+    const nextSize = overrides?.pageSize !== undefined ? overrides.pageSize : pageSize;
 
-    const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
-    const matchesType = docTypeFilter === "ALL" || q.docType === docTypeFilter;
+    startSearch(async () => {
+      setFetchError(null);
+      const res = await searchQuotationsPaginatedAction({
+        search: nextQ,
+        status: nextStatus,
+        docType: nextDocType,
+        page: nextPage,
+        pageSize: nextSize,
+      });
 
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      if (res.success) {
+        setQuotations(res.quotations);
+        setTotalCount(res.totalCount);
+        setPage(res.page);
+        setPageSize(res.pageSize as QuotationPageSize);
+        setTotalPages(res.totalPages);
+        setStats(res.stats);
 
-  const totalAmount = quotations.reduce(
-    (sum, q) => (q.status !== "CANCELLED" ? sum + q.total : sum),
-    0,
-  );
-  const validatedCount = quotations.filter(
-    (q) => q.status === "VALIDATED",
-  ).length;
-  const draftCount = quotations.filter((q) => q.status === "DRAFT").length;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams();
+          if (nextQ.trim()) params.set("q", nextQ.trim());
+          if (nextStatus !== "ALL") params.set("status", nextStatus);
+          if (nextDocType !== "ALL") params.set("docType", nextDocType);
+          if (res.page > 1) params.set("page", String(res.page));
+          if ((res.pageSize as number) !== 25) params.set("pageSize", String(res.pageSize));
+          const qs = params.toString();
+          window.history.replaceState(
+            null,
+            "",
+            qs ? `${window.location.pathname}?${qs}` : window.location.pathname,
+          );
+        }
+      } else {
+        setFetchError(res.error);
+      }
+    });
+  };
 
+  // ── Search submit ──────────────────────────────────────────────────────────
+  const commitSearch = () => {
+    setSearchQuery(searchInput);
+    fetchPage({ q: searchInput, page: 1 });
+  };
+
+  // ── Status actions ─────────────────────────────────────────────────────────
   const handleValidate = async (id: string) => {
-    if (!confirm("Are you sure you want to commercially validate this quote?"))
-      return;
+    if (!confirm("Are you sure you want to commercially validate this quote?")) return;
     const res = await updateQuotationStatusAction(id, "VALIDATED");
     if (res.success && res.quotation) {
-      setQuotations((prev) =>
-        prev.map((q) => (q.id === id ? res.quotation! : q)),
-      );
-      if (selectedQuote?.id === id) {
-        setSelectedQuote(res.quotation);
-      }
+      if (selectedQuote?.id === id) setSelectedQuote(res.quotation);
+      fetchPage({});
     }
   };
 
@@ -89,22 +150,18 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
       alert("Please provide a reason for cancellation.");
       return;
     }
-    const res = await updateQuotationStatusAction(
-      id,
-      "CANCELLED",
-      cancellationReason,
-    );
+    const res = await updateQuotationStatusAction(id, "CANCELLED", cancellationReason);
     if (res.success && res.quotation) {
-      setQuotations((prev) =>
-        prev.map((q) => (q.id === id ? res.quotation! : q)),
-      );
-      if (selectedQuote?.id === id) {
-        setSelectedQuote(res.quotation);
-      }
+      if (selectedQuote?.id === id) setSelectedQuote(res.quotation);
       setCancellingId(null);
       setCancellationReason("");
+      fetchPage({});
     }
   };
+
+  // ── Pagination helpers ─────────────────────────────────────────────────────
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, totalCount);
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -113,17 +170,17 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
         <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Total Quotes"
-            value={quotations.length}
+            value={stats.totalQuotes}
             icon={FileSpreadsheet}
           />
         </div>
         <div className="min-w-60 sm:min-w-0 flex-1">
-          <StatTile label="Drafts" value={draftCount} icon={Clock} />
+          <StatTile label="Drafts" value={stats.draftCount} icon={Clock} />
         </div>
         <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Validated"
-            value={validatedCount}
+            value={stats.validatedCount}
             icon={CheckCircle2}
             tone="success"
           />
@@ -131,7 +188,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
         <div className="min-w-60 sm:min-w-0 flex-1">
           <StatTile
             label="Total Invoiced / Quoted"
-            value={formatUSD(totalAmount)}
+            value={formatUSD(stats.totalQuotedAmount)}
             icon={Receipt}
             tone="primary"
           />
@@ -140,64 +197,94 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
 
       {/* Filters & Actions Bar */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-card p-4 rounded-2xl border border-border shadow-xs">
-  {/* Search */}
-  <div className="relative flex-1">
-    <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-    <input
-      type="text"
-      placeholder="Search by quote ref, client, RFQ..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-    />
-  </div>
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by quote ref, client, RFQ..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitSearch();
+            }}
+            className="h-9 w-full rounded-xl border border-border bg-card pl-10 pr-20 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+          />
+          <button
+            type="button"
+            onClick={commitSearch}
+            disabled={isSearching}
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {isSearching ? <Loader2 className="size-3 animate-spin" /> : "Search"}
+          </button>
+        </div>
 
-  {/* Filters row + action */}
-  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
-    <select
-      value={statusFilter}
-      onChange={(e) => setStatusFilter(e.target.value)}
-      className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-    >
-      <option value="ALL">All Statuses</option>
-      <option value="DRAFT">Draft</option>
-      <option value="SUBMITTED">Submitted</option>
-      <option value="VALIDATED">Validated</option>
-      <option value="CANCELLED">Cancelled</option>
-    </select>
+        {/* Filters row + action */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              fetchPage({ status: e.target.value, page: 1 });
+            }}
+            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="VALIDATED">Validated</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
 
-    <select
-      value={docTypeFilter}
-      onChange={(e) => setDocTypeFilter(e.target.value)}
-      className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-    >
-      <option value="ALL">All Types</option>
-      <option value="QUOTATION">Standard Quote</option>
-      <option value="PROFORMA">Proforma</option>
-    </select>
+          <select
+            value={docTypeFilter}
+            onChange={(e) => {
+              setDocTypeFilter(e.target.value);
+              fetchPage({ docType: e.target.value, page: 1 });
+            }}
+            className="h-9 flex-1 sm:flex-initial min-w-32.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="ALL">All Types</option>
+            <option value="QUOTATION">Standard Quote</option>
+            <option value="PROFORMA">Proforma</option>
+          </select>
 
-    {/* Deux boutons côte à côte pleine largeur sur mobile, compacts à partir de sm */}
-    <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
-      <Link
-        href="/dashboard/quotes/import"
-        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-primary/25 bg-accent/15 text-primary text-xs font-bold hover:bg-accent/25 transition-colors shadow-xs shrink-0 whitespace-nowrap"
-      >
-        <Sparkles className="size-3.5 text-accent shrink-0" /> Use Gemini
-      </Link>
+          {/* Two buttons side by side */}
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto shrink-0">
+            <Link
+              href="/dashboard/quotes/import"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border border-primary/25 bg-accent/15 text-primary text-xs font-bold hover:bg-accent/25 transition-colors shadow-xs shrink-0 whitespace-nowrap"
+            >
+              <Sparkles className="size-3.5 text-accent shrink-0" /> Use Gemini
+            </Link>
 
-      <Link
-        href="/dashboard/quotes/new"
-        className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 whitespace-nowrap"
-      >
-        <Plus className="size-4 shrink-0" /> New Quote
-      </Link>
-    </div>
-  </div>
-</div>
+            <Link
+              href="/dashboard/quotes/new"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-xs shrink-0 whitespace-nowrap"
+            >
+              <Plus className="size-4 shrink-0" /> New Quote
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Error banner */}
+      {fetchError && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs font-semibold text-destructive">
+          {fetchError}
+        </div>
+      )}
 
       {/* ── Desktop / Tablet Table (md and above) ─────────────────────────── */}
       <div className="hidden md:block overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto relative">
+          {/* Loading overlay */}
+          {isSearching && (
+            <div className="absolute inset-0 z-10 bg-background/50 flex items-center justify-center rounded-2xl">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          )}
           <table className="w-full text-left text-xs">
             <thead className="border-b border-border bg-secondary/40 font-black text-muted-foreground uppercase tracking-wider text-[11px]">
               <tr>
@@ -212,7 +299,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
-              {filtered.length === 0 ? (
+              {quotations.length === 0 ? (
                 <tr>
                   <td
                     colSpan={8}
@@ -228,7 +315,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
                   </td>
                 </tr>
               ) : (
-                filtered.map((quote) => (
+                quotations.map((quote) => (
                   <tr
                     key={quote.id}
                     onClick={() => setSelectedQuote(quote)}
@@ -325,11 +412,53 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer — desktop */}
+        {totalCount > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t border-border bg-secondary/20 text-xs">
+            <span className="text-muted-foreground">
+              Showing <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong> of{" "}
+              <strong>{totalCount}</strong> quotation{totalCount !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) =>
+                  fetchPage({ pageSize: Number(e.target.value) as QuotationPageSize, page: 1 })
+                }
+                className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold text-foreground focus:outline-hidden"
+              >
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+              <span className="text-muted-foreground">
+                Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+              </span>
+              <button
+                type="button"
+                disabled={isSearching || page <= 1}
+                onClick={() => fetchPage({ page: page - 1 })}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft className="size-3.5" /> Previous
+              </button>
+              <button
+                type="button"
+                disabled={isSearching || page >= totalPages}
+                onClick={() => fetchPage({ page: page + 1 })}
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Next <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Mobile Card List (below md) ─────────────────────────────────────── */}
       <div className="md:hidden space-y-3">
-        {filtered.length === 0 ? (
+        {quotations.length === 0 ? (
           <div className="py-16 text-center rounded-2xl border border-dashed border-border bg-card">
             <FileSpreadsheet className="mx-auto size-8 text-muted-foreground/40 mb-2" />
             <p className="font-bold text-foreground text-sm">
@@ -340,7 +469,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
             </p>
           </div>
         ) : (
-          filtered.map((quote) => (
+          quotations.map((quote) => (
             <div
               key={quote.id}
               onClick={() => setSelectedQuote(quote)}
@@ -427,6 +556,50 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
               </div>
             </div>
           ))
+        )}
+
+        {/* Pagination footer — mobile */}
+        {totalCount > 0 && (
+          <div className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card shadow-xs text-xs">
+            <span className="text-muted-foreground text-center">
+              Showing <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong> of{" "}
+              <strong>{totalCount}</strong> quotation{totalCount !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center justify-between gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) =>
+                  fetchPage({ pageSize: Number(e.target.value) as QuotationPageSize, page: 1 })
+                }
+                className="h-8 rounded-lg border border-border bg-card px-2 text-xs font-semibold text-foreground focus:outline-hidden"
+              >
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+              <span className="text-muted-foreground">
+                Page <strong>{page}</strong> / <strong>{totalPages}</strong>
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={isSearching || page <= 1}
+                  onClick={() => fetchPage({ page: page - 1 })}
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronLeft className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isSearching || page >= totalPages}
+                  onClick={() => fetchPage({ page: page + 1 })}
+                  className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronRight className="size-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -601,7 +774,7 @@ export function QuotationsList({ initialQuotations }: QuotationsListProps) {
         )}
       </DetailSheet>
 
-      {/* Cancellation Modal — now using ResponsiveModal */}
+      {/* Cancellation Modal */}
       <ResponsiveModal
         open={!!cancellingId}
         onClose={() => {

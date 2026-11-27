@@ -8,6 +8,12 @@ import {
   updateQuotation,
   updateQuotationStatus,
   getQuotationById,
+  getQuotationsPaginated,
+  getQuotationStats,
+  normalizeQuotationsPaginationParams,
+  type PaginatedQuotationsResult,
+  type QuotationGlobalStats,
+  type QuotationPageSize,
 } from "@/lib/db/quotations";
 import { peekNextQuotationReference } from "@/lib/db/clients";
 
@@ -188,6 +194,7 @@ export async function updateQuotationStatusAction(
 
   try {
     const updated = await updateQuotationStatus(id, status, session.id, cancellationReason);
+    revalidatePath("/dashboard/quotes");
     revalidatePath("/dashboard/quotations");
     if (updated?.clientId) {
       revalidatePath(`/dashboard/clients/${updated.clientId}`);
@@ -228,5 +235,55 @@ export async function getNextQuotationReferenceAction(clientId: string) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erreur lors du calcul de la référence.";
     return { success: false as const, error: message };
+  }
+}
+
+export async function searchQuotationsPaginatedAction(options?: {
+  search?: string;
+  status?: string;
+  docType?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<
+  | ({
+      success: true;
+      stats: QuotationGlobalStats;
+    } & PaginatedQuotationsResult)
+  | {
+      success: false;
+      error: string;
+      quotations: [];
+      totalCount: 0;
+      page: 1;
+      pageSize: QuotationPageSize;
+      totalPages: 1;
+    }
+> {
+  await requireSession(["SUPER_ADMIN", "ADMIN"]);
+
+  const normalized = normalizeQuotationsPaginationParams(options);
+
+  try {
+    const [paginated, stats] = await Promise.all([
+      getQuotationsPaginated(normalized),
+      getQuotationStats(),
+    ]);
+
+    return {
+      success: true,
+      ...paginated,
+      stats,
+    };
+  } catch (err: unknown) {
+    console.error("[searchQuotationsPaginatedAction] Database error:", err);
+    return {
+      success: false,
+      error: "Impossible de charger les devis. Veuillez réessayer.",
+      quotations: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: normalized.pageSize,
+      totalPages: 1,
+    };
   }
 }
